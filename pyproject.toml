@@ -1,0 +1,50 @@
+[project]
+name = "filiation"
+version = "0.0.0"
+description = "A citation graph and retrieval engine you run yourself"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "Haren Daishika" }]
+keywords = ["citations", "research", "graph", "openalex", "literature-review", "mcp"]
+classifiers = [
+    "Development Status :: 1 - Planning",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering",
+]
+
+# Deliberately minimal. Add a dependency only after checking its licence —
+# some popular PDF libraries are AGPL and would force this project to AGPL.
+dependencies = [
+    "httpx>=0.27",
+    "typer>=0.12",
+    "rich>=13.7",
+]
+
+[project.optional-dependencies]
+retrieval = [
+    # sqlite-vec is pre-1.0: pin exactly, expect breaking changes.
+    "sqlite-vec==0.1.6",
+    "sentence-transformers>=3.0",
+]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+]
+
+[project.scripts]
+fil = "filiation.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/filiation"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
