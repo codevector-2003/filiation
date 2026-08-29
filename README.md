@@ -24,7 +24,7 @@ uses it to trace a claim back to the paper that first made it.
 ## Design goals
 
 - **Free to run.** No API key required for the core. Local embeddings by default.
-- **One command to set up.** No database server, no Docker, no account.
+- **One binary.** Download and run. No runtime, no database server, no Docker, no account.
 - **Local first.** Your library stays on your machine.
 - **No lock-in.** Export everything to GraphML, JSON and BibTeX.
 - **Legal by construction.** Open-access full text only. Never scrapes paywalled papers.
@@ -36,11 +36,16 @@ uses it to trace a claim back to the paper that first made it.
 
 ## Planned stack
 
-SQLite for the graph, FTS5 for keyword search, `sqlite-vec` for vectors, plain files on disk for
-PDFs, OpenAlex for reference data. One file, no server.
+Written in **Go**, distributed as a single binary — no runtime to install. SQLite for the graph,
+FTS5 for keyword search, `sqlite-vec` for vectors, plain files on disk for PDFs, OpenAlex for
+reference data. One database file, no server.
+
+Semantic search and generated answers use [Ollama](https://ollama.com) if you have it. Without
+it, keyword search and the whole citation graph still work.
 
 ## Documentation
 
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — whole-system design: layers, contracts, trade-offs
 - [`CLAUDE.md`](CLAUDE.md) — full working context, hard rules and build order
 - [`docs/SCOPE.md`](docs/SCOPE.md) — what is in and out of v1
 - [`docs/DECISIONS.md`](docs/DECISIONS.md) — decisions made and options rejected

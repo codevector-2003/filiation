@@ -1,20 +1,14 @@
-# Python
-__pycache__/
-*.py[cod]
-*.egg-info/
-.eggs/
-build/
-dist/
-.venv/
-venv/
-env/
+# Go
+/fil
+/fil.exe
+/dist/
+*.test
+*.out
+vendor/
 
 # Tooling
-.pytest_cache/
-.ruff_cache/
-.mypy_cache/
-.coverage
-htmlcov/
+.golangci-cache/
+coverage.out
 
 # Filiation data — never commit a user's library
 *.db
@@ -22,8 +16,11 @@ htmlcov/
 *.db-shm
 data/
 papers/
-store/
+blobs/
 .filiation/
+
+# Web UI build output is embedded at build time, not committed
+internal/web/dist/
 
 # Secrets
 .env

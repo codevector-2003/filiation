@@ -20,8 +20,10 @@ or find the shortest chain of citations between two papers.
 
 - Open source
 - Free to run
-- One-command setup
+- Single binary, no runtime to install
 - Local first
+
+Written in Go — see D8 in [`DECISIONS.md`](DECISIONS.md).
 
 ## In scope for v1
 
@@ -57,7 +59,9 @@ or find the shortest chain of citations between two papers.
 | High | Full-text coverage disappoints people — many papers have no legal free PDF | Show OA status on every node from day one; never leave someone guessing why a paper has no text |
 | High | Scope is large for one person — both audiences plus full Q&A is a real six months | Every milestone ships something usable, so an interruption leaves a working tool |
 | Medium | `sqlite-vec` is pre-1.0 and promises breaking changes | Pin an exact version, keep vector calls behind a thin wrapper |
-| Medium | Dependency licences force your hand — some PDF libraries are AGPL | Check every licence before adding the dependency |
+| Medium | Go's PDF text extraction is weaker than Python's | Deferred to a Phase 3 bake-off; bundling `pdftotext` is the fallback |
+| Medium | Semantic search requires Ollama | Degrade to keyword plus graph, and say so plainly in the interface |
+| Medium | Dependency licences force your hand | Check every licence before adding it. Also: no dependency may require cgo |
 | Medium | Citation links are topically noisy — papers cite each other for datasets, not ideas | Edge weighting in M4 is required, not polish |
 
 ## Still open

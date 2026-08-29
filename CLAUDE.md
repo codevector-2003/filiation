@@ -9,8 +9,9 @@ open-access PDFs, and lets you ask questions across everything you have read.
 from which — working out the actual lines of copying between surviving texts. That is what this
 tool does for papers: it reconstructs where a claim came from by following the citations back.
 
-- Package name: `filiation`
-- CLI command: `fil`
+- Language: **Go** (see D8 in `docs/DECISIONS.md`)
+- Module: `github.com/codevector-2003/filiation`
+- Binary / CLI command: `fil`
 - Status: pre-M0. Nothing is built yet.
 
 ---
@@ -26,10 +27,11 @@ than plain search.
 
 | Decision | Consequence |
 | --- | --- |
-| Serve developers **and** non-coding researchers from day one | One package, one process, two front doors: MCP + CLI, and a local web page |
-| v1 includes the full retrieval engine with Q&A | The graph alone does not count as done. Ships in stages, not one release |
-| Local first, optional server later | All storage sits behind one interface so the backend can be swapped |
+| Serve developers **and** non-coding researchers from day one | One binary, two front doors: MCP + CLI, and a local web page |
+| v1 includes the full retrieval engine with Q&A | The graph alone does not count as done. Ships in stages |
+| Local first, optional server later | All storage sits behind one package so the backend can be swapped |
 | Open source, free to run, one-command setup | Rules out anything needing a server before the user sees a result |
+| Go, not Python | Single cross-compiled binary; embeddings move behind Ollama |
 
 ---
 
@@ -40,139 +42,192 @@ than plain search.
    This is a permanent line, not a v1 limitation.
 2. **Do not write a reference parser.** OpenAlex already returns resolved reference lists
    (`referenced_works`). PDF reference extraction has real error rates that compound across a
-   graph. GROBID only as a fallback for works with no DOI and no index entry, and only later.
+   graph. Fall back to parsing only for works with no DOI and no index entry, and only later.
 3. **Do not build an LLM-extracted knowledge graph.** Our citation edges are ground truth.
    Adding guessed entities and relations on top makes the graph worse and costs a lot.
-4. **Do not add a service that must be running before the tool works.** No Docker requirement,
-   no database server, no account. If a change breaks `pip install` then one command, reject it.
-5. **Deduplicate on `openalex_id`.** The same work exists as preprint, conference paper and
+4. **No cgo.** The entire value of choosing Go is one static binary the user double-clicks.
+   A dependency that needs cgo breaks cross-compilation and the whole distribution story.
+   If a library requires it, find another way.
+5. **One writer goroutine.** SQLite allows a single writer. Go makes it trivially easy to
+   violate this by accident — see "Concurrency" below. This is the most likely source of
+   `database is locked` bugs in this codebase.
+6. **Deduplicate on `openalex_id`.** The same work exists as preprint, conference paper and
    journal article with different DOIs. OpenAlex already merges most of these. Use its ID as the
    primary key or the graph will quietly rot.
 
 ---
 
-## Stack and why
+## Stack
 
 | Layer | Choice | Why |
 | --- | --- | --- |
-| Metadata + graph | SQLite, one file | No server. Ships with Python. Recursive CTEs handle 2–3 hop traversal at this scale |
-| Keyword search | SQLite FTS5 | Built in, no extra dependency |
-| Vector search | `sqlite-vec` | Same file, no server, MIT/Apache. **Pre-1.0 — pin the exact version** and keep it behind a thin wrapper |
-| Graph algorithms | networkx / igraph | Load edges into memory for PageRank or communities. 100k nodes fits in RAM |
-| PDF files | Filesystem, named by SHA-256 | Filesystem is the best store for binary files. Free dedup, easy backup |
-| Reference data | OpenAlex API | Free, no key needed, resolved reference lists, merges duplicate versions |
-| Open-access PDFs | OpenAlex OA links + Unpaywall | The only legal route |
-| Embeddings | Local model on CPU | The free path must work with no API key |
-| Answers | Bring your own key, or Ollama | Users who will not pay must still get working answers |
-| Graph in browser | Sigma.js (WebGL) | D3 force layout stalls past ~2,000 nodes |
-| Server mode (later) | Postgres + pgvector | Behind the same storage interface |
+| Language | Go 1.24 | One static binary per platform. No runtime for the user to install |
+| SQLite driver | `ncruces/go-sqlite3` | WASM build, **no cgo**, and the official sqlite-vec Go bindings target it |
+| Vector search | `asg017/sqlite-vec-go-bindings` | Same file as the graph. WASM, so the binary stays static |
+| Keyword search | SQLite FTS5 | **Verify the driver ships FTS5 — spike 5.** If not, this decision changes |
+| Graph traversal | Recursive CTEs in SQL | Standard SQL, so it survives a move to Postgres |
+| Graph algorithms | `gonum/graph` | PageRank and communities in memory. 2M edges fits easily |
+| CLI | `spf13/cobra` | Standard, and matches what users expect from a Go tool |
+| HTTP client | stdlib `net/http` + `golang.org/x/time/rate` | `rate.Limiter` is exactly the token bucket ADR-004 needs |
+| MCP | `modelcontextprotocol/go-sdk` | Official, maintained with Google |
+| Web server | stdlib `net/http` + `//go:embed` | **The SPA compiles into the binary.** No separate assets to ship |
+| Embeddings | Ollama HTTP | See ADR-008. The cost of choosing Go |
+| Answers | Ollama, or user-supplied API key | Free path must exist |
+| PDF text | See ADR-009 | The weakest part of the Go choice. Treat as a Phase 3 spike |
+| Distribution | GoReleaser → GitHub Releases | Cross-compiled binaries for Windows, macOS, Linux |
 
 ### Rejected, with reasons
 
-- **Neo4j** — good database, wrong for v1. Needs a server running before anything works, which
-  breaks one-command setup for non-technical users. Community Edition is GPLv3. Revisit only for
-  the shared-lab server mode, as an optional backend.
-- **MongoDB / any document database for file storage** — document databases store JSON records,
-  not binary files. For PDFs the filesystem wins on every axis. MongoDB also ships under SSPL,
-  which the OSI has not approved as an open-source licence.
-- **Putting PDFs in the git repo** — binary blobs make the repo unusable within months.
+- **Python** — better for PDF extraction and embeddings, worse for distribution. Chosen against
+  deliberately; see D8. The consequence is that `quelle` (a Python package covering much of M0
+  ingestion and M3 PDF fetching) can no longer be reused. That layer is ours to build.
+- **cgo-based SQLite (`mattn/go-sqlite3`)** — faster, but cross-compilation becomes painful and
+  the single-binary promise weakens.
+- **An ORM (GORM)** — hides the SQL, and this project's queries are the interesting part.
+  `sqlc` is the escape hatch if hand-written scan code becomes tedious; it keeps SQL as the
+  source of truth while generating types.
+- **Neo4j** — needs a server running before anything works, which breaks setup for exactly the
+  non-technical researchers we want. Revisit only for shared-lab server mode.
+- **MongoDB or any document DB for file storage** — document databases store JSON, not binary
+  files. For PDFs the filesystem wins. MongoDB is also SSPL, which the OSI has not approved.
+
+---
+
+## Layout
+
+```
+filiation/
+├── go.mod
+├── cmd/fil/main.go            entry point, wires cobra to internal/library
+├── internal/
+│   ├── library/               ★ THE CORE. add, expand, search, ask, path
+│   ├── store/                 ★ ALL SQL. schema.sql embedded here. The swap seam
+│   ├── blobs/                 content-addressed PDF storage
+│   ├── graph/                 expand, traverse, identity resolution
+│   ├── text/                  pdf extraction, chunking, citation context
+│   ├── retrieve/              hybrid search, ranking, answer assembly
+│   ├── jobs/                  background work, resumable
+│   ├── sources/               openalex, unpaywall, zotero
+│   ├── embed/                 ollama client (interface: one method)
+│   ├── llm/                   ollama or user API key
+│   ├── httpx/                 rate limiting, retry, response cache
+│   ├── mcpsrv/                MCP tool definitions, M2
+│   └── web/                   handlers + //go:embed of the built SPA, M5
+├── web/ui/                    SPA source, built into internal/web/dist
+└── docs/
+```
+
+**The rule that matters most:** `cmd/`, `internal/mcpsrv/` and `internal/web/` are translation
+layers. Each takes a request, calls one function in `internal/library`, and formats the result.
+**If a front door imports `internal/store`, that is a bug.** Go's `internal/` convention helps
+but does not enforce this — you have to.
+
+---
+
+## Concurrency
+
+Go makes the single-writer constraint easy to break, and Python's GIL used to hide this class of
+mistake. Be deliberate:
+
+- **One goroutine owns all writes.** The job worker holds the write path; everything else reads.
+- Open **two `*sql.DB` handles**: a read pool, and a write handle with `SetMaxOpenConns(1)`.
+- Enable WAL (already in `schema.sql`) so readers never block the writer.
+- Set a `busy_timeout`. Without it, contention surfaces as an immediate error instead of a wait.
+- Pass `context.Context` through everything. Cancelling an expansion must actually stop it.
 
 ---
 
 ## API notes
 
-- **OpenAlex**: no API key required. Free tier is 100,000 credits/day and 100 requests/second.
-  Always send `mailto=<contact>` to join the polite pool. List requests cost 10 credits, single
-  record requests cost 1 — prefer batched filters over per-work lookups.
+- **OpenAlex**: no API key required. Free tier is 100,000 credits/day. Always send
+  `mailto=<contact>`. List requests cost 10 credits and return up to 50 works; single lookups
+  cost 1. Batch or you pay 5× per work.
 - **Expansion blows up fast**: ~40 references per paper means depth 2 ≈ 1,600 nodes and
-  depth 3 ≈ 64,000. Expansion must always take a node budget and a priority order. Never
-  breadth-first without a limit.
+  depth 3 ≈ 64,000. Expansion must always take a node budget. Never breadth-first without a limit.
+- **Ollama**: embeddings and generation over local HTTP. Absent Ollama, the tool must still work —
+  see the degradation ladder in `docs/ARCHITECTURE.md`.
 
 ---
 
+## Architecture
+
+- `docs/ARCHITECTURE.md` — whole-system design. **Read this first.**
+- `docs/ARCHITECTURE_PHASE1.md` — detailed design for the core graph, with ADRs.
+
 ## Data model
 
-See `src/filiation/schema.sql` for the DDL. The one non-obvious column is `cites.context` —
-the sentence around the citation marker in the citing paper. Nobody provides this for free and
-it is what makes retrieval better than everyone else's.
+See `internal/store/schema.sql` for the DDL, embedded with `//go:embed`. The one non-obvious
+column is `cites.context` — the sentence around the citation marker in the citing paper. Nobody
+provides this for free and it is what makes retrieval better than everyone else's.
 
 ---
 
 ## Build order
 
-Current position: **pre-M0**.
+Current position: **pre-M0**. Dates assume learning Go alongside building; Phase 1 carries two
+extra weeks for that.
 
-- [ ] **M0 — Skeleton** (1–2 weeks). Package layout, config, SQLite schema, one command that
-      takes a DOI, fetches from OpenAlex, stores one node.
+- [ ] **M0 — Skeleton** (2–3 weeks). Module layout, config, embedded schema, `store` package,
+      one command that takes a DOI, fetches from OpenAlex, stores one node.
       *Done when:* `fil add 10.1145/3292500` writes a row and prints the title.
-- [ ] **M1 — The graph** (2–3 weeks). Reference expansion with depth and node budget. Dedup on
-      OpenAlex ID. Commands: expand, neighbours, path, export GraphML. **First release.**
-      *Done when:* one seed paper gives a clean 500-node graph with no duplicates, exportable to Gephi.
-- [ ] **M2 — MCP server** (~1 week). Expose M1 commands as MCP tools. Cheap because the logic
-      exists, and it is the part no existing citation-map tool has.
-      *Done when:* an assistant can answer "what connects these two papers in my library".
-- [ ] **M3 — Papers on disk** (2–3 weeks). OA PDF fetch, content-addressed storage, text
-      extraction, chunking, FTS5 search. **Capture citation context sentences here** — the text is
-      already parsed, so the extra cost is small and the payoff is large.
-      *Done when:* keyword search returns a passage and you can open the page it came from.
-- [ ] **M4 — Retrieval and answers** (3–4 weeks). Local embeddings, vector search, hybrid
-      retrieval: seed by meaning and keyword, expand along weighted citation edges, rerank,
-      answer with citations. Weight edges by co-citation before anything cleverer.
-      *Done when:* an answer cites three papers you actually have, and the citations are correct.
-- [ ] **M5 — Web interface** (3–4 weeks). One command starts a local server and opens a browser.
-      Graph view, search, reader, notes.
-      *Done when:* someone installs it, runs one command, and adds a paper without reading docs.
-- [ ] **M6 — Claim genealogy** (3–4 weeks). Classify citation intent from the M3 context
-      sentences, then trace a claim backwards to the paper that first made it. **The differentiator.**
-      *Done when:* the tool shows a widely repeated number tracing back to one small old study.
-
-Roughly four to five months part-time to M5, six to M6. If time runs short, ship M1–M4 as a
-developer tool and move the web interface after M6 — the differentiator matters more than the
-second audience.
+- [ ] **M1 — The graph** (3–4 weeks). Budgeted expansion, dedup, `expand`, `neighbours`, `path`,
+      GraphML export. **First release, with cross-compiled binaries.**
+      *Done when:* one seed gives a clean 500-node graph with no duplicates, opens in Gephi.
+- [ ] **M2 — MCP server** (~1 week). Expose M1 as MCP tools. The differentiator.
+- [ ] **M3 — Papers on disk** (3–4 weeks). OA PDF fetch, content-addressed storage, text
+      extraction, chunking, FTS5. **Capture citation context sentences here.** Longer than the
+      Python plan because the ingestion layer is now ours to write.
+- [ ] **M4 — Retrieval and answers** (3–4 weeks). Ollama embeddings, sqlite-vec, hybrid
+      retrieval, answers with citations.
+- [ ] **M5 — Web interface** (2–3 weeks). Shorter than planned: `//go:embed` puts the SPA inside
+      the binary, so there is nothing to package separately.
+- [ ] **M6 — Claim genealogy** (3–4 weeks). Citation intent, weighted edges, tracing a claim to
+      its earliest source. **The differentiator.**
 
 ---
 
-## Known risks
+## Spikes — run before writing real code
 
-- **Full-text coverage will disappoint people.** A large share of papers have no legal free PDF.
-  Show OA status on every node from day one so nobody is left guessing.
-- **Citation edges are topically noisy.** A paper often cites another for a dataset, not an idea.
-  Blind expansion degrades results with distance. Edge weighting in M4 is not polish — it is what
-  makes retrieval work at all.
-- **`sqlite-vec` is pre-1.0.** Breaking changes are promised. Pin the version.
-- **Dependency licences can force your hand.** Some popular PDF libraries are AGPL, which would
-  push this whole project to AGPL. Check every dependency licence before adding it.
+1. **Reference coverage across fields.** 20 papers, 5 fields: what fraction have a complete
+   `referenced_works` list? A product question, not an engineering one. Do it first.
+2. **Batch fetch by OpenAlex ID.** Does a pipe-separated ID filter work, and is the ceiling 50
+   or 100? Sources disagree. If unsupported, the whole cost model changes.
+3. **Real `per_page` maximum.** Documented as both 100 and 200.
+4. **Real sustained rate with `mailto`.** Documented as both 10/s and 100/s. Measure it.
+5. **Does `ncruces/go-sqlite3` ship FTS5?** *(new, Go-specific)* M3 keyword search depends on it.
+   If it does not, either compile a build that does, or use an external index — and that is a
+   decision worth knowing about in September rather than December.
+6. **sqlite-vec + the driver, end to end.** Create a `vec0` table, insert, query. Prove the WASM
+   pairing works before designing around it.
 
 ---
 
 ## Conventions
 
-- Python 3.11+
-- `ruff` for lint and format, `pytest` for tests
-- Type hints on public functions
-- No network calls in unit tests — record fixtures
-- Every external API call goes through one module per source (`sources/openalex.py`, etc.)
-  so rate limiting and caching live in one place
+- Go 1.24. `gofmt` and `golangci-lint`. Table-driven tests with the stdlib `testing` package.
+- `context.Context` as the first parameter of anything that does I/O.
+- Errors wrapped with `fmt.Errorf("...: %w", err)`. Sentinel errors in `internal/errs`.
+- No network in unit tests — record OpenAlex responses as fixtures, replay with an
+  `http.RoundTripper` stub.
+- Every external API goes through one package under `sources/`, so rate limiting and caching
+  live in one place.
 
 ---
 
 ## Prior art to check before writing code
 
-**`quelle` on PyPI** (MIT, actively maintained) is a Python CLI that takes a DOI, arXiv ID, ISBN
-or title, fetches metadata from OpenAlex, Crossref, Semantic Scholar, arXiv, Unpaywall, Open
-Library and Google Books, normalises to JSON, caches in SQLite, and optionally downloads
-open-access PDFs.
-
-That overlaps heavily with M0 ingestion and M3 PDF fetching. **Read it before week one.** Either
-adopt it as a dependency and save weeks of the least interesting work, or learn the failure modes
-of that layer for free. Do not rebuild it unexamined. It does none of the differentiated work —
-no graph, no citation context, no claim genealogy — so it is a component, not a competitor.
+**`quelle`** (Python, MIT) fetches metadata from OpenAlex, Crossref, Semantic Scholar, arXiv and
+Unpaywall, caches in SQLite, and downloads open-access PDFs. It cannot be reused from Go, but
+**read its source before building M0 and M3** — it has already solved the identifier-resolution
+and fallback-chain problems you are about to hit.
 
 ---
 
 ## Still open
 
-1. **Licence** — MIT/Apache-2.0 for widest adoption, or AGPL to stop a company hosting it as a
-   paid service. Dependency choices may decide this.
+1. **Licence** — MIT or Apache-2.0 for widest adoption, AGPL to stop a company hosting it as a
+   paid service. Go's ecosystem is overwhelmingly permissive; MIT fits convention.
 2. **Zotero** — read from a user's existing library? Cheapest route to real users. Decide early.
-3. **Who maintains it after the degree?** Changes how much to invest in docs and tests now.
+3. **Embeddings without Ollama** — is a pure-Go ONNX path (`onnx-gomlx`) worth the risk later,
+   to restore true one-command setup? Revisit after M4 ships.
+4. **Who maintains it after the degree?**

@@ -1,6 +1,10 @@
 # Product development plan
 
-Draft 1 · 29 August 2026 · covers Sept 2026 → May 2027
+Draft 2 · 29 August 2026 · covers Sept 2026 → late May 2027
+
+> **Revised for Go.** Phase 1 gains two weeks for learning the language while building; Phase 3
+> gains one because `quelle` can no longer be reused; Phase 5 loses one because `//go:embed`
+> ships the web UI inside the binary. Net: about three weeks later than the Python plan.
 
 ## Assumptions this plan is built on
 
@@ -12,6 +16,8 @@ State these here so they can be corrected rather than silently wrong.
 - This is a side project that **could become the final-year project** later. It is not currently
   bound to any university deadline.
 - No budget. Everything must run free, for the maintainer and the user.
+- **Written in Go, learned while building.** The maintainer's prior projects are all Python. The
+  dates below carry that cost rather than hiding it.
 
 ---
 
@@ -74,10 +80,11 @@ product before building it. That is a cheap and valuable outcome, not a failure.
 
 ---
 
-### Phase 1 — The core graph · 15 Sept – 31 Oct 2026 → **v0.1**
+### Phase 1 — The core graph · 15 Sept – 14 Nov 2026 → **v0.1**
 
 Milestones **M0 + M1**. Ingest by DOI or arXiv ID, expand references from OpenAlex with a node
-budget, deduplicate on OpenAlex ID, and export GraphML.
+budget, deduplicate on OpenAlex ID, and export GraphML. Ships as cross-compiled binaries for
+Windows, macOS and Linux — set up GoReleaser in week one, not week eight.
 
 **Success:** on 20 real papers drawn from 5 different fields, expansion produces a clean graph
 with zero duplicate works and no crashes. Open the export in Gephi and it looks right.
@@ -87,13 +94,14 @@ before anything else. A graph that quietly rots is worse than no graph.
 
 ---
 
-### Phase 2 — MCP and first users · 1–21 Nov 2026 → **v0.2**
+### Phase 2 — MCP and first users · 15 Nov – 5 Dec 2026 → **v0.2**
 
 Milestone **M2**, plus the first public release. The MCP server is cheap to build because the
 logic already exists, and it is the part no competitor has — so it is what you lead with.
 
-Also this phase: publish to PyPI, write a real README with a 30-second demo recording, and put it
-in front of people (see §4).
+Also this phase: publish binaries to GitHub Releases, write a real README with a 30-second demo
+recording, and put it in front of people (see §4). A download-and-run binary is a materially
+easier ask than any package manager — lean on that.
 
 **Success:** 10 people install it. **3 of them use it more than once.** The second number is the
 only one that matters.
@@ -104,7 +112,7 @@ more months of features on an unused base is the main way this project fails.
 
 ---
 
-### Phase 3 — Papers on disk · 22 Nov – 31 Dec 2026 → **v0.3**
+### Phase 3 — Papers on disk · 6 Dec 2026 – 20 Jan 2027 → **v0.3**
 
 Milestone **M3**. Open-access PDF fetching, content-addressed storage, text extraction, chunking,
 keyword search — **and citation context sentences**, captured here because the text is already
@@ -115,13 +123,16 @@ of an empty screen, and empty screens are why tools get uninstalled.
 
 **Success:** someone who is not you adds 50 papers and finds a passage by keyword.
 
-**Note:** this phase spans exams. Six weeks of calendar for about three weeks of work.
+**Note:** this phase spans exams *and* carries the PDF-extraction bake-off (ADR-009), the weakest
+part of the Go choice. Run that bake-off in the first week of the phase, not the last.
 
 ---
 
-### Phase 4 — Retrieval and answers · 1 Jan – 15 Feb 2027 → **v0.4**
+### Phase 4 — Retrieval and answers · 21 Jan – 7 Mar 2027 → **v0.4**
 
-Milestone **M4**. Local embeddings, vector search, hybrid retrieval, answers with citations.
+Milestone **M4**. Ollama embeddings, sqlite-vec search, hybrid retrieval, answers with citations.
+The first-run experience must detect a missing Ollama and explain what still works — failing
+confusingly here would undo the distribution advantage that motivated choosing Go.
 
 **Success:** build a test set of 20 questions where you already know the correct answer and which
 paper contains it. Hit the right paper in the top 3 results at least 15 times out of 20. Write
@@ -132,10 +143,11 @@ earning its place. Fix edge weighting before adding features.
 
 ---
 
-### Phase 5 — The web interface · 16 Feb – 31 Mar 2027 → **v0.5 beta**
+### Phase 5 — The web interface · 8 Mar – 5 Apr 2027 → **v0.5 beta**
 
-Milestone **M5**. One command starts a local server and opens a browser. Graph view, search,
-reader, notes.
+Milestone **M5**. Running the binary starts a local server and opens a browser. Graph view,
+search, reader, notes. Shorter than originally planned: `//go:embed` compiles the SPA into the
+binary, so there is nothing to package or serve separately.
 
 **Success:** three people who cannot code install it and add a paper **without messaging you for
 help**. Watch one of them do it over a call and say nothing for ten minutes. It will be painful
@@ -143,7 +155,7 @@ and it is the most useful hour of the whole project.
 
 ---
 
-### Phase 6 — Claim genealogy · 1 Apr – 15 May 2027 → **v1.0**
+### Phase 6 — Claim genealogy · 6 Apr – 23 May 2027 → **v1.0**
 
 Milestone **M6**. Citation intent classification, weighted edges, and tracing a claim back to its
 origin.
@@ -172,7 +184,8 @@ with real hours, not something you do after.
 
 **Release discipline:**
 
-- Tag every phase. Ship something installable at v0.1, not just at v1.0.
+- Tag every phase. Ship **cross-compiled binaries** at v0.1, not just at v1.0. "Download and run"
+  is your single biggest advantage over every competing tool — use it from the first release.
 - Every release note answers one question: what can I do now that I could not do last month?
 - A 30-second screen recording in the README beats three paragraphs of description.
 
@@ -205,6 +218,9 @@ media impressions. They feel like progress and are not.
 | Citation edges are topically noisy | Medium | Edge weighting is a Phase 4 requirement, with the test set to prove it works |
 | `sqlite-vec` is pre-1.0 | Medium | Pin the exact version, keep all calls behind one wrapper module |
 | Dependency licences force your hand | Medium | Check every licence before adding it. Some PDF libraries are AGPL |
+| Learning Go while shipping | Medium | Two weeks are budgeted in Phase 1. If week 4 is not done by 12 Oct, cut scope rather than extend |
+| Go PDF extraction is weak | Medium | ADR-009 bake-off in the first week of Phase 3. Bundling `pdftotext` is the fallback |
+| Ollama install deters users | Medium | Degrade to keyword plus graph and say so clearly. If users cite it as the reason they quit, revisit pure-Go ONNX |
 | Solo maintainer burnout | Medium | Write the contributing guide early. Label good first issues from v0.2 |
 
 ---
@@ -216,11 +232,11 @@ Three moments where you should be willing to change direction.
 **After Phase 0 (mid-Sept).** If the interviews do not find real pain, change the product. The
 cheapest pivot you will ever make.
 
-**After Phase 2 (late Nov).** If no stranger uses it twice, stop adding features. Go back to the
+**After Phase 2 (early Dec).** If no stranger uses it twice, stop adding features. Go back to the
 people who tried it and find the narrower thing they actually wanted. A tool that does one thing
 people need beats a platform nobody opens.
 
-**After Phase 4 (mid-Feb).** If retrieval does not beat plain search on your own test set, the
+**After Phase 4 (early Mar).** If retrieval does not beat plain search on your own test set, the
 graph is decoration. Either fix the edge weighting or accept that this is a good citation graph
 tool without the Q&A layer, and ship that instead. That is still a real product.
 
@@ -230,8 +246,9 @@ tool without the Q&A layer, and ship that instead. That is still a real product.
 
 Filiation is version 1.0 when:
 
-- A researcher who cannot code installs it with one command and adds their first paper unaided.
-- It runs entirely free, with no API key, for its core features.
+- A researcher who cannot code downloads one binary, runs it, and adds their first paper unaided.
+- It runs entirely free, with no API key, for its core features. Ollama is optional, and its
+  absence is explained rather than fatal.
 - Answers cite real papers in the user's own library, and the citations are correct.
 - It can trace at least one real claim back to its origin, demonstrably.
 - At least 20 people who are not you use it in a given week.

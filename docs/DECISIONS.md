@@ -118,3 +118,79 @@ Full reasoning, cost model, failure modes, test strategy and week-by-week plan:
 **Unverified:** the cost model assumes batch-fetching works by OpenAlex ID with 50 IDs per
 request. The documentation contradicts itself on this, on `per_page`, and on the real rate
 limit. Four spikes in week 1 must confirm them before the design is trusted.
+
+---
+
+## D8 — Language: Go, not Python
+
+**Decided:** 29 Aug 2026
+
+Written in Go. The deciding constraint is distribution: "one command setup for researchers who do
+not code" is better served by a cross-compiled binary the user double-clicks than by
+`pip install`. Secondary reason, stated openly: the maintainer's existing projects are all Python
+and this is a deliberate stack expansion.
+
+**What Go gives us**
+
+- One static binary per platform. No runtime for the user to install
+- `ncruces/go-sqlite3` (WASM, no cgo) plus official sqlite-vec Go bindings — graph, keyword and
+  vector search all in one file, still statically linked
+- An official MCP Go SDK, maintained with Google
+- `//go:embed` puts the M5 web UI inside the binary — Phase 5 shrinks by about a week
+- `golang.org/x/time/rate` is exactly the token bucket ADR-004 needs
+
+**What it costs, honestly**
+
+- **PDF text extraction is markedly weaker than Python or Java.** Deferred to a Phase 3
+  bake-off — see ADR-009
+- **Embeddings move behind Ollama** (ADR-008), so semantic search needs a second install. This
+  partly undercuts the one-command promise that motivated the choice
+- **`quelle` is unusable.** That Python package covered much of M0 ingestion and M3 PDF
+  fetching. The layer is now ours to write — roughly a week added to Phase 3
+- **Learning while building.** Phase 1 carries two extra weeks for this
+
+**Rejected:** Python (better libraries, worse distribution, and no stack growth for the
+maintainer). Java (excellent PDFBox, but needs a JVM or a fiddly GraalVM build, and the verbosity
+costs velocity). Rust (best binary story, worst solo velocity at ten hours a week).
+
+**Consequence:** the architecture is unchanged in substance. Stub nodes, the batching cost model,
+the three-front-doors rule, the degradation ladder and the schema all carry over. Only package
+names and two adapter decisions changed.
+
+---
+
+## D9 — No cgo, anywhere
+
+**Decided:** 29 Aug 2026
+
+The single static binary is the entire reason for D8. A dependency requiring cgo breaks
+cross-compilation and drags in a C toolchain, which loses the benefit that justified the language
+choice.
+
+**This is a standing constraint on every future dependency**, not a one-time choice. If a library
+needs cgo, find another way or do without.
+
+Detail in ADR-007.
+
+---
+
+## D10 — Ollama for embeddings and generation
+
+**Decided:** 29 Aug 2026
+
+Both `internal/embed` and `internal/llm` are thin HTTP clients for Ollama, each behind a
+one-method interface.
+
+This is the direct cost of D8 and it changes the product promise: semantic search and answers now
+need Ollama installed. Acceptable only because the degradation ladder already covers the absence —
+without Ollama, keyword search and the entire graph still work.
+
+**The first-run experience must handle this explicitly:** detect Ollama, and when it is missing,
+say what works without it and what installing it would add. Failing confusingly here would undo
+the distribution advantage that motivated the whole decision.
+
+**Revisit when:** users report the Ollama install as the reason they stopped. A pure-Go ONNX path
+(`onnx-gomlx`) would restore true one-command setup at the cost of depending on a
+community-maintained inference stack.
+
+Detail in ADR-008.

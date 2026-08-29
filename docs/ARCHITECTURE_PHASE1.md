@@ -1,6 +1,7 @@
 # Phase 1 architecture — the core graph
 
-**Covers:** milestones M0 and M1 · 15 Sept – 31 Oct 2026 · ships as **v0.1**
+**Covers:** milestones M0 and M1 · 15 Sept – 14 Nov 2026 · ships as **v0.1**
+**Language:** Go — see D8 in `DECISIONS.md`
 **Status:** Proposed
 **Date:** 29 August 2026
 
@@ -16,7 +17,7 @@
 
 ### Non-functional requirements
 
-- **Setup:** `pip install filiation` then one command. No server, no Docker, no API key.
+- **Setup:** download one binary and run it. No runtime, no server, no Docker, no API key.
 - **Interruptible:** Ctrl-C at any point must leave a consistent database, and re-running must continue rather than restart.
 - **Offline-tolerant:** losing the network mid-run is a pause, not a corruption.
 - **Budget-bounded:** the user says how big the graph may get, and that limit is respected exactly.
@@ -27,20 +28,20 @@
 ## 2. Component map
 
 ```
-src/filiation/
-├── cli.py            Typer commands: add, expand, show, path, neighbours, export, stats
-├── config.py         Resolve library path, contact email, default budgets (flag > env > file > default)
-├── identity.py       Normalise and classify user input: DOI, arXiv, OpenAlex ID, PMID, title
-├── models.py         Plain dataclasses: Work, Edge, FrontierItem, ExpansionResult
-├── store.py          ★ ALL SQL lives here. The seam for a future server backend
-├── schema.sql        DDL
-├── http.py           httpx client, token bucket, retry with backoff, on-disk response cache
+cmd/fil/main.go         wires cobra to internal/library — no logic
+internal/
+├── library/            ★ the core. add, expand, path, neighbours, stats
+├── config/             library path, contact email, budgets (flag > env > file > default)
+├── identity/           normalise and classify: DOI, arXiv, OpenAlex ID, PMID, title
+├── model/              Work, Edge, FrontierItem, ExpansionResult
+├── store/              ★ ALL SQL. schema.sql embedded with //go:embed. The swap seam
+├── httpx/              shared client, rate.Limiter token bucket, retry, response cache
 ├── sources/
-│   ├── base.py       Source protocol — so Crossref/arXiv can be added without touching expand.py
-│   └── openalex.py   get_work, get_works_batch, search_by_title
-├── expand.py         ★ The budgeted traversal. The heart of Phase 1
-├── export.py         GraphML, JSON, BibTeX
-└── errors.py         Typed errors so the CLI can print something useful
+│   ├── source.go       the Source interface — so Crossref/arXiv slot in later
+│   └── openalex/       GetWork, GetWorksBatch, SearchByTitle
+├── graph/              ★ the budgeted traversal. The heart of Phase 1
+├── export/             GraphML, JSON, BibTeX
+└── errs/               sentinel errors so the CLI can print something useful
 ```
 
 **Dependency direction is strictly one way:**
@@ -51,7 +52,7 @@ cli → expand → { store, sources } → http
     identity, config, models  (leaves — depend on nothing internal)
 ```
 
-`store.py` never imports `sources/`. `sources/` never imports `store.py`. Only `expand.py` knows about both. This is what keeps the storage backend swappable later without a rewrite.
+`internal/store` never imports `internal/sources`. `internal/sources` never imports `internal/store`. Only `internal/graph` knows about both. This is what keeps the storage backend swappable later without a rewrite. Go's `internal/` convention keeps packages private to the module but does **not** enforce this direction — a `golangci-lint` import rule can.
 
 ---
 
@@ -98,29 +99,54 @@ Two things fall out of this, and both are worth more than they cost:
 
 ### Pseudocode
 
-```python
-def expand(seed_id, max_nodes=500, max_depth=3, max_refs_per_work=200):
-    hydrate(seed_id, depth=0)          # 1 credit
-    record_edges_and_stubs(seed_id)    # free, from referenced_works
+```go
+func (e *Expander) Expand(ctx context.Context, seedID string, o Opts) error {
+    if err := e.hydrate(ctx, seedID, 0); err != nil {     // 1 credit
+        return err
+    }
+    e.recordEdgesAndStubs(ctx, seedID, o.MaxRefsPerWork)  // free: from referenced_works
 
-    spent = 1
-    while spent < max_nodes:
-        # Best-first, not breadth-first. Costs one indexed query.
-        batch = store.next_frontier(
-            limit=50,
-            max_depth=max_depth,
-            order_by="in_graph_indegree DESC, depth ASC, cited_by_count DESC",
-        )
-        if not batch:
-            break
+    spent := 1
+    for spent < o.MaxNodes {
+        if err := ctx.Err(); err != nil {                 // cancellation must actually stop
+            return err
+        }
 
-        with store.transaction():            # one transaction per batch
-            works = openalex.get_works_batch(batch)   # 10 credits for up to 50
-            for w in works:
-                store.hydrate(w)
-                if w.depth < max_depth:
-                    store.record_edges_and_stubs(w, cap=max_refs_per_work)
-            spent += len(works)
+        // Best-first, not breadth-first. One indexed query.
+        batch, err := e.store.NextFrontier(ctx, 50, o.MaxDepth)
+        if err != nil || len(batch) == 0 {
+            return err
+        }
+
+        works, err := e.src.GetWorksBatch(ctx, batch)     // 10 credits for up to 50
+        if err != nil {
+            if errors.Is(err, errs.Transient) {
+                continue                                   // batch failed; run continues
+            }
+            return err
+        }
+
+        // One transaction per batch: Ctrl-C loses at most 50 works.
+        err = e.store.Tx(ctx, func(tx *store.Tx) error {
+            for _, w := range works {
+                if err := tx.Hydrate(w); err != nil {
+                    return err
+                }
+                if w.Depth < o.MaxDepth {
+                    if err := tx.RecordEdgesAndStubs(w, o.MaxRefsPerWork); err != nil {
+                        return err
+                    }
+                }
+            }
+            return nil
+        })
+        if err != nil {
+            return err
+        }
+        spent += len(works)
+    }
+    return nil
+}
 ```
 
 ### Why each choice
@@ -140,22 +166,22 @@ def expand(seed_id, max_nodes=500, max_depth=3, max_refs_per_work=200):
 
 **Context.** The product plan commits to "local first, optional server later," which needs a seam where the storage backend can be replaced. But wrapping SQLite in an abstraction on day one is a well-known way to pay an ongoing tax for a swap that may never happen.
 
-**Decision.** Put every SQL statement in `store.py` as plain module-level functions over `sqlite3`. No ORM, no repository class hierarchy, no interface declaration. The module boundary *is* the seam.
+**Decision.** Put every SQL statement in `internal/store` as plain functions over `database/sql`. No ORM, no repository interface. The package boundary *is* the seam.
 
 **Options considered**
 
 | Option | Complexity | Swap cost later | Speed now | Verdict |
 | --- | --- | --- | --- | --- |
-| A. Direct `sqlite3` calls scattered through the codebase | Low | Very high | Fastest | Rejected |
-| **B. One `store.py` module, plain functions** | **Low** | **Moderate** | **Fast** | **Chosen** |
-| C. SQLAlchemy Core with dialect swap | Medium | Low | Slower | Rejected for now |
-| D. Full repository pattern with protocols | High | Low | Slowest | Rejected |
+| A. `database/sql` calls scattered through the codebase | Low | Very high | Fastest | Rejected |
+| **B. One `internal/store` package, plain functions** | **Low** | **Moderate** | **Fast** | **Chosen** |
+| C. `sqlc` — generate typed Go from SQL | Low–medium | Moderate | Fast after setup | Escape hatch |
+| D. GORM or another ORM | Medium | Low | Slower, and hides the SQL | Rejected |
 
-**Trade-off.** C would make the Postgres swap nearly free, but adds a dependency and an indirection layer for a migration scheduled for *after* v1.0 and conditional on the product succeeding. B costs a day of rewriting `store.py` if that day ever comes. Paying one day later beats paying every day now.
+**Trade-off.** Hand-written `database/sql` means writing `rows.Scan` boilerplate for every query, which is the least pleasant part of Go. `sqlc` removes exactly that while keeping SQL as the source of truth — adopt it the moment scan code starts causing bugs, not before. An ORM would hide the recursive CTEs that are the interesting part of this codebase.
 
 **Consequences**
 - Easier: writing exactly the SQL you want, including recursive CTEs for path finding, which ORMs make awkward.
-- Harder: the eventual Postgres port is a rewrite of one file rather than a config change.
+- Harder: `rows.Scan` boilerplate. The eventual Postgres port is a rewrite of one package rather than a config change.
 - Revisit when: server mode is actually scheduled, not before.
 
 ---
@@ -217,7 +243,12 @@ def expand(seed_id, max_nodes=500, max_depth=3, max_refs_per_work=200):
 
 **Context.** OpenAlex needs no API key, but the anonymous pool is far slower than the polite pool, which only requires sending a contact email. Published rate limits are also inconsistent across the documentation — which means they must be measured, not assumed. Separately, during development the same expansion gets re-run dozens of times while debugging, and re-hitting the API each time is slow and rude.
 
-**Decision.** One `http.py` module owning: a shared `httpx` client that always sends `mailto`, a global token bucket set well below the measured limit, exponential backoff with jitter on 429 and 5xx that respects `Retry-After`, and an on-disk response cache keyed by full URL.
+**Decision.** One `internal/httpx` package owning: a shared `*http.Client` whose `RoundTripper`
+always adds `mailto`, a `golang.org/x/time/rate.Limiter` token bucket set well below the measured
+limit, exponential backoff with jitter on 429 and 5xx that respects `Retry-After`, and an on-disk
+response cache keyed by full URL.
+
+`rate.Limiter` is exactly this shape already — do not hand-roll one.
 
 The cache lives in a **separate SQLite file** from the library, so it can be deleted at any time without touching the user's data.
 
@@ -244,7 +275,7 @@ The cache lives in a **separate SQLite file** from the library, so it can be del
 
 **Context.** Input arrives as a DOI in five formats, an arXiv ID in two generations, a bare OpenAlex ID, a URL, a PMID, or a title typed from memory. The first five resolve deterministically. Title search does not.
 
-**Decision.** `identity.py` classifies and normalises input. Deterministic identifiers resolve silently. A **title search returns candidates and requires confirmation** — interactively in the CLI, and by an explicit `--accept-first` flag in scripts.
+**Decision.** `internal/identity` classifies and normalises input. Deterministic identifiers resolve silently. A **title search returns candidates and requires confirmation** — interactively in the CLI, and by an explicit `--accept-first` flag in scripts.
 
 **Trade-off.** One extra keystroke against a wrong paper silently seeding an entire graph. A wrong seed is not a small error; it poisons everything expanded from it, and the user may not notice for weeks.
 
@@ -260,7 +291,7 @@ The cache lives in a **separate SQLite file** from the library, so it can be del
 
 **Context.** The whole product thesis is a library that accumulates over years. A database that lives in the current working directory produces a scattering of half-built graphs.
 
-**Decision.** The library defaults to a per-user application data directory via `platformdirs`. Override order: `--db` flag, then `FILIATION_DB` environment variable, then config file, then the default.
+**Decision.** The library defaults to a per-user application data directory via `os.UserConfigDir` / `os.UserCacheDir`, or `adrg/xdg` for correct behaviour across all three platforms. Override order: `--db` flag, then `FILIATION_DB` environment variable, then config file, then the default.
 
 **Consequences**
 - Easier: `fil add` does the right thing from any directory. Accumulation happens by default.
@@ -268,9 +299,85 @@ The cache lives in a **separate SQLite file** from the library, so it can be del
 
 ---
 
+### ADR-007: SQLite driver is `ncruces/go-sqlite3`, and no cgo anywhere
+
+**Status:** Proposed · **Date:** 29 Aug 2026
+
+**Context.** The entire reason for choosing Go is that a researcher downloads one file and runs
+it. The standard Go SQLite driver (`mattn/go-sqlite3`) uses cgo, which makes cross-compilation
+painful and drags in a C toolchain.
+
+**Decision.** Use `ncruces/go-sqlite3`, a WASM build of SQLite translated to Go. No cgo. The
+official sqlite-vec Go bindings target this driver specifically, so graph, keyword and vector
+search all stay in one static binary.
+
+**Options considered**
+
+| Option | cgo | Cross-compile | sqlite-vec | Speed |
+| --- | --- | --- | --- | --- |
+| `mattn/go-sqlite3` | Yes | Painful | Manual extension load | Fastest |
+| `modernc.org/sqlite` | No | Clean | Not the bindings' target | Good |
+| **`ncruces/go-sqlite3`** | **No** | **Clean** | **Official bindings** | **Good** |
+
+**Trade-off.** WASM SQLite is slower than the C build. At this workload — point lookups and
+bounded traversals over a few million rows — the difference is not the bottleneck. Distribution
+is worth more than the margin.
+
+**Consequences**
+- Easier: `GOOS=windows go build` produces a working `.exe` from a Linux machine.
+- Harder: **FTS5 availability must be verified** (spike 5). M3 keyword search depends on it.
+- **Rule:** no dependency may require cgo. This constrains every future library choice.
+
+---
+
+### ADR-008: Embeddings and generation both go through Ollama
+
+**Status:** Proposed · **Date:** 29 Aug 2026
+
+**Context.** Go has no mature in-process embedding stack. The available options are community
+ONNX bindings, or calling out to a local service.
+
+**Decision.** `internal/embed` and `internal/llm` are both thin HTTP clients for Ollama. The
+interface is one method each, so a different backend can replace either later.
+
+**Trade-off, stated honestly.** This is the price of choosing Go. Semantic search now requires
+the user to install Ollama, which weakens the one-command promise that motivated the language
+choice in the first place. It is survivable only because the degradation ladder already handles
+the absence: without Ollama, keyword search and the whole graph still work.
+
+**Consequences**
+- Easier: the binary stays static; swapping models is a config line.
+- Harder: **the first-run experience must explain this clearly**, not fail confusingly. Detect
+  Ollama, and if it is missing say what works without it and what installing it would add.
+- Revisit when: users report the Ollama install as the reason they stopped using the tool.
+  A pure-Go ONNX path would restore true one-command setup.
+
+---
+
+### ADR-009: PDF text extraction is deferred to a Phase 3 spike
+
+**Status:** Open · **Date:** 29 Aug 2026
+
+**Context.** Scientific PDFs are two-column, full of ligatures, and their reference sections need
+layout awareness. Python and Java own this problem; Go's libraries are markedly weaker. This is
+the single biggest known weakness of the language choice.
+
+**Decision.** Do not decide yet. Phase 1 does not touch PDFs. Before M3, run a bake-off on 20
+real papers across 5 fields:
+
+1. A pure-Go library — keeps the single binary, likely lowest quality
+2. Bundling `pdftotext` from Poppler — good quality, but per-platform binaries to ship
+3. An optional external service the user already has
+
+**Why deferred rather than guessed.** Choosing now means choosing without evidence, and the
+answer depends on quality thresholds that only become visible once retrieval exists. Recorded
+here so it is a scheduled decision rather than a surprise.
+
+---
+
 ## 6. Schema changes this design requires
 
-The current `schema.sql` assumes a work is fully known when inserted. ADR-003 breaks that. Apply before writing `store.py`:
+The current `schema.sql` assumes a work is fully known when inserted. ADR-003 breaks that. Apply before writing the `store` package:
 
 ```sql
 -- work.title must allow NULL: a stub has an ID and nothing else
@@ -311,15 +418,16 @@ In-graph in-degree is computed from `cites` at query time in Phase 1. If it beco
 
 ## 8. Test strategy
 
-**No network in any unit test.** Record real OpenAlex responses once into `tests/fixtures/` and replay them through a fake `httpx` transport.
+**No network in any unit test.** Record real OpenAlex responses once into `testdata/` — Go's conventional name, and the toolchain ignores it — and replay them through a stub `http.RoundTripper`. Table-driven tests throughout.
 
 | Test | Asserts |
 | --- | --- |
 | Golden expansion | A fixed seed produces an exact node and edge count |
-| Budget respected | `max_nodes=100` never produces 101 hydrated works |
-| Idempotent | Running `expand` twice adds nothing the second time |
+| Single writer | Concurrent reads during an expansion never produce `database is locked` |
+| Budget respected | `MaxNodes=100` never produces 101 hydrated works |
+| Idempotent | Running `Expand` twice adds nothing the second time |
 | Dedup | The same paper reached by DOI, arXiv ID and OpenAlex ID yields one row |
-| Resume | Kill after two batches, re-run, end state equals the uninterrupted run |
+| Resume | Cancel the context after two batches, re-run, end state equals the uninterrupted run |
 | Cycle safety | A hand-built cyclic fixture does not hang path finding |
 | Stub handling | Export and display work on a graph that is 90% stubs |
 
@@ -336,7 +444,15 @@ The cost model rests on assumptions the documentation contradicts itself about. 
 3. **Real sustained request rate with `mailto` set.** Documented as 10/second in one place and 100/second in another. Set the token bucket from what you measure, not what you read.
 4. **Reference coverage across fields.** Take 20 papers from 5 fields and check what fraction have a complete `referenced_works` list. **This is the biggest unknown in the entire product**, not just this phase — OpenAlex reference coverage depends on what publishers deposit. If some field is sparse, the graph is thin there and you need to know that in September, not in March.
 
-Spike 4 is a product question wearing an engineering costume. Do it first.
+5. **Does `ncruces/go-sqlite3` ship FTS5?** *(Go-specific)* M3 keyword search depends on it. If
+   it does not, you need either a build that includes it or an external index — and that is worth
+   knowing in September, not December.
+6. **sqlite-vec with that driver, end to end.** Create a `vec0` table, insert vectors, run a
+   query. Prove the WASM pairing works before designing M4 around it.
+7. **Cross-compile from day one.** `GOOS=windows`, `GOOS=darwin`, `GOOS=linux`. If something
+   drags in cgo, you want to find out in week one, not the week you plan to release.
+
+Spike 1 is a product question wearing an engineering costume. Do it first.
 
 ---
 
@@ -344,14 +460,20 @@ Spike 4 is a product question wearing an engineering costume. Do it first.
 
 | Week | Dates | Work |
 | --- | --- | --- |
-| 1 | 15–21 Sept | The four spikes. Then `config.py`, `schema.sql` with the §6 changes, `store.py` skeleton |
-| 2 | 22–28 Sept | `identity.py`, `http.py` with token bucket and cache, `sources/openalex.py` |
-| 3 | 29 Sept – 5 Oct | `fil add` working end to end. **M0 complete** |
-| 4–5 | 6–19 Oct | `expand.py`: frontier query, batching, budget, resume. The core of the phase |
-| 6 | 20–26 Oct | `export.py`, `fil path`, `fil neighbours`, `fil stats` |
-| 6.5 | 27–31 Oct | The 20-paper / 5-field validation run. Fix what breaks. Tag **v0.1** |
+| 1 | 15–21 Sept | Spikes 1–4 (OpenAlex) and 5–7 (Go). Module layout, `go.mod`, cross-compile proof |
+| 2 | 22–28 Sept | `config`, embedded `schema.sql`, `store` skeleton with the §6 changes |
+| 3 | 29 Sept – 5 Oct | `identity`, `httpx` with `rate.Limiter` and cache |
+| 4 | 6–12 Oct | `sources/openalex`, then `fil add` end to end. **M0 complete** |
+| 5–6 | 13–26 Oct | `graph`: frontier query, batching, budget, resume. The core of the phase |
+| 7 | 27 Oct – 2 Nov | `export`, `fil path`, `fil neighbours`, `fil stats` |
+| 8 | 3–9 Nov | The 20-paper / 5-field validation run. Fix what breaks |
+| 8.5 | 10–14 Nov | GoReleaser, cross-compiled binaries, tag **v0.1** |
 
-Weeks 4 and 5 hold the only genuinely hard code in this phase. Everything before is plumbing and everything after is a thin layer over queries. If you slip, slip weeks 1–3 and protect 4–5.
+Weeks 5 and 6 hold the only genuinely hard code in this phase. Everything before is plumbing and
+everything after is a thin layer over queries. If you slip, slip weeks 1–4 and protect 5–6.
+
+Two extra weeks over the original plan, for learning Go while building. That is a real cost and
+pretending otherwise would only move the slip later.
 
 ---
 
@@ -360,6 +482,8 @@ Weeks 4 and 5 hold the only genuinely hard code in this phase. Everything before
 1. [ ] Run spike 4 (reference coverage across fields) — it can change the product, not just the code
 2. [ ] Run spikes 1–3 and write the measured numbers into this document
 3. [ ] Apply the §6 schema changes to `schema.sql`
-4. [ ] Decide the default `max_nodes`. Suggestion: 500 — large enough to be a map, small enough to finish in under a minute
-5. [ ] Write the idempotency and resume tests before writing `expand.py`, not after
+4. [ ] Decide the default `MaxNodes`. Suggestion: 500 — large enough to be a map, small enough to finish in under a minute
+5. [ ] Write the idempotency and resume tests before writing `internal/graph`, not after
 6. [ ] Print the library path on first run, per ADR-006
+7. [ ] Add a `golangci-lint` import rule forbidding `cmd/` and front doors from importing `internal/store`
+8. [ ] Set up GoReleaser in week 1, not week 8 — a broken cross-compile found late is expensive
