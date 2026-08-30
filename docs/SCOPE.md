@@ -57,8 +57,10 @@ Written in Go — see D8 in [`DECISIONS.md`](DECISIONS.md).
 | Severity | Risk | Mitigation |
 | --- | --- | --- |
 | High | Full-text coverage disappoints people — many papers have no legal free PDF | Show OA status on every node from day one; never leave someone guessing why a paper has no text |
+| Medium | **OpenAlex's real free allowance is 1,000 credits/day, not 100,000**, and its pricing is now USD-denominated (spike 3, D11) | Batching keeps a 500-node graph at 5 credits. Read `X-RateLimit-Remaining` from responses rather than trusting a compiled-in constant |
 | High | Scope is large for one person — both audiences plus full Q&A is a real six months | Every milestone ships something usable, so an interruption leaves a working tool |
-| Medium | `sqlite-vec` is pre-1.0 and promises breaking changes | Pin an exact version, keep vector calls behind a thin wrapper |
+| **High** | **The graph dies after one hop in the humanities** — 84% of works on the frontier have no reference list (spike 4, D12) | Show reference coverage on every node, like OA status. Say so in the README rather than letting people discover it |
+| Medium | **Vector search has no ANN index** — `vec1` is a brute-force scan, ~3 s over a 50k-chunk library (spike 6, D13) | Pre-filter by graph and FTS5 so the scan sees thousands, not everything. This is the hybrid design, not a workaround |
 | Medium | Go's PDF text extraction is weaker than Python's | Deferred to a Phase 3 bake-off; bundling `pdftotext` is the fallback |
 | Medium | Semantic search requires Ollama | Degrade to keyword plus graph, and say so plainly in the interface |
 | Medium | Dependency licences force your hand | Check every licence before adding it. Also: no dependency may require cgo |

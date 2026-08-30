@@ -1,6 +1,6 @@
 module github.com/codevector-2003/filiation
 
-go 1.24
+go 1.25.0
 
 // No dependencies yet — `go build ./...` works out of the box.
 //
@@ -14,3 +14,11 @@ go 1.24
 //   M1  gonum.org/v1/gonum/graph                     PageRank, communities
 //   M2  github.com/modelcontextprotocol/go-sdk       MCP server
 //   M4  github.com/asg017/sqlite-vec-go-bindings     vectors, pairs with the driver above
+
+require github.com/ncruces/go-sqlite3 v0.35.3
+
+require (
+	github.com/ncruces/go-sqlite3-wasm/v3 v3.2.35304 // indirect
+	github.com/ncruces/julianday v1.0.0 // indirect
+	golang.org/x/sys v0.47.0 // indirect
+)

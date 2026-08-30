@@ -61,10 +61,10 @@ than plain search.
 
 | Layer | Choice | Why |
 | --- | --- | --- |
-| Language | Go 1.24 | One static binary per platform. No runtime for the user to install |
-| SQLite driver | `ncruces/go-sqlite3` | WASM build, **no cgo**, and the official sqlite-vec Go bindings target it |
-| Vector search | `asg017/sqlite-vec-go-bindings` | Same file as the graph. WASM, so the binary stays static |
-| Keyword search | SQLite FTS5 | **Verify the driver ships FTS5 — spike 5.** If not, this decision changes |
+| Language | Go 1.25 | One static binary per platform. No runtime for the user to install |
+| SQLite driver | `ncruces/go-sqlite3` | WASM build, **no cgo**. Ships FTS5 and vec1 as loadable extensions |
+| Vector search | `ext/vec1` (SQLite's own) | Same file, no new dependency. **Exact but brute-force — no ANN index.** See D13 |
+| Keyword search | SQLite FTS5 | Confirmed working (spike 5) — but must be registered per connection |
 | Graph traversal | Recursive CTEs in SQL | Standard SQL, so it survives a move to Postgres |
 | Graph algorithms | `gonum/graph` | PageRank and communities in memory. 2M edges fits easily |
 | CLI | `spf13/cobra` | Standard, and matches what users expect from a Go tool |
@@ -104,6 +104,7 @@ filiation/
 │   ├── store/                 ★ ALL SQL. schema.sql embedded here. The swap seam
 │   ├── blobs/                 content-addressed PDF storage
 │   ├── graph/                 expand, traverse, identity resolution
+│   ├── export/                GraphML, JSON, BibTeX — no lock-in, M1
 │   ├── text/                  pdf extraction, chunking, citation context
 │   ├── retrieve/              hybrid search, ranking, answer assembly
 │   ├── jobs/                  background work, resumable
@@ -111,6 +112,10 @@ filiation/
 │   ├── embed/                 ollama client (interface: one method)
 │   ├── llm/                   ollama or user API key
 │   ├── httpx/                 rate limiting, retry, response cache
+│   ├── config/                library path, contact email, budgets    ┐ leaves —
+│   ├── identity/              DOI, arXiv, OpenAlex ID, PMID, title    │ these import
+│   ├── model/                 Work, Edge, FrontierItem                │ nothing else
+│   ├── errs/                  sentinel errors, compared with errors.Is┘ in internal/
 │   ├── mcpsrv/                MCP tool definitions, M2
 │   └── web/                   handlers + //go:embed of the built SPA, M5
 ├── web/ui/                    SPA source, built into internal/web/dist
@@ -139,11 +144,23 @@ mistake. Be deliberate:
 
 ## API notes
 
-- **OpenAlex**: no API key required. Free tier is 100,000 credits/day. Always send
-  `mailto=<contact>`. List requests cost 10 credits and return up to 50 works; single lookups
-  cost 1. Batch or you pay 5× per work.
-- **Expansion blows up fast**: ~40 references per paper means depth 2 ≈ 1,600 nodes and
-  depth 3 ≈ 64,000. Expansion must always take a node budget. Never breadth-first without a limit.
+- **OpenAlex**: no API key required. **Measured 30 Aug 2026 — see `docs/SPIKES.md`, and trust it
+  over the published documentation, which contradicts itself:**
+  - Free allowance is **1,000 credits/day** ($0.10 equivalent), not 100,000.
+  - **Single-work fetches are free.** List requests cost **1 credit** flat, whatever the page size.
+  - `per_page` max is **200**, but at most **100 IDs** may be piped into a filter — 101 is a hard
+    400. So hydration batches at 100, and that is the binding constraint.
+  - **Batch for round trips, not for credits.** The first 429 appears around **11 req/s**, so set
+    the token bucket to **5 req/s**. Credits will never be the thing that runs out; the rate will.
+  - Send `mailto=<contact>` because it is asked for and it is how they reach you — but it produced
+    **no measurable throughput or limit difference**. Do not design around a polite-pool benefit.
+- **Expansion blows up fast**: STEM papers cite 70–100 works, not the ~40 originally assumed, so
+  depth 2 is ~5,000–10,000 nodes. Expansion must always take a node budget. Never breadth-first
+  without a limit.
+- **Reference coverage is a field problem, not a bug.** Dead ends on the expansion frontier:
+  Medicine 6%, Physics 12%, CS 15%, Social Sciences 54%, **Arts and Humanities 84%**. The graph
+  genuinely stops after one hop in the humanities. Show per-node reference coverage from day one,
+  exactly like OA status, or users will think the tool is broken when it is the data.
 - **Ollama**: embeddings and generation over local HTTP. Absent Ollama, the tool must still work —
   see the degradation ladder in `docs/ARCHITECTURE.md`.
 
@@ -151,8 +168,10 @@ mistake. Be deliberate:
 
 ## Architecture
 
-- `docs/ARCHITECTURE.md` — whole-system design. **Read this first.**
+- `docs/STATUS.md` — where the project actually is, what is done, what is next. **Start here.**
+- `docs/ARCHITECTURE.md` — whole-system design.
 - `docs/ARCHITECTURE_PHASE1.md` — detailed design for the core graph, with ADRs.
+- `docs/SPIKES.md` — measured answers. **Trust these over any documentation, including this file.**
 
 ## Data model
 
@@ -177,8 +196,10 @@ extra weeks for that.
 - [ ] **M3 — Papers on disk** (3–4 weeks). OA PDF fetch, content-addressed storage, text
       extraction, chunking, FTS5. **Capture citation context sentences here.** Longer than the
       Python plan because the ingestion layer is now ours to write.
-- [ ] **M4 — Retrieval and answers** (3–4 weeks). Ollama embeddings, sqlite-vec, hybrid
-      retrieval, answers with citations.
+- [ ] **M4 — Retrieval and answers** (3–4 weeks). Ollama embeddings, `vec1`, hybrid
+      retrieval, answers with citations. **Pre-filtering by graph and FTS5 is load-bearing, not an
+      optimisation** — the vector stage is a brute-force scan, so it must never see the whole
+      library. Build candidate generation before semantic search (D13).
 - [ ] **M5 — Web interface** (2–3 weeks). Shorter than planned: `//go:embed` puts the SPA inside
       the binary, so there is nothing to package separately.
 - [ ] **M6 — Claim genealogy** (3–4 weeks). Citation intent, weighted edges, tracing a claim to
@@ -186,25 +207,33 @@ extra weeks for that.
 
 ---
 
-## Spikes — run before writing real code
+## Spikes — all run, 30 Aug 2026
 
-1. **Reference coverage across fields.** 20 papers, 5 fields: what fraction have a complete
-   `referenced_works` list? A product question, not an engineering one. Do it first.
-2. **Batch fetch by OpenAlex ID.** Does a pipe-separated ID filter work, and is the ceiling 50
-   or 100? Sources disagree. If unsupported, the whole cost model changes.
-3. **Real `per_page` maximum.** Documented as both 100 and 200.
-4. **Real sustained rate with `mailto`.** Documented as both 10/s and 100/s. Measure it.
-5. **Does `ncruces/go-sqlite3` ship FTS5?** *(new, Go-specific)* M3 keyword search depends on it.
-   If it does not, either compile a build that does, or use an external index — and that is a
-   decision worth knowing about in September rather than December.
-6. **sqlite-vec + the driver, end to end.** Create a `vec0` table, insert, query. Prove the WASM
-   pairing works before designing around it.
+**Results and evidence: `docs/SPIKES.md`. Code: `spikes/`.** Trust those numbers over any
+documentation, including this file's own history.
+
+| # | Question | Answer |
+| --- | --- | --- |
+| 1 | Batch fetch by OpenAlex ID? | Yes. **Ceiling exactly 100**; 101 is a hard 400 |
+| 2 | Real `per_page` max? | **200**, but the 100-ID filter binds first |
+| 3 | Real sustained rate? | **First 429 at ~11 req/s** → bucket at 5/s. Found the real cost model (D11) |
+| 4 | Reference coverage by field? | STEM 6–15% dead ends, **humanities 84%** (D12) |
+| 5 | Does the driver ship FTS5? | Yes, as a loadable extension — `sqlite3.AutoExtension(fts5.Register)` |
+| 6 | Vector search end to end? | `vec1` is exact but **has no ANN index** (D13) |
+| 7 | Cross-compile with no cgo? | Yes — 3 platforms, ~2.3 MB, D9 holds |
+
+**Two gotchas the store package must handle**, both from spike 5:
+
+- Register FTS5 (and vec1) with `AutoExtension` **before** opening the read pool and write handle.
+  A connection opened without the extension cannot even read a table created with it.
+- `PRAGMA foreign_keys` is **per connection**, not stored in the file. The one in `schema.sql`
+  only affects the connection that applied it — set it on every connection.
 
 ---
 
 ## Conventions
 
-- Go 1.24. `gofmt` and `golangci-lint`. Table-driven tests with the stdlib `testing` package.
+- Go 1.25. `gofmt` and `golangci-lint`. Table-driven tests with the stdlib `testing` package.
 - `context.Context` as the first parameter of anything that does I/O.
 - Errors wrapped with `fmt.Errorf("...: %w", err)`. Sentinel errors in `internal/errs`.
 - No network in unit tests — record OpenAlex responses as fixtures, replay with an

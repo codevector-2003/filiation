@@ -58,28 +58,50 @@ cli → expand → { store, sources } → http
 
 ## 3. The cost model
 
-Everything about the expansion design falls out of these numbers.
+**Measured 30 August 2026 — the original assumptions in this section were wrong in both
+directions. Full evidence in [`SPIKES.md`](SPIKES.md).**
 
-| Operation | Credits | Works returned | Credits per work |
-| --- | --- | --- | --- |
-| Single work by ID | 1 | 1 | **1.00** |
-| List filtered by many IDs, `per_page` filled | 10 | up to 50 | **0.20** |
+| Operation | Originally assumed | **Measured** | Works returned | Credits per work |
+| --- | --- | --- | --- | --- |
+| Single work by ID | 1 credit | **0 — free** | 1 | **0.000** |
+| List request, any `per_page` 1–200 | 10 credits | **1 credit** | up to 200 | **0.005** |
+| Daily allowance | 100,000 | **1,000** ($0.10) | | |
 
-Batching is five times cheaper per work and vastly fewer round trips. The free tier gives 100,000 credits per day.
+At most **100 IDs** may be piped into a filter (101 returns a hard 400), so hydration batches at
+100 even though a page could hold 200.
 
-`referenced_works` comes back **inside the work object**, so fetching a paper gives you its outgoing edges with no extra call. This single fact shapes the whole algorithm.
+`referenced_works` comes back **inside the work object**, complete and never truncated — verified
+across 50 works and 5,389 edges. Fetching a paper gives you its outgoing edges with no extra call.
+This single fact still shapes the whole algorithm.
+
+### What batching is actually for
+
+Credits are no longer the reason. Single fetches are free, and a 500-node graph costs 5 credits
+out of 1,000 — half a percent of a day. The reason is **round trips**: the first 429 appears
+around 11 req/s, so 500 single fetches is ~50 seconds of wall clock and 500 chances to be
+throttled, against 5 requests and under a second batched.
+
+So the ADR-002 conclusion holds and its stated rationale does not. Batch because it is fast and
+polite, not because it is cheap.
 
 ### What expansion actually costs
 
-Assume ~40 references per paper.
+Measured branching is **70–100 references per work in STEM**, not the ~40 originally assumed.
 
 | Reach | Works | List calls | Credits | Verdict |
 | --- | --- | --- | --- | --- |
-| Depth 1 | ~40 | 1 | 10 | Trivial |
-| Depth 2 | ~1,600 | 32 | 320 | Comfortable |
-| Depth 3 | ~64,000 | 1,280 | 12,800 | Affordable, but nobody wants this graph |
+| Depth 1 | ~70 | 1 | 1 | Trivial |
+| Depth 2 | ~5,000 | 50 | 50 | Comfortable |
+| Depth 3 | ~350,000 | 3,500 | 3,500 | **Exceeds the daily allowance, and nobody wants this graph** |
 
-**Depth is not the control. The node budget is.** Depth 3 is affordable and useless — the graph stops being a map of a field and becomes a map of science. The user asks for 500 useful nodes, not three hops.
+**Depth is not the control. The node budget is.** With the corrected branching factor, depth 3 is
+now the first thing in this design that would actually hit a hard limit — which only sharpens the
+original point. The user asks for 500 useful nodes, not three hops.
+
+### The constraint that replaced credits
+
+The token bucket in ADR-004 is now the only thing between the tool and a 429. Set it to **5 req/s**
+against the ~11 req/s where throttling was first observed.
 
 ---
 
@@ -242,6 +264,13 @@ func (e *Expander) Expand(ctx context.Context, seedID string, o Opts) error {
 **Status:** Proposed · **Date:** 29 Aug 2026
 
 **Context.** OpenAlex needs no API key, but the anonymous pool is far slower than the polite pool, which only requires sending a contact email. Published rate limits are also inconsistent across the documentation — which means they must be measured, not assumed. Separately, during development the same expansion gets re-run dozens of times while debugging, and re-hitting the API each time is slow and rude.
+
+> **Measured 30 Aug 2026 (spike 3, [`SPIKES.md`](SPIKES.md)).** Two corrections to the context above.
+> **The bucket rate is 5 req/s** — the first 429 appeared at an achieved ~11 req/s, so neither
+> published figure (10/s, 100/s) is usable as stated. And **the polite-pool claim did not
+> reproduce**: limit headers were byte-identical with and without `mailto`. Keep sending it, because
+> it is what OpenAlex asks for and it is how they reach you, but no part of the design may assume a
+> throughput benefit from it.
 
 **Decision.** One `internal/httpx` package owning: a shared `*http.Client` whose `RoundTripper`
 always adds `mailto`, a `golang.org/x/time/rate.Limiter` token bucket set well below the measured
@@ -439,18 +468,40 @@ The idempotency and resume tests are the two that will actually catch regression
 
 The cost model rests on assumptions the documentation contradicts itself about. Each of these is an hour, and each can invalidate a design choice.
 
-1. **Batch fetch by OpenAlex ID.** Does filtering works by a pipe-separated list of OpenAlex IDs work, and is the ceiling 50 or 100 values? Sources disagree. If batch-by-ID is unsupported, ADR-002's cost model collapses and the fallback is batching by DOI — which fails for works without one.
-2. **Real `per_page` maximum.** Documented as both 100 and 200.
-3. **Real sustained request rate with `mailto` set.** Documented as 10/second in one place and 100/second in another. Set the token bucket from what you measure, not what you read.
-4. **Reference coverage across fields.** Take 20 papers from 5 fields and check what fraction have a complete `referenced_works` list. **This is the biggest unknown in the entire product**, not just this phase — OpenAlex reference coverage depends on what publishers deposit. If some field is sparse, the graph is thin there and you need to know that in September, not in March.
+**Status: 1, 2, 3, 4 and 7 were run on 30 August 2026. Results and evidence in
+[`SPIKES.md`](SPIKES.md); §3 and ADR-004 above have been corrected from them.**
 
-5. **Does `ncruces/go-sqlite3` ship FTS5?** *(Go-specific)* M3 keyword search depends on it. If
+1. ✅ **Batch fetch by OpenAlex ID.** Does filtering works by a pipe-separated list of OpenAlex IDs work, and is the ceiling 50 or 100 values? Sources disagree. If batch-by-ID is unsupported, ADR-002's cost model collapses and the fallback is batching by DOI — which fails for works without one.
+   → **Works. Ceiling is exactly 100; 101 is a hard 400. `referenced_works` arrives complete in
+   batched responses, zero truncation across 5,389 edges.**
+2. ✅ **Real `per_page` maximum.** Documented as both 100 and 200.
+   → **200, with an explicit error above it. Not the binding constraint — the 100-ID filter is.**
+3. ✅ **Real sustained request rate with `mailto` set.** Documented as 10/second in one place and 100/second in another. Set the token bucket from what you measure, not what you read.
+   → **First 429 at ~11 req/s; bucket set to 5 req/s. Separately discovered the real cost model:
+   single fetches free, list requests 1 credit, 1,000/day. `mailto` changed nothing measurable.**
+4. ✅ **Reference coverage across fields.** Take 20 papers from 5 fields and check what fraction have a complete `referenced_works` list. **This is the biggest unknown in the entire product**, not just this phase — OpenAlex reference coverage depends on what publishers deposit. If some field is sparse, the graph is thin there and you need to know that in September, not in March.
+   → **Answered, and it is a product constraint. Frontier dead ends: Medicine 6%, Physics 12%,
+   CS 15%, Social Sciences 54%, Arts and Humanities 84%. The tool works in STEM. In the
+   humanities the graph stops after one hop, and the interface has to say so.**
+
+5. ✅ **Does `ncruces/go-sqlite3` ship FTS5?** *(Go-specific)* M3 keyword search depends on it. If
    it does not, you need either a build that includes it or an external index — and that is worth
    knowing in September, not December.
-6. **sqlite-vec with that driver, end to end.** Create a `vec0` table, insert vectors, run a
+   → **Yes, but not compiled in — it loads as a WASM extension via
+   `sqlite3.AutoExtension(fts5.Register)`. This must be wired into `store.Open`: a connection
+   without it cannot read a table created with it. The real schema then applies cleanly, and
+   multi-statement `Exec` is supported.**
+6. ⚠️ **sqlite-vec with that driver, end to end.** Create a `vec0` table, insert vectors, run a
    query. Prove the WASM pairing works before designing M4 around it.
-7. **Cross-compile from day one.** `GOOS=windows`, `GOOS=darwin`, `GOOS=linux`. If something
+   → **Tested SQLite's own `ext/vec1` instead, already in the dependency tree. Exactly correct
+   results, but version 0.7 has no ANN index — only `none` or `flat`, and flat is a brute-force
+   scan at ~66 µs/vector (~3 s for a 50,000-chunk library, against a 500 ms target). Not a
+   blocker: M4's hybrid design pre-filters by graph and FTS5 first, and a scan over a few thousand
+   candidates is inside budget. Revisit `sqlite-vec` only with a measured number, and check
+   whether it is a real ANN index or just a faster scan.**
+7. ✅ **Cross-compile from day one.** `GOOS=windows`, `GOOS=darwin`, `GOOS=linux`. If something
    drags in cgo, you want to find out in week one, not the week you plan to release.
+   → **All three build from Windows with `CGO_ENABLED=0`, ~2.3 MB each. D9 holds.**
 
 Spike 1 is a product question wearing an engineering costume. Do it first.
 

@@ -14,9 +14,9 @@ coverage.out
 *.db
 *.db-wal
 *.db-shm
-data/
-papers/
-blobs/
+/data/
+/papers/
+/blobs/
 .filiation/
 
 # Web UI build output is embedded at build time, not committed

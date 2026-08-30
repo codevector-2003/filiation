@@ -194,3 +194,110 @@ the distribution advantage that motivated the whole decision.
 community-maintained inference stack.
 
 Detail in ADR-008.
+
+---
+
+## D11 — The OpenAlex cost model is measured, not documented
+
+**Decided:** 30 Aug 2026
+
+Spikes 1–3 were run against the live API before writing the client. Every headline number in the
+published documentation — and therefore in D1, ADR-002 and ADR-004 — was wrong.
+
+| | Documented / assumed | Measured |
+| --- | --- | --- |
+| Daily allowance | 100,000 credits | **1,000 credits** ($0.10 equivalent) |
+| Single work by ID | 1 credit | **0 — free** |
+| List request | 10 credits, up to 50 works | **1 credit, up to 200 works** |
+| IDs per filter | 50 or 100, sources disagree | **exactly 100; 101 is a hard 400** |
+| Sustained rate | 10/s or 100/s, sources disagree | **first 429 at ~11/s** |
+| Polite pool via `mailto` | "far faster" | **no measurable difference** |
+
+**Decision.** Trust `docs/SPIKES.md` over OpenAlex's documentation, and re-measure rather than
+re-read when something looks off. The client is built to the measured numbers: batches of 100, a
+5 req/s token bucket, `mailto` sent as courtesy rather than optimisation.
+
+**What survives.** Batching, and the whole of ADR-002. What changes is *why*: batching was
+justified as 5× cheaper per work, and single fetches turn out to be free. The real reason is round
+trips — at ~11 req/s, 500 single fetches is ~50 seconds and 500 chances to be throttled, against 5
+requests batched.
+
+**What gets worse.** Measured branching is 70–100 references per work in STEM, not the ~40
+assumed, so depth 3 is now ~350,000 works and would exhaust a day's allowance. The node budget
+moves from "good practice" to "the only thing keeping expansion inside the free tier."
+
+**Consequence:** every one of these numbers is a moving target — OpenAlex has clearly introduced
+USD-denominated credits since the documentation was written. The client must read
+`X-RateLimit-Remaining` from responses and surface it, rather than trusting any constant compiled
+into the binary.
+
+---
+
+## D12 — Show reference coverage per node, from day one
+
+**Decided:** 30 Aug 2026
+
+Spike 4 measured what fraction of works on the expansion frontier can themselves be expanded:
+
+| Field | Dead ends |
+| --- | --- |
+| Medicine | 6% |
+| Physics and Astronomy | 12% |
+| Computer Science | 15% |
+| Social Sciences | 54% |
+| **Arts and Humanities** | **84%** |
+
+**The tool works in STEM and does not work in the humanities.** Books and chapters dominate
+citation practice there, and those publishers largely do not deposit reference lists with
+Crossref. A humanities researcher's first expansion returns a star of unexpandable stubs.
+
+**Decision.** Treat reference coverage as a first-class, always-visible property of a node,
+exactly like OA status under D5. `fil add` and `fil expand` report how many works in the result
+have no reference list, and the M5 graph view marks them.
+
+**Rejected:** hiding it, or filtering unexpandable nodes out of the display. The stub is still
+true — the paper really was cited — and a silently thin graph is indistinguishable from a broken
+tool.
+
+**Rejected for now:** falling back to reference parsing for humanities works, which would mean
+breaking D1. Revisit only if humanities users turn up and stay, and price it as its own project.
+
+**Consequence:** `SCOPE.md` lists "full-text coverage will disappoint people" as a high risk about
+PDFs. It lands one layer earlier than expected, on the graph itself. Say so in the README before
+someone discovers it by installing the tool.
+
+---
+
+## D13 — Vector search is `vec1`, and the ANN index is a problem we may never have
+
+**Decided:** 30 Aug 2026 · supersedes the `sqlite-vec` line in the stack table
+
+Spike 6 tested SQLite's own vector extension, `ext/vec1`, which `ncruces/go-sqlite3` already
+ships as a loadable WASM module. It was tested first because it costs no new dependency and no
+pre-1.0 risk.
+
+**It is exactly correct** — top-10 identical to a brute-force check in Go, persistent across
+reopen, coexists with FTS5 in one file. **And it has no ANN index:** version 0.7 accepts only
+`none` or `flat`, and flat is a linear scan at ~66 µs/vector. That is ~3 seconds for a
+50,000-chunk library, against ARCHITECTURE.md's 500 ms target.
+
+**Decision.** Use `vec1`. Do not add `sqlite-vec` now.
+
+**Why this is not the disaster it looks like.** M4 was always specified as hybrid retrieval: seed
+by keyword and by meaning, expand along citation edges, rerank. If the vector stage runs over a
+candidate set already narrowed by FTS5 and the graph, it sees a few thousand chunks, not the
+library — about 100 ms, inside target. **Scanning a pre-filtered set is the design.** The missing
+index only becomes critical if retrieval ever needs to embed-search the whole library at once,
+which the architecture does not call for.
+
+**Rejected for now:** `asg017/sqlite-vec`. Revisit only if a measured pre-filtered query misses
+target, and check first whether it provides a genuine ANN index or merely a faster SIMD scan. If
+it is the latter, switching buys a constant factor and costs the pre-1.0 dependency risk that
+CLAUDE.md warns about — a bad trade made on a guess, a fine one made on a measurement.
+
+**Consequence:** the M4 build order changes. Pre-filtering is no longer an optimisation to add
+after the vector search works — it is load-bearing, and must exist before semantic search is
+demonstrated on a real library. Edge weighting and candidate generation come first.
+
+**Also settled:** keyword search is safe. FTS5 works via `AutoExtension` (spike 5), so M3 needs no
+external index. Both extensions must be registered on **every** connection in `store.Open`.
