@@ -320,7 +320,9 @@ The cache lives in a **separate SQLite file** from the library, so it can be del
 
 **Context.** The whole product thesis is a library that accumulates over years. A database that lives in the current working directory produces a scattering of half-built graphs.
 
-**Decision.** The library defaults to a per-user application data directory via `os.UserConfigDir` / `os.UserCacheDir`, or `adrg/xdg` for correct behaviour across all three platforms. Override order: `--db` flag, then `FILIATION_DB` environment variable, then config file, then the default.
+**Decision.** The library defaults to a per-user application data directory. Override order: `--db` flag, then `FILIATION_DB` environment variable, then config file, then the default.
+
+> **Implemented, 7 Sept 2026.** `os.UserConfigDir` alone; **`adrg/xdg` was not taken** — stdlib is already correct on Windows, macOS and Linux, and xdg only earns its place if the full spec (separate data, cache and state directories) is ever needed. Precedence is applied per field, not per source. On first run the CLI **offers the user a choice of location** and records it with `config.Save`; the config package itself never prompts, because it must also work from an MCP server and a web handler.
 
 **Consequences**
 - Easier: `fil add` does the right thing from any directory. Accumulation happens by default.

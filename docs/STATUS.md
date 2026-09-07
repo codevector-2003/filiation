@@ -1,11 +1,11 @@
 # Project status
 
-**Date:** 7 September 2026 · **Position:** M0 in progress — 2 of 9 packages done
+**Date:** 7 September 2026 · **Position:** M0 in progress — 3 of 9 packages done
 **Phase 1 target:** v0.1 by 14 November 2026
 
 > **In one line:** Phase 0 is closed — the design survived contact with the API, but three of its
 > numbers did not. M0 is now building inward-out: the two leaf packages are done and tested, and
-> `internal/store`, where both of spike 5's silent failures live, is the next real work.
+> `internal/store`, where both of spike 5's silent failures live, is next.
 
 ---
 
@@ -20,7 +20,7 @@ protected for them.
 | Phase | Milestone | State |
 | --- | --- | --- |
 | 0 | Spikes, scaffolding, toolchain | **Complete** |
-| 1 | M0 — skeleton, `fil add` writes one node | **In progress** — steps 1–2 of 9 |
+| 1 | M0 — skeleton, `fil add` writes one node | **In progress** — steps 1–3 of 9 |
 | 1 | M1 — budgeted expansion, export, **first release** | Not started |
 | 2 | M2 — MCP server | Not started |
 | 3 | M3 — PDFs, text, citation context, FTS5 | Not started |
@@ -67,8 +67,30 @@ second can never be answered, and merging them would have expansion retrying dea
 forever. Keeping the vocabulary in a leaf package is also what lets `cmd/fil` branch on an error
 without importing `store`.
 
+**M0 step 3 — `internal/config`.** Four decisions were taken while writing it:
+
+- **TOML, not JSON**, for the config file (`BurntSushi/toml`, MIT, no cgo). This file is meant to
+  be hand-edited by researchers, and a format where a trailing comma is fatal is a support burden.
+- **`os.UserConfigDir`, not `adrg/xdg`** — stdlib is already correct on all three targets, so the
+  dependency ADR-006 suggested is **not taken**. Recorded in `go.mod`.
+- **Contact email stays optional**, surfaced through `Warnings()` rather than refused. `mailto`
+  produced byte-identical rate-limit headers (D11), so blocking on it would punish politeness that
+  buys the user nothing.
+- **`config` may import `errs`** — the one exception to its leaf status, so a bad config file
+  reaches the CLI as `ErrInvalidConfig` rather than an opaque string. `errs` imports nothing, so no
+  cycle is possible. `identity` will want the same exception at step 5.
+
+Precedence is applied **per field, not per source**: a `--db` flag must not discard budgets set in
+the file. Unknown keys are refused rather than ignored — `max_node = 5000` parses cleanly, changes
+nothing, and would leave the user believing they had raised a budget they had not.
+
+`config` never prompts. It reports `FirstRun` and the resolved paths; `cmd/fil` does the asking and
+calls `Save`. That keeps the package usable from a test, an MCP server and a web handler, none of
+which have a terminal.
+
 **Dependencies, all licence-checked before adding.** `ncruces/go-sqlite3` MIT ·
-`go-sqlite3-wasm/v3` MIT-0 · `julianday` MIT · `golang.org/x/sys` BSD-3. Nothing copyleft, nothing
+`go-sqlite3-wasm/v3` MIT-0 · `julianday` MIT · `golang.org/x/sys` BSD-3 · `BurntSushi/toml` MIT.
+Nothing copyleft, nothing
 requiring cgo. The licence question in "Still open" remains genuinely open — no dependency has
 forced it.
 
@@ -165,8 +187,8 @@ package is proven early rather than discovered late.
 | --- | --- | --- | --- |
 | 1 | `internal/model` | `Work`, `Edge`, `FrontierItem`. Must make the stub state impossible to forget — a `Work` may have an ID and nothing else (ADR-003) | **Done** |
 | 2 | `internal/errs` | Sentinels the CLI can act on: not found, transient, unresolved, ambiguous. **Not budget exhausted** — a run that stops on its budget succeeded, and reports `model.StopBudgetExhausted` (§7) | **Done** |
-| 3 | `internal/config` | `--db` > `FILIATION_DB` > config file > per-user default (ADR-006). Contact email. `MaxNodes` default **500** | **Next** |
-| 4 | **`internal/store`** | Two handles — read pool, and a write handle at `SetMaxOpenConns(1)`. PRAGMAs, embedded schema, `Tx`, and the first queries | |
+| 3 | `internal/config` | `--db` > `FILIATION_DB` > config file > per-user default (ADR-006). Contact email. `MaxNodes` default **500** | **Done** |
+| 4 | **`internal/store`** | Two handles — read pool, and a write handle at `SetMaxOpenConns(1)`. PRAGMAs, embedded schema, `Tx`, and the first queries | **Next** |
 | 5 | `internal/identity` | DOI, arXiv, OpenAlex ID, PMID, URL, title. **Title search never auto-accepts** (ADR-005) | |
 | 6 | `internal/httpx` | 5 req/s token bucket, `mailto`, backoff honouring `Retry-After`, response cache in a separate file | |
 | 7 | `internal/sources/openalex` | `GetWork`, `GetWorksBatch` (**chunks of 100**), `SearchByTitle` | |

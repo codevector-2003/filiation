@@ -10,10 +10,11 @@ import (
 // set range over this, so adding a sentinel without adding a test is not
 // possible by accident.
 var all = map[string]error{
-	"ErrNotFound":   ErrNotFound,
-	"ErrTransient":  ErrTransient,
-	"ErrUnresolved": ErrUnresolved,
-	"ErrAmbiguous":  ErrAmbiguous,
+	"ErrNotFound":      ErrNotFound,
+	"ErrTransient":     ErrTransient,
+	"ErrUnresolved":    ErrUnresolved,
+	"ErrAmbiguous":     ErrAmbiguous,
+	"ErrInvalidConfig": ErrInvalidConfig,
 }
 
 // Sentinels are returned wrapped, so errors.Is must see through the wrapping.

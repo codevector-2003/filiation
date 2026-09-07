@@ -54,6 +54,17 @@ var (
 	// the extra keystroke — a wrong seed is not a small error, it poisons every
 	// node expanded from it and the user may not notice for weeks.
 	ErrAmbiguous = errors.New("ambiguous identifier")
+
+	// ErrInvalidConfig means the configuration was read but is not usable: a
+	// malformed TOML file, a budget of zero, an unwritable library path.
+	//
+	// It is separate from every other failure because the CLI answers it
+	// differently. This is the one error class the user can fix themselves, and
+	// the only useful response is to name the file and stop — so the front door
+	// prints the config path and exits, rather than reporting a failure the user
+	// has no way to act on. Falling back to defaults instead would be worse: a
+	// typo in max_nodes would silently expand a graph the user did not ask for.
+	ErrInvalidConfig = errors.New("invalid configuration")
 )
 
 // There is deliberately no ErrBudgetExhausted.
