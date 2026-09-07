@@ -1,11 +1,11 @@
 # Project status
 
-**Date:** 30 August 2026 · **Position:** end of Phase 0 (spikes), entering M0
+**Date:** 7 September 2026 · **Position:** M0 in progress — 2 of 9 packages done
 **Phase 1 target:** v0.1 by 14 November 2026
 
-> **In one line:** the design survived contact with the API, but three of its numbers did not.
-> All seven de-risking spikes are done — two weeks ahead of schedule — and no code has been
-> written against an assumption that has not been measured.
+> **In one line:** Phase 0 is closed — the design survived contact with the API, but three of its
+> numbers did not. M0 is now building inward-out: the two leaf packages are done and tested, and
+> `internal/store`, where both of spike 5's silent failures live, is the next real work.
 
 ---
 
@@ -20,7 +20,7 @@ protected for them.
 | Phase | Milestone | State |
 | --- | --- | --- |
 | 0 | Spikes, scaffolding, toolchain | **Complete** |
-| 1 | M0 — skeleton, `fil add` writes one node | **Next** |
+| 1 | M0 — skeleton, `fil add` writes one node | **In progress** — steps 1–2 of 9 |
 | 1 | M1 — budgeted expansion, export, **first release** | Not started |
 | 2 | M2 — MCP server | Not started |
 | 3 | M3 — PDFs, text, citation context, FTS5 | Not started |
@@ -51,6 +51,21 @@ WAL. Keyword search, vector search and the graph all live in one file with no se
 **Documentation reconciled.** Every measured number was written back into the documents that
 carried the wrong one — §3's cost model, ADR-004's rate limit, §9's spike list, the stack table
 and API notes in `CLAUDE.md`, and the risk register in `SCOPE.md`.
+
+**M0 steps 1–2 — the two leaf packages.** `internal/model` carries `Work`, `Edge`,
+`FrontierItem` and `ExpansionResult`. Optional fields are pointers so a stub cannot hand back a
+zero value that reads like real data, and `DOI` in particular *must* be one: the column is
+`UNIQUE`, and SQLite permits many NULLs in a unique index but only one empty string, so a
+string-typed DOI would make the second stub without one fail to insert. `HydratedWork` is split
+from `Work` so that `IsDeadEnd` cannot be asked of a work loaded from the store, where the
+reference list is gone and every work would answer yes.
+
+`internal/errs` holds four sentinels — `ErrNotFound`, `ErrTransient`, `ErrUnresolved`,
+`ErrAmbiguous` — and no logic. `ErrNotFound` (this library has no such row) and `ErrUnresolved`
+(OpenAlex has no record) are deliberately distinct: the first is answered by adding the work, the
+second can never be answered, and merging them would have expansion retrying dead identifiers
+forever. Keeping the vocabulary in a leaf package is also what lets `cmd/fil` branch on an error
+without importing `store`.
 
 **Dependencies, all licence-checked before adding.** `ncruces/go-sqlite3` MIT ·
 `go-sqlite3-wasm/v3` MIT-0 · `julianday` MIT · `golang.org/x/sys` BSD-3. Nothing copyleft, nothing
@@ -146,17 +161,17 @@ demonstrated on a real library.
 Leaves first, each package tested before the next begins. The order is chosen so the riskiest
 package is proven early rather than discovered late.
 
-| Order | Package | What lands |
-| --- | --- | --- |
-| 1 | `internal/model` | `Work`, `Edge`, `FrontierItem`. Must make the stub state impossible to forget — a `Work` may have an ID and nothing else (ADR-003) |
-| 2 | `internal/errs` | Sentinels the CLI can act on: not found, transient, unresolved, ambiguous, budget exhausted |
-| 3 | `internal/config` | `--db` > `FILIATION_DB` > config file > per-user default (ADR-006). Contact email. `MaxNodes` default **500** |
-| 4 | **`internal/store`** | Two handles — read pool, and a write handle at `SetMaxOpenConns(1)`. PRAGMAs, embedded schema, `Tx`, and the first queries |
-| 5 | `internal/identity` | DOI, arXiv, OpenAlex ID, PMID, URL, title. **Title search never auto-accepts** (ADR-005) |
-| 6 | `internal/httpx` | 5 req/s token bucket, `mailto`, backoff honouring `Retry-After`, response cache in a separate file |
-| 7 | `internal/sources/openalex` | `GetWork`, `GetWorksBatch` (**chunks of 100**), `SearchByTitle` |
-| 8 | `internal/library` | `Add` — resolve, hydrate seed, record edges and stubs |
-| 9 | `cmd/fil` | cobra wiring, plus the lint rule forbidding front doors from importing `store` |
+| Order | Package | What lands | State |
+| --- | --- | --- | --- |
+| 1 | `internal/model` | `Work`, `Edge`, `FrontierItem`. Must make the stub state impossible to forget — a `Work` may have an ID and nothing else (ADR-003) | **Done** |
+| 2 | `internal/errs` | Sentinels the CLI can act on: not found, transient, unresolved, ambiguous. **Not budget exhausted** — a run that stops on its budget succeeded, and reports `model.StopBudgetExhausted` (§7) | **Done** |
+| 3 | `internal/config` | `--db` > `FILIATION_DB` > config file > per-user default (ADR-006). Contact email. `MaxNodes` default **500** | **Next** |
+| 4 | **`internal/store`** | Two handles — read pool, and a write handle at `SetMaxOpenConns(1)`. PRAGMAs, embedded schema, `Tx`, and the first queries | |
+| 5 | `internal/identity` | DOI, arXiv, OpenAlex ID, PMID, URL, title. **Title search never auto-accepts** (ADR-005) | |
+| 6 | `internal/httpx` | 5 req/s token bucket, `mailto`, backoff honouring `Retry-After`, response cache in a separate file | |
+| 7 | `internal/sources/openalex` | `GetWork`, `GetWorksBatch` (**chunks of 100**), `SearchByTitle` | |
+| 8 | `internal/library` | `Add` — resolve, hydrate seed, record edges and stubs | |
+| 9 | `cmd/fil` | cobra wiring, plus the lint rule forbidding front doors from importing `store` | |
 
 **Two gotchas that land in `internal/store` first**, both from spike 5, and both silent failures
 if missed:

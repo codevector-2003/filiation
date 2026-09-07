@@ -12,7 +12,7 @@ tool does for papers: it reconstructs where a claim came from by following the c
 - Language: **Go** (see D8 in `docs/DECISIONS.md`)
 - Module: `github.com/codevector-2003/filiation`
 - Binary / CLI command: `fil`
-- Status: pre-M0. Nothing is built yet.
+- Status: **M0 in progress** — 2 of 9 packages done (`model`, `errs`). See `docs/STATUS.md`.
 
 ---
 
@@ -183,8 +183,9 @@ provides this for free and it is what makes retrieval better than everyone else'
 
 ## Build order
 
-Current position: **pre-M0**. Dates assume learning Go alongside building; Phase 1 carries two
-extra weeks for that.
+Current position: **M0, steps 1–2 of 9 complete** — `internal/model` and `internal/errs` are
+written and tested; `internal/config` is next. Dates assume learning Go alongside building;
+Phase 1 carries two extra weeks for that.
 
 - [ ] **M0 — Skeleton** (2–3 weeks). Module layout, config, embedded schema, `store` package,
       one command that takes a DOI, fetches from OpenAlex, stores one node.
