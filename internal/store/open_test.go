@@ -98,7 +98,7 @@ func TestForeignKeysOnEveryConnection(t *testing.T) {
 			c.Close()
 		}
 	}()
-	for i := 0; i < maxReadConns; i++ {
+	for i := range maxReadConns {
 		c, err := db.read.Conn(ctx)
 		if err != nil {
 			t.Fatalf("read conn %d: %v", i, err)
@@ -175,11 +175,11 @@ func TestConcurrentReadsDuringWrites(t *testing.T) {
 	errCh := make(chan error, (writers+readers)*each)
 	var wg sync.WaitGroup
 
-	for w := 0; w < writers; w++ {
+	for w := range writers {
 		wg.Add(1)
 		go func(w int) {
 			defer wg.Done()
-			for i := 0; i < each; i++ {
+			for i := range each {
 				_, err := db.write.ExecContext(ctx,
 					`INSERT INTO work (id, title) VALUES (?, ?);`,
 					fmt.Sprintf("W%d-%d", w, i), "a title")
@@ -190,11 +190,11 @@ func TestConcurrentReadsDuringWrites(t *testing.T) {
 			}
 		}(w)
 	}
-	for r := 0; r < readers; r++ {
+	for r := range readers {
 		wg.Add(1)
 		go func(r int) {
 			defer wg.Done()
-			for i := 0; i < each; i++ {
+			for i := range each {
 				var n int
 				if err := db.read.QueryRowContext(ctx, `SELECT count(*) FROM work;`).Scan(&n); err != nil {
 					errCh <- fmt.Errorf("read %d/%d: %w", r, i, err)
@@ -306,8 +306,8 @@ func mustExec(t *testing.T, db *sql.DB, q string, args ...any) {
 }
 
 func firstLine(s string) string {
-	if i := strings.IndexByte(s, '\n'); i >= 0 {
-		return s[:i] + "..."
+	if head, _, found := strings.Cut(s, "\n"); found {
+		return head + "..."
 	}
 	return s
 }

@@ -7,6 +7,12 @@
 --     Nobody provides this for free. It is what makes retrieval better than plain search.
 --   * PDFs live on the filesystem, named by their SHA-256. Only the hash is stored here.
 
+-- NOTE: these two PRAGMAs are a statement of intent, not the mechanism.
+-- internal/store strips every PRAGMA from this file before applying it, because
+-- journal_mode cannot run inside the transaction that makes migration
+-- all-or-nothing. Both are set per connection from the DSN in open.go instead --
+-- which is also the only thing that works, since foreign_keys is per connection
+-- and never stored in the file (spike 5). Adding a PRAGMA here will NOT run it.
 PRAGMA journal_mode = WAL;
 PRAGMA foreign_keys = ON;
 

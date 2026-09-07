@@ -15,6 +15,7 @@ var all = map[string]error{
 	"ErrUnresolved":    ErrUnresolved,
 	"ErrAmbiguous":     ErrAmbiguous,
 	"ErrInvalidConfig": ErrInvalidConfig,
+	"ErrSchemaTooNew":  ErrSchemaTooNew,
 }
 
 // Sentinels are returned wrapped, so errors.Is must see through the wrapping.

@@ -65,6 +65,22 @@ var (
 	// has no way to act on. Falling back to defaults instead would be worse: a
 	// typo in max_nodes would silently expand a graph the user did not ask for.
 	ErrInvalidConfig = errors.New("invalid configuration")
+
+	// ErrSchemaTooNew means the library was written by a newer build of fil
+	// than the one now running, and must not be touched.
+	//
+	// It is a separate error because it is the one failure where doing nothing
+	// is the whole point. A newer schema may maintain state this build knows
+	// nothing about — a denormalised counter, a changed trigger — and writes
+	// that look perfectly valid here would leave it quietly inconsistent, with
+	// no error for the user to notice.
+	//
+	// The check can only ever run in the older binary, which is why it ships
+	// from the first release: a guard added later cannot reach a copy of fil
+	// somebody already downloaded. It matters more here than in most tools
+	// because ADR-006 points every build on the machine at the same library
+	// file, so an old binary meeting a new library is ordinary, not exotic.
+	ErrSchemaTooNew = errors.New("library schema is newer than this build")
 )
 
 // There is deliberately no ErrBudgetExhausted.
