@@ -289,6 +289,209 @@ func (l *Library) Stats(ctx context.Context) (Stats, error) {
 	return Stats{Works: s.Works, Stubs: s.Stubs, Edges: s.Edges}, nil
 }
 
+// Find resolves what the user typed to a work already in the library. It never
+// asks OpenAlex: a paper that has not been added has no neighbours and no
+// paths, and saying so is more useful than fetching it behind the user's back.
+//
+// A DOI, arXiv ID, PMID or OpenAlex ID is looked up directly. A title is
+// matched against the titles in the library, allowing for case, punctuation
+// and a typo; one match is used, several come back in an *AmbiguousError. For
+// a read-only question that is safe in a way it is not for Add: nothing is
+// written, and the answer names the work it used.
+//
+// A work that is not there wraps errs.ErrNotFound.
+func (l *Library) Find(ctx context.Context, input string) (model.Work, error) {
+	id, err := identity.Parse(input)
+	if err != nil {
+		return model.Work{}, err
+	}
+
+	by := map[identity.Kind]store.Lookup{
+		identity.KindOpenAlex: store.ByOpenAlexID,
+		identity.KindDOI:      store.ByDOI,
+		identity.KindArXiv:    store.ByArXivID,
+		identity.KindPMID:     store.ByPMID,
+	}
+	if lookup, ok := by[id.Kind]; ok {
+		w, err := l.db.FindWork(ctx, lookup, id.Value)
+		if errors.Is(err, errs.ErrNotFound) && id.Kind == identity.KindArXiv {
+			// An arXiv paper OpenAlex found by its DataCite DOI may be stored
+			// under that DOI rather than with its arXiv ID.
+			w, err = l.db.FindWork(ctx, store.ByDOI, id.ArXivDOI())
+		}
+		if errors.Is(err, errs.ErrNotFound) {
+			return model.Work{}, fmt.Errorf("%s %s is not in your library: %w", id.Kind, id.Value, errs.ErrNotFound)
+		}
+		if err != nil {
+			return model.Work{}, err
+		}
+		return *w, nil
+	}
+
+	works, err := l.db.TitledWorks(ctx)
+	if err != nil {
+		return model.Work{}, err
+	}
+	var exact, near []model.Work
+	key := identity.TitleKey(id.Value)
+	for _, w := range works {
+		switch {
+		case identity.TitleKey(*w.Title) == key:
+			exact = append(exact, w)
+		case identity.TitlesMatch(id.Value, *w.Title):
+			near = append(near, w)
+		}
+	}
+	matches := exact
+	if len(matches) == 0 {
+		matches = near
+	}
+	switch len(matches) {
+	case 0:
+		return model.Work{}, fmt.Errorf("no work titled %q in your library: %w", id.Value, errs.ErrNotFound)
+	case 1:
+		return l.getWork(ctx, matches[0].OpenAlexID)
+	}
+	candidates := make([]Candidate, len(matches))
+	for i, w := range matches {
+		candidates[i] = Candidate{Work: w, TitleMatch: true}
+	}
+	return model.Work{}, &AmbiguousError{Title: id.Value, Candidates: candidates}
+}
+
+// Neighbourhood is a work and the works on either side of it.
+type Neighbourhood struct {
+	Work model.Work
+
+	// Cites is the work's references, fetched ones first.
+	Cites []model.Work
+
+	// CitedBy is the works in this library that cite it — never a global
+	// count; see Work.CitedByCount for that.
+	CitedBy []model.Work
+}
+
+// Neighbours returns what a work in the library cites and what cites it.
+func (l *Library) Neighbours(ctx context.Context, input string) (Neighbourhood, error) {
+	w, err := l.Find(ctx, input)
+	if err != nil {
+		return Neighbourhood{}, err
+	}
+	cites, err := l.db.WorksCitedBy(ctx, w.OpenAlexID)
+	if err != nil {
+		return Neighbourhood{}, err
+	}
+	citedBy, err := l.db.WorksCiting(ctx, w.OpenAlexID)
+	if err != nil {
+		return Neighbourhood{}, err
+	}
+	return Neighbourhood{Work: w, Cites: cites, CitedBy: citedBy}, nil
+}
+
+// DefaultMaxHops is how far Path searches by default. Six citation steps
+// reaches across almost any library; a chain longer than that says little
+// about how two papers are related.
+const DefaultMaxHops = 6
+
+// PathOptions control Path.
+type PathOptions struct {
+	// MaxHops bounds the search. Zero means DefaultMaxHops.
+	MaxHops int
+
+	// AnyDirection connects the two works through citations in either
+	// direction. Without it, Path looks for lineage: one work reaching the
+	// other by following references.
+	AnyDirection bool
+}
+
+// Path is a chain of citations between two works.
+type Path struct {
+	// Found reports whether a chain exists within the step limit. Not finding
+	// one is an answer, not an error.
+	Found bool
+
+	// Works runs from the first work asked about to the second.
+	Works []model.Work
+
+	// Cites[i] reports that Works[i] cites Works[i+1]; false means it is the
+	// other way round.
+	Cites []bool
+}
+
+// PathBetween finds the shortest chain of citations between two works in the
+// library.
+//
+// By default it looks for lineage — the project's name for it (D6): a chain of
+// references from one work to the other, so that one descends from the other.
+// It tries from the first to the second, then the reverse, and always reports
+// the chain in the order asked. With AnyDirection it finds any connection.
+func (l *Library) PathBetween(ctx context.Context, from, to string, opts PathOptions) (Path, error) {
+	a, err := l.Find(ctx, from)
+	if err != nil {
+		return Path{}, err
+	}
+	b, err := l.Find(ctx, to)
+	if err != nil {
+		return Path{}, err
+	}
+	hops := opts.MaxHops
+	if hops <= 0 {
+		hops = DefaultMaxHops
+	}
+
+	var p store.Path
+	if opts.AnyDirection {
+		p, err = l.db.ShortestPath(ctx, a.OpenAlexID, b.OpenAlexID, hops, store.Either)
+	} else {
+		p, err = l.db.ShortestPath(ctx, a.OpenAlexID, b.OpenAlexID, hops, store.Backward)
+		if errors.Is(err, errs.ErrNotFound) {
+			p, err = l.db.ShortestPath(ctx, b.OpenAlexID, a.OpenAlexID, hops, store.Backward)
+			if err == nil {
+				p = reversePath(p)
+			}
+		}
+	}
+	if errors.Is(err, errs.ErrNotFound) {
+		return Path{Works: []model.Work{a, b}}, nil
+	}
+	if err != nil {
+		return Path{}, err
+	}
+
+	out := Path{Found: true, Cites: p.Cites}
+	for _, id := range p.IDs {
+		w, err := l.getWork(ctx, id)
+		if err != nil {
+			return Path{}, err
+		}
+		out.Works = append(out.Works, w)
+	}
+	return out, nil
+}
+
+// getWork reads one work by ID and returns it by value.
+func (l *Library) getWork(ctx context.Context, id string) (model.Work, error) {
+	w, err := l.db.GetWork(ctx, id)
+	if err != nil {
+		return model.Work{}, err
+	}
+	return *w, nil
+}
+
+// reversePath turns a chain found from b to a into the same chain read from a
+// to b.
+func reversePath(p store.Path) store.Path {
+	n := len(p.IDs)
+	r := store.Path{IDs: make([]string, n), Cites: make([]bool, len(p.Cites))}
+	for i, id := range p.IDs {
+		r.IDs[n-1-i] = id
+	}
+	for i, c := range p.Cites {
+		r.Cites[len(p.Cites)-1-i] = !c
+	}
+	return r
+}
+
 // Summary is the library at a glance.
 type Summary struct {
 	Works      int // every work, stubs included

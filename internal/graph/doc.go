@@ -12,7 +12,8 @@
 // internal/sources. Keeping that pairing here is what lets store stay
 // swappable.
 //
-// Traversal (neighbours, shortest path) is recursive CTEs, so it lives in
+// Traversal (neighbours, shortest path) is SQL — a breadth-first search, one
+// set-based query per step, not a recursive CTE (see store.ShortestPath) — so it lives in
 // store. Whole-graph algorithms (PageRank, communities) load edges into memory
 // through gonum/graph and live here.
 package graph

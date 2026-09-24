@@ -20,6 +20,7 @@ const (
 	exitTransient    = 5 // network or rate limit; retrying later may
 	exitConfig       = 6 // fix the config file
 	exitSchemaTooNew = 7 // upgrade fil
+	exitNotFound     = 8 // the paper is not in the library; add it first
 
 	// exitCancelled is the shell convention for a run stopped by Ctrl-C
 	// (128 + SIGINT). Nothing is lost, but the run did not finish.

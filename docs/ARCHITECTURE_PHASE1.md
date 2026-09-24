@@ -202,7 +202,7 @@ func (e *Expander) Expand(ctx context.Context, seedID string, o Opts) error {
 **Trade-off.** Hand-written `database/sql` means writing `rows.Scan` boilerplate for every query, which is the least pleasant part of Go. `sqlc` removes exactly that while keeping SQL as the source of truth — adopt it the moment scan code starts causing bugs, not before. An ORM would hide the recursive CTEs that are the interesting part of this codebase.
 
 **Consequences**
-- Easier: writing exactly the SQL you want, including recursive CTEs for path finding, which ORMs make awkward.
+- Easier: writing exactly the SQL you want, including window functions for the frontier and set-based queries for path finding, which ORMs make awkward. *(Path finding was planned as a recursive CTE; measured on real data it enumerates paths rather than works — see `SPIKES.md` — so it is a breadth-first search, one query per step.)*
 - Harder: `rows.Scan` boilerplate. The eventual Postgres port is a rewrite of one package rather than a config change.
 - Revisit when: server mode is actually scheduled, not before.
 

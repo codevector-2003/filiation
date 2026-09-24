@@ -1,6 +1,6 @@
 # Project status
 
-**Date:** 24 September 2026 · **Position:** **M0 complete** · M1 in progress — steps 1–4 of 6
+**Date:** 24 September 2026 · **Position:** **M0 complete** · M1 in progress — steps 1–5 of 6
 **Phase 1 target:** v0.1 by 14 November 2026
 
 > **In one line:** M0 is done, and M1's expander works live — `fil expand` grew one seed to 525
@@ -419,8 +419,8 @@ twice adds nothing the second time, and the seed's 54 references are present as 
 | 2 | `graph.Expand`: the budgeted loop, with §8's resume, idempotency, budget, cycle and single-writer tests | **Done** |
 | 3 | `library.Expand` and `fil expand`, with progress and a coverage report | **Done** — verified live |
 | 4 | Title-level duplicates: reported by `fil stats --duplicates`, never merged (D14) | **Done** |
-| 5 | `fil neighbours`, `fil path` (recursive CTEs with a visited set — the graph is not a DAG). `fil stats` landed with step 4 | **Next** |
-| 6 | GraphML export, then GoReleaser, the multi-field validation run, and **v0.1** | |
+| 5 | `fil neighbours`, `fil path` — breadth-first search, not a recursive CTE (measured). `fil stats` landed with step 4 | **Done** |
+| 6 | GraphML export, then GoReleaser, the multi-field validation run, and **v0.1** | **Next** |
 
 **Steps 1–3.** `fil expand` grows the graph from everything in the library, best first — in-graph
 in-degree, then depth, then ID, so the order is deterministic and resume is exact. One transaction
@@ -449,6 +449,29 @@ when it drops below 70%.
 
 Live, the second run fetched 478 works in 21 s: 525 hydrated, 7,677 works, 11,802 edges, with no
 duplicate IDs or DOIs, no self-loops and no dangling edges.
+
+**Step 5 — `fil neighbours` and `fil path`.** Both read the library only, never OpenAlex: a
+paper not yet added gets "add it first" (exit 8), not a silent fetch. They take any identifier, or
+a title matched against the library's own titles — one close match is used and named in the
+output; several are listed (exit 3). For a read-only question that is safe in a way it is not for
+`fil add`: nothing is written.
+
+- **`fil neighbours`** lists a paper's references, fetched first, and what *in your library*
+  cites it — never a global count.
+- **`fil path`** looks for **lineage** by default: one paper reaching the other by following
+  references, tried in both orders and always printed in the order asked. `--any-direction`
+  allows steps either way. No chain within `--max-hops` (default 6) is an answer, not an error:
+  it prints the way forward and exits 1.
+- **Breadth-first search, not a recursive CTE** — the stack table's plan. Measured on the live
+  library, the recursive CTE produced 20.8 million rows in 125 s to reach depth 5, because it
+  enumerates paths rather than works. The search is one set-based SQL query per step plus a
+  visited set, so each work is touched once and cycles cannot blow it up. Ties go to the lower
+  ID, so the same library always gives the same path. `CLAUDE.md`, `ARCHITECTURE*.md` and
+  `graph/doc.go` are updated; the numbers are in `SPIKES.md`.
+
+On the live library, `fil path` found the seed descending from *Invisible Colleges* (1973) through
+a 2011 RCT in two steps, and the two *Invisible Colleges* records D14 reports turned out to be
+cited by different papers — the split citations that make a duplicate costly.
 
 ### Decided: title-level duplicates are reported, not merged (D14)
 

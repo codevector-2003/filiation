@@ -314,6 +314,25 @@ self-loops, no dangling edges. Budget exact: 478 hydrated + 21 unresolved + 1 me
 Reference coverage 67% — this seed's neighbourhood is information science, which sits with the
 social sciences in D12's table.
 
+**Path finding: a recursive CTE does not scale on a real graph.** The stack table named recursive
+CTEs for traversal. SQLite's recursive CTE has no shared visited set; guarding cycles with a path
+string, it enumerates every *path* rather than every *work*. From the seed, undirected, on the
+same library (6,555 works, 10,049 edges):
+
+| Depth | Rows produced | Distinct works | Time |
+| --- | --- | --- | --- |
+| 2 | 1,982 | 1,043 | 0.03 s |
+| 3 | 40,856 | 4,769 | 0.08 s |
+| 4 | 937,387 | 6,555 | 1.54 s |
+| 5 | **20,848,660** | 6,555 | **125 s** |
+
+Growth is ~20× per step, and every work was already reached at depth 4. `store.ShortestPath` is
+instead a breadth-first search: one set-based query per step over the whole frontier, and a
+visited set in Go, so each work is touched once. Still plain SQL, so the Postgres move is
+unaffected. Two things the live graph showed on the way: `fil path` found real lineage in two
+steps (the seed → a 2011 RCT → *Invisible Colleges*, 1973), and the graph has real cycles — the
+seed and the 2018 Sci-Hub paper each cite the other.
+
 ---
 
 ## Consequences for the build
