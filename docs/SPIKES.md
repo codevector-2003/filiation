@@ -335,6 +335,19 @@ seed and the 2018 Sci-Hub paper each cite the other.
 
 ---
 
+## M1 validation run — 24 Sept 2026
+
+20 seeds, 5 fields, live; every seed completed add, expand, duplicate report and export. Full
+results in [`VALIDATION.md`](VALIDATION.md). Two measurements that belong with the spikes:
+
+| Question | Answer |
+| --- | --- |
+| Frontier reference coverage, with seeds that have reference lists | Medicine 93%, physics 91%, CS 88%, social sciences 59%, humanities 56% |
+| Title duplicates per 100 fetched works | 1.4 (medicine) → 4.1 (humanities) |
+| Can OpenAlex's reference data be plainly wrong? | **Yes.** EPR (1935)'s only listed reference is Bohr's same-titled reply, as a 1996 reprint, which cites EPR back |
+
+---
+
 ## Consequences for the build
 
 - **`go.mod` moved to `go 1.25.0`.** `go get` bumped it: `go-sqlite3-wasm/v3` requires it. CLAUDE.md

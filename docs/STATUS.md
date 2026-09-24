@@ -6,7 +6,8 @@
 > **In one line:** M0 is done, and M1's expander works live — `fil expand` grew one seed to 525
 > fetched works and 11,802 citations, with no duplicate IDs or DOIs. Title-level duplicates
 > (~4%) are reported by `fil stats --duplicates` and never merged on a guess (D14).
-> `fil path`, `fil neighbours` and GraphML export work; what remains of M1 is the release.
+> `fil path`, `fil neighbours` and GraphML export work, and the 20-seed validation run passed
+> 20 of 20. What remains of M1 is tagging the release — version name and licence to decide.
 > The schedule has slack: §10 planned the expander for 13–26 October.
 
 ---
@@ -421,7 +422,7 @@ twice adds nothing the second time, and the seed's 54 references are present as 
 | 3 | `library.Expand` and `fil expand`, with progress and a coverage report | **Done** — verified live |
 | 4 | Title-level duplicates: reported by `fil stats --duplicates`, never merged (D14) | **Done** |
 | 5 | `fil neighbours`, `fil path` — breadth-first search, not a recursive CTE (measured). `fil stats` landed with step 4 | **Done** |
-| 6 | GraphML export — **done**. Then GoReleaser, the multi-field validation run, and **v0.1** | **In progress** |
+| 6 | GraphML export, the 20-seed validation run and GoReleaser — **done**. Tagging the release awaits a decision on its version and the licence | **Awaiting release** |
 
 **Steps 1–3.** `fil expand` grows the graph from everything in the library, best first — in-graph
 in-degree, then depth, then ID, so the order is deterministic and resume is exact. One transaction
@@ -495,6 +496,30 @@ most-cited node is Lawrence 2001, *Free online availability substantially increa
 impact* — the founding paper of this seed's field, which is what a correct graph should show.
 The 93%-stub export is §8's "stub handling" test, passed on real data. **Opening it in Gephi is
 still to be done by hand** — it is a GUI and was not available here.
+
+**Step 6 — the validation run.** §10's 20 papers across 5 fields, live, one library each, with
+the default budget: **20 of 20 completed every step** — add, expand, duplicate report, and a GraphML
+export read back by an independent parser — with no errors and the budget exact throughout. Full
+tables and findings: [`VALIDATION.md`](VALIDATION.md). In brief:
+
+- Reference coverage on the frontier: medicine 93%, physics 91%, CS 88%, social sciences 59%,
+  humanities 56% — D12's ordering, less steep than spike 4 because the seeds were chosen with
+  reference lists. The low-coverage note fired for six of eight social-science and humanities
+  seeds and no STEM seed.
+- Title duplicates: 1.4 per 100 fetched works in medicine rising to 4.1 in the humanities.
+- **D14's best evidence:** OpenAlex lists Bohr's same-titled reply as EPR's only reference. The
+  duplicate report flagged the pair; a title merge would have folded Einstein into Bohr.
+- 500 works in 14–73 s; the run cost ~115 credits.
+
+**Step 6 — release tooling.** `.goreleaser.yaml` builds `fil` for Windows, macOS and Linux on
+amd64 and arm64, with `CGO_ENABLED=0` (hard rule 4), the version stamped in, and a checksum file.
+`.github/workflows/release.yml` runs the tests and publishes on a pushed `v*` tag, so released
+binaries come from a clean runner and the tagged commit only.
+
+**Two decisions before tagging.** (1) *Version.* `CLAUDE.md` locks "v1 includes the full retrieval
+engine with Q&A — the graph alone does not count as done", and §10 names this release **v0.1**;
+tagging it v1.0 would contradict that and promise a stable interface M2–M6 will change. (2)
+*Licence* — still open. Without one, published binaries are not legally open source.
 
 ### Decided: title-level duplicates are reported, not merged (D14)
 
