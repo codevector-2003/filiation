@@ -1,11 +1,12 @@
 # Project status
 
-**Date:** 7 September 2026 · **Position:** M0 in progress — 3 of 9 packages done
+**Date:** 24 September 2026 · **Position:** M0 in progress — 4 of 9 packages done
 **Phase 1 target:** v0.1 by 14 November 2026
 
 > **In one line:** Phase 0 is closed — the design survived contact with the API, but three of its
-> numbers did not. M0 is now building inward-out: the two leaf packages are done and tested, and
-> `internal/store`, where both of spike 5's silent failures live, is next.
+> numbers did not. M0 is building inward-out and the riskiest package is now behind it:
+> `internal/store` holds both of spike 5's silent failures and both are handled, so what remains
+> before `fil add` works is fetching rather than storing.
 
 ---
 
@@ -20,7 +21,7 @@ protected for them.
 | Phase | Milestone | State |
 | --- | --- | --- |
 | 0 | Spikes, scaffolding, toolchain | **Complete** |
-| 1 | M0 — skeleton, `fil add` writes one node | **In progress** — steps 1–3 of 9 |
+| 1 | M0 — skeleton, `fil add` writes one node | **In progress** — steps 1–4 of 9 |
 | 1 | M1 — budgeted expansion, export, **first release** | Not started |
 | 2 | M2 — MCP server | Not started |
 | 3 | M3 — PDFs, text, citation context, FTS5 | Not started |
@@ -87,6 +88,39 @@ nothing, and would leave the user believing they had raised a budget they had no
 `config` never prompts. It reports `FirstRun` and the resolved paths; `cmd/fil` does the asking and
 calls `Save`. That keeps the package usable from a test, an MCP server and a web handler, none of
 which have a terminal.
+
+**M0 step 4 — `internal/store`.** The package is in two halves. The connection half handles both
+of spike 5's silent failures: FTS5 is registered with `sqlite3.AutoExtension` before either handle
+is opened, and `foreign_keys` is set in the DSN of *every* connection rather than trusting the
+`PRAGMA` in `schema.sql`, which only ever bound the connection that applied it. A third, found
+while writing it: the driver applies its one-minute `busy_timeout` default only when the DSN
+carries no `_pragma` at all — set any other pragma and the default silently becomes zero, which
+turns every moment of contention into an immediate `database is locked`. It is now set explicitly.
+
+The query half is four decisions:
+
+- **`Tx` is the only way to write.** The write handle is unexported, so the single-writer rule is
+  structural rather than remembered. The unit of work is the caller's, not the statement's:
+  hydrating a work, writing its edges and creating the stubs they point at is one transaction,
+  because the edges reference rows the same call creates.
+- **Hydration updates, it does not replace.** A work is almost always already present as a stub
+  when it is hydrated, so `depth` keeps the smaller of the two values, `is_seed` is sticky and
+  `source` records how the work *first* entered and is never rewritten. Overwriting any of them
+  would lose provenance that no later fetch can reconstruct.
+- **`RecordEdgesAndStubs` records every reference, including a review's eight hundred.** They
+  arrive free inside a response already paid for, and an edge is ground truth this layer is not
+  entitled to discard. §4's cap on how many may compete for the budget moves to the frontier
+  query in M1, where it can be applied per citing work without throwing measurements away.
+- **A non-bare OpenAlex ID is refused, not normalised.** `openalex_id` is the deduplication key,
+  so a work admitted as `https://openalex.org/W...` is not a formatting problem — it is a
+  duplicate node the primary key can no longer catch. Normalising is `internal/identity`'s job.
+
+Dead ends are reported rather than raised: `Recorded.DeadEnd` answers "this work cannot extend the
+graph" as a fact about the data, which is what D12 requires of every layer that touches it.
+
+Twenty-six tests, including the two §8 names as the ones that will actually catch regressions —
+recording the same reference list twice writes nothing the second time, and a failure partway
+through a reference list leaves the citing work without `fetched_refs`.
 
 **Dependencies, all licence-checked before adding.** `ncruces/go-sqlite3` MIT ·
 `go-sqlite3-wasm/v3` MIT-0 · `julianday` MIT · `golang.org/x/sys` BSD-3 · `BurntSushi/toml` MIT.
@@ -188,20 +222,22 @@ package is proven early rather than discovered late.
 | 1 | `internal/model` | `Work`, `Edge`, `FrontierItem`. Must make the stub state impossible to forget — a `Work` may have an ID and nothing else (ADR-003) | **Done** |
 | 2 | `internal/errs` | Sentinels the CLI can act on: not found, transient, unresolved, ambiguous. **Not budget exhausted** — a run that stops on its budget succeeded, and reports `model.StopBudgetExhausted` (§7) | **Done** |
 | 3 | `internal/config` | `--db` > `FILIATION_DB` > config file > per-user default (ADR-006). Contact email. `MaxNodes` default **500** | **Done** |
-| 4 | **`internal/store`** | Two handles — read pool, and a write handle at `SetMaxOpenConns(1)`. PRAGMAs, embedded schema, `Tx`, and the first queries | **Next** |
-| 5 | `internal/identity` | DOI, arXiv, OpenAlex ID, PMID, URL, title. **Title search never auto-accepts** (ADR-005) | |
+| 4 | `internal/store` | Two handles — read pool, and a write handle at `SetMaxOpenConns(1)`. PRAGMAs, embedded schema, `Tx`, and the first queries | **Done** |
+| 5 | **`internal/identity`** | DOI, arXiv, OpenAlex ID, PMID, URL, title. **Title search never auto-accepts** (ADR-005). It also owns normalising the OpenAlex URL form, which `store` refuses outright | **Next** |
 | 6 | `internal/httpx` | 5 req/s token bucket, `mailto`, backoff honouring `Retry-After`, response cache in a separate file | |
 | 7 | `internal/sources/openalex` | `GetWork`, `GetWorksBatch` (**chunks of 100**), `SearchByTitle` | |
 | 8 | `internal/library` | `Add` — resolve, hydrate seed, record edges and stubs | |
 | 9 | `cmd/fil` | cobra wiring, plus the lint rule forbidding front doors from importing `store` | |
 
-**Two gotchas that land in `internal/store` first**, both from spike 5, and both silent failures
-if missed:
+**The two gotchas from spike 5 are handled**, both in `internal/store`, and both were silent
+failures if missed. They stay written down because a future connection opened anywhere else has to
+obey the same rules:
 
-- FTS5 and vec1 must be registered with `sqlite3.AutoExtension` **before** the connections are
-  opened. A connection without the extension cannot even read a table created with it.
-- `PRAGMA foreign_keys` is **per connection**, not stored in the file. The one in `schema.sql`
-  only bound the connection that applied it.
+- FTS5 and vec1 are registered with `sqlite3.AutoExtension` **before** either handle is opened. A
+  connection without the extension cannot even read a table created with it.
+- `PRAGMA foreign_keys` is **per connection**, not stored in the file, so it is set in the DSN of
+  every connection in both the read pool and the write handle. The one in `schema.sql` only ever
+  bound the connection that applied it.
 
 **M0 is done when** `fil add 10.1145/3292500` writes a row and prints the title, running it twice
 adds nothing the second time, and the seed's ~40–100 references are present as stubs with edges.
