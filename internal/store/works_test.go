@@ -346,8 +346,8 @@ func TestWorkIDMustBeBare(t *testing.T) {
 			if err := db.UpsertWork(ctx, &model.Work{OpenAlexID: id}); err == nil {
 				t.Errorf("UpsertWork(%q) succeeded, want a refusal", id)
 			}
-			if _, err := db.GetWork(ctx, id); !errors.Is(err, errs.ErrInvalidConfig) {
-				t.Errorf("GetWork(%q) = %v, want ErrInvalidConfig", id, err)
+			if _, err := db.GetWork(ctx, id); !errors.Is(err, errs.ErrInvalidInput) {
+				t.Errorf("GetWork(%q) = %v, want ErrInvalidInput", id, err)
 			}
 		})
 	}

@@ -66,6 +66,20 @@ var (
 	// typo in max_nodes would silently expand a graph the user did not ask for.
 	ErrInvalidConfig = errors.New("invalid configuration")
 
+	// ErrInvalidInput means an identifier could not be read as anything this
+	// tool knows how to look up: not a DOI, arXiv ID, PMID, OpenAlex ID or
+	// title.
+	//
+	// It is separate from ErrInvalidConfig because the fix is in a different
+	// place. A bad config file is fixed by editing the file, so the CLI names
+	// it. Bad input is fixed by retyping the argument, so the CLI echoes what
+	// it received and lists the forms it accepts.
+	//
+	// It is also separate from ErrUnresolved, which is about the index, not
+	// the input: a well-formed DOI that OpenAlex has never heard of is
+	// unresolved, and retyping it will not help.
+	ErrInvalidInput = errors.New("invalid identifier")
+
 	// ErrSchemaTooNew means the library was written by a newer build of fil
 	// than the one now running, and must not be touched.
 	//

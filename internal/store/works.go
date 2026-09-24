@@ -289,8 +289,8 @@ func checkWorkID(id string) error {
 	if workIDPattern.MatchString(id) {
 		return nil
 	}
-	return fmt.Errorf("store: %q is not a bare OpenAlex work ID such as W2741809807: %w",
-		id, errs.ErrInvalidConfig)
+	return fmt.Errorf("store: %q is not a bare OpenAlex work ID such as W2741809807 "+
+		"(normalise it with identity.NormaliseOpenAlexID): %w", id, errs.ErrInvalidInput)
 }
 
 // nullString stores the empty string as NULL.

@@ -15,6 +15,7 @@ var all = map[string]error{
 	"ErrUnresolved":    ErrUnresolved,
 	"ErrAmbiguous":     ErrAmbiguous,
 	"ErrInvalidConfig": ErrInvalidConfig,
+	"ErrInvalidInput":  ErrInvalidInput,
 	"ErrSchemaTooNew":  ErrSchemaTooNew,
 }
 

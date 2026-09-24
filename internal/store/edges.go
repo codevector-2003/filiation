@@ -155,7 +155,7 @@ func (tx *Tx) UpsertEdge(ctx context.Context, e model.Edge) error {
 	}
 	if e.FromWork == e.ToWork {
 		return fmt.Errorf("store: upsert edge: %s cites itself: %w",
-			e.FromWork, errs.ErrInvalidConfig)
+			e.FromWork, errs.ErrInvalidInput)
 	}
 
 	const q = `
