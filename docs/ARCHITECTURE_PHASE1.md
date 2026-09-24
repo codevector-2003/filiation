@@ -555,11 +555,11 @@ pretending otherwise would only move the slip later.
 
 ## 11. Action items
 
-1. [ ] Run spike 4 (reference coverage across fields) — it can change the product, not just the code
-2. [ ] Run spikes 1–3 and write the measured numbers into this document
+1. [x] Run spike 4 (reference coverage across fields) — it can change the product, not just the code. *Done 30 Aug; D12*
+2. [x] Run spikes 1–3 and write the measured numbers into this document. *Done 30 Aug; D11*
 3. [ ] Apply the §6 schema changes to `schema.sql`
-4. [ ] Decide the default `MaxNodes`. Suggestion: 500 — large enough to be a map, small enough to finish in under a minute
-5. [ ] Write the idempotency and resume tests before writing `internal/graph`, not after
-6. [ ] Print the library path on first run, per ADR-006
-7. [ ] Add a `golangci-lint` import rule forbidding `cmd/` and front doors from importing `internal/store`
+4. [x] Decide the default `MaxNodes`. Suggestion: 500 — large enough to be a map, small enough to finish in under a minute. *500, in `config`*
+5. [ ] Write the idempotency and resume tests before writing `internal/graph`, not after. *Idempotency: done in `store` and `library` before `graph`. Resume: lands with M1's expander*
+6. [x] Print the library path on first run, per ADR-006. *`fil add` offers a choice on a terminal and prints it; `fil where` at any time*
+7. [x] Add a `golangci-lint` import rule forbidding `cmd/` and front doors from importing `internal/store`. *`.golangci.yml`, and `cmd/fil/imports_test.go` so it binds without the linter*
 8. [ ] Set up GoReleaser in week 1, not week 8 — a broken cross-compile found late is expensive

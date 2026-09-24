@@ -1,0 +1,53 @@
+# golangci-lint v2 configuration.
+#
+# The import rules below are the architecture made mechanical. Go's internal/
+# convention keeps packages private to the module but says nothing about which
+# internal package may import which. These rules do.
+#
+# The front-door rule is also enforced by cmd/fil/imports_test.go, so it holds
+# for everyone who runs `go test ./...`, linter or not.
+version: "2"
+
+linters:
+  enable:
+    - depguard
+  settings:
+    depguard:
+      rules:
+        # cmd/, internal/mcpsrv and internal/web are translation layers: they
+        # call internal/library and format the result. Importing store from one
+        # is a bug (CLAUDE.md, "the rule that matters most").
+        front-doors-use-library:
+          files:
+            - "**/cmd/**/*.go"
+            - "**/internal/mcpsrv/**/*.go"
+            - "**/internal/web/**/*.go"
+          deny:
+            - pkg: github.com/codevector-2003/filiation/internal/store
+              desc: front doors go through internal/library, never store
+
+        # store is the swap seam (ADR-001). If it knew about sources, replacing
+        # SQLite would mean touching the OpenAlex client too. Only
+        # internal/graph moves data between the two.
+        store-knows-no-sources:
+          files:
+            - "**/internal/store/**/*.go"
+          deny:
+            - pkg: github.com/codevector-2003/filiation/internal/sources
+              desc: only internal/graph knows about both store and sources
+
+        sources-know-no-store:
+          files:
+            - "**/internal/sources/**/*.go"
+          deny:
+            - pkg: github.com/codevector-2003/filiation/internal/store
+              desc: only internal/graph knows about both store and sources
+
+        # No cgo, ever (hard rule 4). The one well-known way to add it by
+        # accident is the cgo SQLite driver.
+        no-cgo-sqlite:
+          files:
+            - "$all"
+          deny:
+            - pkg: github.com/mattn/go-sqlite3
+              desc: requires cgo; use github.com/ncruces/go-sqlite3 (D9)

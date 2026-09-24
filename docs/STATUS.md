@@ -1,12 +1,13 @@
 # Project status
 
-**Date:** 24 September 2026 · **Position:** M0 in progress — 8 of 9 steps done
+**Date:** 24 September 2026 · **Position:** **M0 complete** — M1 next
 **Phase 1 target:** v0.1 by 14 November 2026
 
-> **In one line:** Phase 0 is closed — the design survived contact with the API, but three of its
-> numbers did not. M0 is building inward-out and the riskiest package is now behind it:
-> `internal/store` holds both of spike 5's silent failures and both are handled, so what remains
-> before `fil add` works is fetching rather than storing.
+> **In one line:** M0 is done — `fil add` takes a DOI, arXiv ID, PMID, OpenAlex ID, link or title,
+> and records the paper and everything it cites, verified live against OpenAlex. Building it
+> overturned three more assumptions (arXiv DOIs, title-search cost, the acceptance DOI itself).
+> **M1 is next: the budgeted best-first expander**, which §10 names as the only genuinely hard code
+> in Phase 1.
 
 ---
 
@@ -21,7 +22,7 @@ protected for them.
 | Phase | Milestone | State |
 | --- | --- | --- |
 | 0 | Spikes, scaffolding, toolchain | **Complete** |
-| 1 | M0 — skeleton, `fil add` writes one node | **In progress** — steps 1–8 of 9 |
+| 1 | M0 — skeleton, `fil add` writes one node | **Complete** — 24 Sept, verified live |
 | 1 | M1 — budgeted expansion, export, **first release** | Not started |
 | 2 | M2 — MCP server | Not started |
 | 3 | M3 — PDFs, text, citation context, FTS5 | Not started |
@@ -254,9 +255,38 @@ branch on every outcome without importing `store`. **Not handled yet:** a seed w
 belongs to a *different* OpenAlex ID in the library fails on the `UNIQUE` index rather than being
 reconciled. That is `graph`'s identity-resolution job, and lands with M1's merged-record handling.
 
+**M0 step 9 — `cmd/fil`, and M0 is done.** Run live on 24 Sept against OpenAlex, in a throwaway
+profile: `fil add 10.7717/peerj.4375` printed the title, recorded 54 references as stubs with 54
+edges, and a second run reported "Already in your library" and made no request. Commands: `add`,
+`where`, `version`, `cache clear`, with `--db` and `--no-cache` on all of them.
+
+- **Every error class has its own exit code and one sentence of advice** — retype it (2), choose a
+  candidate (3), OpenAlex has no record (4), try later, with the wait if OpenAlex gave one (5), fix
+  the named config file (6), upgrade fil (7). A script can branch on the code; a person reads the
+  sentence. OpenAlex's HTML 404 page never reaches the terminal.
+- **Input is checked before anything is created.** Found by running it: the first draft made the
+  library and config file on `fil add 2017` and only then refused the input. `library.Validate`
+  now runs first, and a test pins it.
+- **fil asks only when someone can answer.** On a terminal, a first run offers a choice of library
+  location and a title offers a numbered list; a bad answer is asked again, Enter cancels. Piped
+  or scripted, it never prompts — it prints the candidates and exits 3 with the `--accept-first`
+  hint. First-run notes (where the library went, no contact email) are printed once.
+- **The front-door rule is enforced twice.** `.golangci.yml` carries it with depguard, alongside
+  `store` ↛ `sources`, `sources` ↛ `store`, and a ban on the cgo SQLite driver. But `golangci-lint`
+  is not installed here, and a lint rule binds only people who run the linter — so
+  `cmd/fil/imports_test.go` enforces the front-door rule on every `go test ./...`, and proves it
+  can fail.
+- **Ctrl-C cancels the context**, so an add in flight rolls back rather than being killed mid-write.
+
+Binaries are **14–16 MB** stripped, against spike 7's ~2.3 MB. The difference is the WASM SQLite
+engine, which the spike binary did not yet link; nothing requires cgo and all three targets
+cross-compile. The README now shows what works and states the field-coverage limitation (D12)
+up front, closing that carry-forward item.
+
 **Dependencies, all licence-checked before adding.** `ncruces/go-sqlite3` MIT ·
 `go-sqlite3-wasm/v3` MIT-0 · `julianday` MIT · `golang.org/x/sys` BSD-3 · `BurntSushi/toml` MIT ·
-`golang.org/x/time` BSD-3.
+`golang.org/x/time` BSD-3 ·
+`spf13/cobra` Apache-2.0 · `spf13/pflag` BSD-3 · `inconshreveable/mousetrap` Apache-2.0.
 Nothing copyleft, nothing
 requiring cgo. The licence question in "Still open" remains genuinely open — no dependency has
 forced it.
@@ -357,10 +387,10 @@ package is proven early rather than discovered late.
 | 3 | `internal/config` | `--db` > `FILIATION_DB` > config file > per-user default (ADR-006). Contact email. `MaxNodes` default **500** | **Done** |
 | 4 | `internal/store` | Two handles — read pool, and a write handle at `SetMaxOpenConns(1)`. PRAGMAs, embedded schema, `Tx`, and the first queries | **Done** |
 | 5 | `internal/identity` | DOI, arXiv, OpenAlex ID, PMID, URL, title. **Title search never auto-accepts** (ADR-005). It also owns normalising the OpenAlex URL form, which `store` refuses outright | **Done** |
-| 6 | `internal/httpx` | 5 req/s token bucket, `mailto`, backoff honouring `Retry-After`, response cache in a separate file || **Done** |
-| 7 | `internal/sources/openalex` | `GetWork`, `GetWorksBatch` (**chunks of 100**), `SearchByTitle` || **Done** |
-| 8 | `internal/library` | `Add` — resolve, hydrate seed, record edges and stubs || **Done** |
-| 9 | **`cmd/fil`** | cobra wiring, plus the lint rule forbidding front doors from importing `store` || **Next** |
+| 6 | `internal/httpx` | 5 req/s token bucket, `mailto`, backoff honouring `Retry-After`, response cache in a separate file | **Done** |
+| 7 | `internal/sources/openalex` | `GetWork`, `GetWorksBatch` (**chunks of 100**), `SearchByTitle` | **Done** |
+| 8 | `internal/library` | `Add` — resolve, hydrate seed, record edges and stubs | **Done** |
+| 9 | `cmd/fil` | cobra wiring, plus the lint rule forbidding front doors from importing `store` | **Done** |
 
 **The two gotchas from spike 5 are handled**, both in `internal/store`, and both were silent
 failures if missed. They stay written down because a future connection opened anywhere else has to
@@ -389,9 +419,9 @@ regressions.
 
 ### Carry forward from the spikes
 
-- **Surface reference coverage per node** (D12) — the same way OA status is surfaced. `fil add`
-  and `fil expand` should report how many works in a result have no reference list, and the README
-  should state the field limitation before someone discovers it by installing the tool.
+- **Surface reference coverage per node** (D12) — the same way OA status is surfaced. *`fil add`
+  explains a dead-end seed and the README states the field limitation (M0).* Still to do:
+  `fil expand` must report how many works in a run had no reference list.
 - ~~**Read `X-RateLimit-Remaining` from responses** rather than trusting a constant compiled into
   the binary.~~ **Done in step 6** — `httpx.Client.Quota`.
 - **Build M4's candidate generation before its semantic search** (D13).

@@ -1,19 +1,14 @@
 // Command fil is the Filiation command-line interface.
 //
-// This is a placeholder entry point so the module builds from day one and the
-// cross-compile can be verified in week 1. Real command wiring lands in M0,
-// using cobra; the flag parsing below is deliberately throwaway.
-//
 // Architecture rule: this package is a translation layer. It parses input,
 // calls one function in internal/library, and formats the result. It must
-// never import internal/store.
+// never import internal/store — imports_test.go fails the build if it does.
 package main
 
 import (
-	"fmt"
+	"context"
 	"os"
-	"path/filepath"
-	"runtime"
+	"os/signal"
 )
 
 // Version is set at build time:
@@ -22,48 +17,24 @@ import (
 var Version = "0.0.0-dev"
 
 func main() {
-	if len(os.Args) < 2 {
-		usage()
-		os.Exit(2)
-	}
+	// Ctrl-C cancels the context rather than killing the process, so a write in
+	// flight rolls back and the library is never left half-written.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
 
-	switch os.Args[1] {
-	case "version", "-v", "--version":
-		fmt.Printf("fil %s (%s/%s, %s)\n",
-			Version, runtime.GOOS, runtime.GOARCH, runtime.Version())
-	case "where":
-		// ADR-006: one library per user, not one per directory. The CLI must
-		// print this on first run or nobody will find their library.
-		fmt.Println(defaultLibraryPath())
-	default:
-		fmt.Fprintf(os.Stderr, "fil: unknown command %q\n\n", os.Args[1])
-		usage()
-		os.Exit(2)
+	a := &app{
+		stdin:       os.Stdin,
+		stdout:      os.Stdout,
+		stderr:      os.Stderr,
+		interactive: isTerminal(os.Stdin) && isTerminal(os.Stdout),
 	}
+	os.Exit(a.run(ctx, os.Args[1:]))
 }
 
-func usage() {
-	fmt.Fprint(os.Stderr, `fil — a citation graph and retrieval engine you run yourself
-
-Usage:
-  fil version     print the version
-  fil where       print the library location
-
-Not implemented yet (see docs/PRODUCT_PLAN.md):
-  fil add         add a paper by DOI, arXiv ID or title        M0
-  fil expand      follow references and grow the graph         M1
-  fil path        shortest citation chain between two papers   M1
-  fil search      search the library                           M4
-  fil ask         ask a question, get cited answers            M4
-`)
-}
-
-// defaultLibraryPath is a stand-in. M0 replaces this with github.com/adrg/xdg,
-// which gets the per-OS conventions right rather than approximating them.
-func defaultLibraryPath() string {
-	dir, err := os.UserConfigDir()
-	if err != nil {
-		return filepath.Join(".", "filiation")
-	}
-	return filepath.Join(dir, "filiation")
+// isTerminal reports whether f is attached to a terminal, which decides
+// whether fil may ask a question or must fail with instructions instead. A
+// pipe or a script gets no prompt it cannot answer.
+func isTerminal(f *os.File) bool {
+	info, err := f.Stat()
+	return err == nil && info.Mode()&os.ModeCharDevice != 0
 }
