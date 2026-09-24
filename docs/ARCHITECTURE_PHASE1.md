@@ -296,6 +296,22 @@ The cache lives in a **separate SQLite file** from the library, so it can be del
 - Harder: a stale cache can hide a bug. Ship `--no-cache` and `fil cache clear` from day one.
 - Revisit when: the measured rate limit differs from the assumed one, in the week-1 spike.
 
+> **Implemented, 24 Sept 2026.** One `httpx.Client` per upstream, each with its own
+> `rate.Limiter`. Three departures from the text above:
+> - **The cache is a directory of files, not a SQLite file.** Every SQL statement lives in
+>   `internal/store`, and a second database here would break that for a key-value lookup needing
+>   no SQL; each WASM connection is also a real cost. A directory keeps what mattered — separate
+>   from the library, deletable at any time — and is inspectable with `ls`. It sits behind a
+>   `Cache` interface if this needs revisiting.
+> - **The cache key excludes the contact**, so changing one's email does not empty it, and the
+>   address is never written to disk.
+> - **A `Retry-After` longer than 60 s fails at once** as `ErrTransient`, with the wait attached,
+>   instead of being slept through. That is the daily allowance spent, not a burst, and a CLI
+>   blocked for hours looks hung.
+>
+> The last `X-RateLimit-*` headers seen are exposed as `Client.Quota`, so the allowance is read
+> from OpenAlex rather than compiled in.
+
 ---
 
 ### ADR-005: Never silently accept a title search result
@@ -307,6 +323,13 @@ The cache lives in a **separate SQLite file** from the library, so it can be del
 **Decision.** `internal/identity` classifies and normalises input. Deterministic identifiers resolve silently. A **title search returns candidates and requires confirmation** — interactively in the CLI, and by an explicit `--accept-first` flag in scripts.
 
 **Trade-off.** One extra keystroke against a wrong paper silently seeding an entire graph. A wrong seed is not a small error; it poisons everything expanded from it, and the user may not notice for weeks.
+
+> **Implemented, 24 Sept 2026.** `identity.Parse` returns a `Kind` and a normalised value;
+> `ID.Deterministic()` is false only for a title, and is the flag the CLI checks. Two additions
+> beyond the ADR: a **malformed identifier is refused** with `errs.ErrInvalidInput` rather than
+> falling through to a title search, and a **bare number is read as a PMID only from five digits**,
+> so a year typed by mistake cannot seed a graph. `identity.TitlesMatch` ranks and flags
+> candidates but never accepts one.
 
 **Consequences**
 - Easier: trust in what is in the library.
