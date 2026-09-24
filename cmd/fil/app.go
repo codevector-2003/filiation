@@ -61,8 +61,13 @@ func (a *app) run(ctx context.Context, args []string) int {
 		}
 		if usage.err != nil {
 			fmt.Fprintf(a.stderr, "fil: %v\n\n", err)
-			fmt.Fprint(a.stderr, usage.cmd.UsageString())
+			if usage.cmd != nil {
+				fmt.Fprint(a.stderr, usage.cmd.UsageString())
+			}
 			return exitInvalidInput
+		}
+		if errors.Is(err, errCancelled) {
+			return exitCancelled
 		}
 		return report(a.stderr, err, a.configPath)
 	}
@@ -102,7 +107,7 @@ func (a *app) rootCommand() *cobra.Command {
 	root.PersistentFlags().StringVar(&a.dbFlag, "db", "", "use the library at this path instead of the default")
 	root.PersistentFlags().BoolVar(&a.noCache, "no-cache", false, "fetch from OpenAlex even if a response is cached")
 
-	root.AddCommand(a.addCommand(), a.whereCommand(), a.versionCommand(), a.cacheCommand())
+	root.AddCommand(a.addCommand(), a.expandCommand(), a.whereCommand(), a.versionCommand(), a.cacheCommand())
 	return root
 }
 

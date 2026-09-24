@@ -32,6 +32,16 @@ type ExpansionResult struct {
 	Edges      int // citation edges recorded during this run
 	Unresolved int // IDs OpenAlex had no record of
 
+	// Merged counts works OpenAlex holds twice — a second record under a new
+	// ID with the same DOI — folded into the record already in the library
+	// rather than added as a duplicate node (hard rule 6).
+	Merged int
+
+	// Skipped counts works left as stubs because their batch failed for a
+	// reason that may not recur. §7: one bad batch must not kill a 500-node
+	// run. They stay on the frontier, so the next run picks them up.
+	Skipped int
+
 	// DeadEnds counts hydrated works that came back with no reference list, so
 	// the graph cannot continue through them. Reporting it is not optional
 	// polish: in arts and humanities it is the great majority of the frontier

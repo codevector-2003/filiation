@@ -41,6 +41,7 @@ type Library struct {
 	db    *store.DB
 	graph *graph.Graph
 	http  *httpx.Client
+	cfg   config.Config
 }
 
 // Open opens the library cfg names, creating and migrating it on first use.
@@ -83,6 +84,7 @@ func Open(ctx context.Context, cfg *config.Config, opts Options) (*Library, erro
 		db:    db,
 		graph: graph.New(db, openalex.New(h)),
 		http:  h,
+		cfg:   *cfg,
 	}, nil
 }
 
@@ -202,6 +204,45 @@ func added(s graph.Seeded) Added {
 		DeadEnd:     s.Recorded.DeadEnd(),
 	}
 }
+
+// ExpandOptions bound one expansion. Zero fields take the configured value —
+// max_nodes, max_depth and max_refs_per_work from the config file, or their
+// defaults — so a front door passes only what the user overrode.
+type ExpandOptions struct {
+	MaxNodes int
+	MaxDepth int
+
+	// Progress, if set, is called after each batch is committed.
+	Progress func(model.ExpansionResult)
+}
+
+// Expand grows the graph outward from everything already in the library, best
+// first, until the budget is spent, the frontier is empty, the depth limit is
+// reached, or ctx is cancelled. Each of those is a normal outcome, reported in
+// the result's StoppedBecause with a nil error. Run it again to continue: the
+// frontier is persisted state, so a stopped run resumes where it left off.
+//
+// An error means something failed — most often the network, wrapping
+// errs.ErrTransient — and the result still reports what was saved before it.
+func (l *Library) Expand(ctx context.Context, opts ExpandOptions) (model.ExpansionResult, error) {
+	o := graph.ExpandOptions{
+		MaxNodes:       l.cfg.MaxNodes,
+		MaxDepth:       l.cfg.MaxDepth,
+		MaxRefsPerWork: l.cfg.MaxRefsPerWork,
+		Progress:       opts.Progress,
+	}
+	if opts.MaxNodes != 0 {
+		o.MaxNodes = opts.MaxNodes
+	}
+	if opts.MaxDepth != 0 {
+		o.MaxDepth = opts.MaxDepth
+	}
+	return l.graph.Expand(ctx, o)
+}
+
+// Budget is the configured expansion budget: the default a front door shows
+// when the user has not overridden it.
+func (l *Library) Budget() (maxNodes, maxDepth int) { return l.cfg.MaxNodes, l.cfg.MaxDepth }
 
 // Candidate is one title-search result offered to the user.
 type Candidate struct {

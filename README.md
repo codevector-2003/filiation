@@ -9,8 +9,8 @@ In textual criticism, *filiation* is the work of establishing which manuscript w
 which — reconstructing the lines of descent between surviving texts. This tool does the same for
 research papers, and uses those lines to trace a claim back to whoever made it first.
 
-> Status: early development. The first milestone works — `fil add` puts a paper and everything it
-> cites into your library. Following those references outward is next.
+> Status: early development. `fil add` puts a paper and everything it cites into your library,
+> and `fil expand` follows those references outward. Export and the first release are next.
 
 ## What works today
 
@@ -31,7 +31,21 @@ Library:    55 works (54 not fetched yet), 54 citations.
 ```
 
 A title can match several papers, so `fil` lists them and asks which one you mean; in a script,
-pass `--accept-first`. `fil where` prints where your library lives — the default differs on every
+pass `--accept-first`.
+
+Then grow the graph outward:
+
+```
+$ fil expand
+Fetched:   478 works in 21.1s, recording 10,152 new citations.
+Coverage:  321 of 478 had a reference list (67%).
+Stopped:   budget reached. Run fil expand again to continue, or raise --max-nodes.
+Library:   7,677 works (7,152 not fetched yet), 11,802 citations.
+```
+
+`fil expand` fetches the most-cited works first — a paper five of yours cite comes before one
+cited once — up to 500 per run by default (`--max-nodes`), and at most three citation steps from
+your own papers (`--max-depth`). Run it again to continue; Ctrl-C loses nothing already fetched. `fil where` prints where your library lives — the default differs on every
 operating system. `fil cache clear` empties the cache of OpenAlex responses without touching your
 library.
 
