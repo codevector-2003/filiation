@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/codevector-2003/filiation/internal/config"
 	"github.com/codevector-2003/filiation/internal/errs"
@@ -123,6 +124,15 @@ type Added struct {
 	// graph cannot grow from it. In arts and humanities that is most works
 	// (D12). It is reported, not raised: it is the data, not the tool.
 	DeadEnd bool
+}
+
+// Validate reports whether input is something Add could look up, without
+// touching the network or the library. A front door calls it first, so that a
+// typo is refused before anything is created — including, on a first run, the
+// library itself.
+func Validate(input string) error {
+	_, err := identity.Parse(input)
+	return err
 }
 
 // Add adds a paper to the library as a seed: the work, a stub for everything it
@@ -245,6 +255,11 @@ type Quota = httpx.Quota
 // Quota returns the last OpenAlex allowance seen, and false before any request
 // has reported one — including when every answer came from the cache.
 func (l *Library) Quota() (Quota, bool) { return l.http.Quota() }
+
+// RetryAfter returns how long OpenAlex asked us to wait, when err is a
+// transient failure that carried the request. A front door uses it to say
+// "try again in an hour — today's allowance is spent" rather than just "failed".
+func RetryAfter(err error) (time.Duration, bool) { return httpx.RetryAfter(err) }
 
 // ClearCache deletes every cached HTTP response under dir, or under
 // config.DefaultCacheDir if dir is empty, and returns the directory it cleared.

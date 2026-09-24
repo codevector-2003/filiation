@@ -12,7 +12,7 @@ tool does for papers: it reconstructs where a claim came from by following the c
 - Language: **Go** (see D8 in `docs/DECISIONS.md`)
 - Module: `github.com/codevector-2003/filiation`
 - Binary / CLI command: `fil`
-- Status: **M0 in progress** — 8 of 9 steps done — `model`, `errs`, `config`, `store`, `identity`, `httpx`, `sources/openalex`, and `library` with `graph`'s seeding. See `docs/STATUS.md`.
+- Status: **M0 complete** (24 Sept 2026) — `fil add` works end to end, verified live. **M1 is next.** See `docs/STATUS.md`.
 
 ---
 
@@ -186,12 +186,12 @@ provides this for free and it is what makes retrieval better than everyone else'
 
 ## Build order
 
-Current position: **M0, steps 1–8 of 9 complete** — everything below the CLI is written and
-tested, and `library.Add` passes M0's definition of done end to end against recorded responses.
-`cmd/fil` (cobra wiring) is next and last. Dates assume learning Go alongside building;
+Current position: **M0 complete, 24 Sept 2026.** `fil add 10.7717/peerj.4375` was run live: it
+wrote the seed, printed the title, recorded 54 references as stubs with edges, and a second run
+added nothing. **M1 — the budgeted expander in `internal/graph` — is next.** Dates assume learning Go alongside building;
 Phase 1 carries two extra weeks for that.
 
-- [ ] **M0 — Skeleton** (2–3 weeks). Module layout, config, embedded schema, `store` package,
+- [x] **M0 — Skeleton** (2–3 weeks). *Done 24 Sept 2026.* Module layout, config, embedded schema, `store` package,
       one command that takes a DOI, fetches from OpenAlex, stores one node.
       *Done when:* `fil add 10.7717/peerj.4375` writes a row and prints the title, and its 54
       references are present as stubs with edges.

@@ -9,7 +9,41 @@ In textual criticism, *filiation* is the work of establishing which manuscript w
 which — reconstructing the lines of descent between surviving texts. This tool does the same for
 research papers, and uses those lines to trace a claim back to whoever made it first.
 
-> Status: early development. Nothing works yet.
+> Status: early development. The first milestone works — `fil add` puts a paper and everything it
+> cites into your library. Following those references outward is next.
+
+## What works today
+
+Build it (Go 1.25 or later; there is no release yet):
+
+```
+go build ./cmd/fil
+```
+
+Then add a paper by DOI, arXiv ID, PubMed ID, OpenAlex ID, a link to any of those, or its title:
+
+```
+$ fil add 10.7717/peerj.4375
+Added: The state of OA: a large-scale analysis of the prevalence and impact of Open Access articles (2018, article)
+       W2741809807 · doi:10.7717/peerj.4375 · PeerJ · gold open access
+References: 54 — 54 new to your library, 54 citations recorded.
+Library:    55 works (54 not fetched yet), 54 citations.
+```
+
+A title can match several papers, so `fil` lists them and asks which one you mean; in a script,
+pass `--accept-first`. `fil where` prints where your library lives — the default differs on every
+operating system. `fil cache clear` empties the cache of OpenAlex responses without touching your
+library.
+
+### Know this before you start
+
+**The graph is only as deep as the reference data behind it, and that depends on your field.**
+Reference lists come from [OpenAlex](https://openalex.org), and coverage is very uneven. Among
+works reached by following real references, the share with *no* reference list is about 6% in
+medicine, 12% in physics and 15% in computer science — but 54% in the social sciences and **84% in
+arts and humanities**, where books and chapters dominate and their publishers rarely deposit
+reference lists. In those fields the graph often stops after one step. `fil` tells you when a work
+has no references; that is a gap in the data, not a fault in the tool.
 
 ## Why
 
@@ -37,8 +71,8 @@ uses it to trace a claim back to the paper that first made it.
 ## Planned stack
 
 Written in **Go**, distributed as a single binary — no runtime to install. SQLite for the graph,
-FTS5 for keyword search, `sqlite-vec` for vectors, plain files on disk for PDFs, OpenAlex for
-reference data. One database file, no server.
+FTS5 for keyword search, SQLite's own vector extension for semantic search, plain files on disk
+for PDFs, OpenAlex for reference data. One database file, no server.
 
 Semantic search and generated answers use [Ollama](https://ollama.com) if you have it. Without
 it, keyword search and the whole citation graph still work.
