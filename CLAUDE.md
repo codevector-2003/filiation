@@ -12,7 +12,7 @@ tool does for papers: it reconstructs where a claim came from by following the c
 - Language: **Go** (see D8 in `docs/DECISIONS.md`)
 - Module: `github.com/codevector-2003/filiation`
 - Binary / CLI command: `fil`
-- Status: **M0 complete** (24 Sept 2026). **M1 in progress** — `fil expand` works, verified live; title-level duplicates need a decision. See `docs/STATUS.md`.
+- Status: **M0 complete** (24 Sept 2026). **M1 in progress** — `fil expand` and `fil stats` work, verified live; title duplicates are reported, not merged (D14). See `docs/STATUS.md`.
 
 ---
 
@@ -53,7 +53,9 @@ than plain search.
    `database is locked` bugs in this codebase.
 6. **Deduplicate on `openalex_id`.** The same work exists as preprint, conference paper and
    journal article with different DOIs. OpenAlex already merges most of these. Use its ID as the
-   primary key or the graph will quietly rot.
+   primary key or the graph will quietly rot. Merged records and shared DOIs are folded on the
+   way in (`graph.hydrate`). **A shared title is reported, never merged** — a book review carries
+   its book's title (D14).
 
 ---
 
@@ -192,8 +194,9 @@ provides this for free and it is what makes retrieval better than everyone else'
 Current position: **M0 complete, 24 Sept 2026.** `fil add 10.7717/peerj.4375` was run live: it
 wrote the seed, printed the title, recorded 54 references as stubs with edges, and a second run
 added nothing. **M1 in progress:** the budgeted best-first expander and `fil expand` are done and
-verified live (525 works, 11,802 citations, no duplicate IDs or DOIs). Next: a decision on
-title-level duplicates, then `neighbours` / `path` / `stats`, GraphML export and the v0.1 release. Dates assume learning Go alongside building;
+verified live (525 works, 11,802 citations, no duplicate IDs or DOIs), and `fil stats` reports
+title-level duplicates without merging them (D14). Next: `neighbours` / `path`, GraphML export and
+the v0.1 release. Dates assume learning Go alongside building;
 Phase 1 carries two extra weeks for that.
 
 - [x] **M0 — Skeleton** (2–3 weeks). *Done 24 Sept 2026.* Module layout, config, embedded schema, `store` package,

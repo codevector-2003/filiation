@@ -250,3 +250,33 @@ func TestWorkIDByDOIAndMarkSeed(t *testing.T) {
 		t.Errorf("W2 seed %v depth %v; want a seed at depth 0", w.IsSeed, w.Depth)
 	}
 }
+
+func TestSummary(t *testing.T) {
+	t.Parallel()
+	db := migrated(t)
+	ctx := t.Context()
+	if s, err := db.Summary(ctx); err != nil || s != (Summary{}) {
+		t.Fatalf("empty Summary = %+v, %v", s, err)
+	}
+
+	record(t, db, hydratedWith("W1", 0, "W2", "W3", "W4")) // a seed citing three
+	record(t, db, hydratedWith("W2", 1))                   // hydrated, cites nothing: a dead end
+	err := db.Tx(ctx, func(tx *Tx) error { return tx.MarkUnresolved(ctx, "W4") })
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := db.Summary(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := Summary{Works: 4, Hydrated: 2, Stubs: 2, Unresolved: 1, Seeds: 1, Edges: 3, DeadEnds: 1}
+	if got != want {
+		t.Errorf("Summary = %+v, want %+v", got, want)
+	}
+
+	titled, err := db.TitledWorks(ctx)
+	if err != nil || len(titled) != 2 || titled[0].OpenAlexID != "W1" {
+		t.Errorf("TitledWorks = %d works, %v; want W1 and W2 — stubs have no titles", len(titled), err)
+	}
+}

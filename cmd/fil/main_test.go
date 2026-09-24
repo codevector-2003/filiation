@@ -468,3 +468,57 @@ func TestPlural(t *testing.T) {
 		}
 	}
 }
+
+func TestStatsAfterOneHop(t *testing.T) {
+	h := newHarness(t, peerjExpansion(t))
+	h.run(false, "", "add", "10.7717/peerj.4375")
+	if code, _, errOut := h.run(false, "", "expand", "--max-nodes", "54"); code != exitOK {
+		t.Fatalf("expand: exit %d\n%s", code, errOut)
+	}
+
+	code, out, errOut := h.run(false, "", "stats")
+	if code != exitOK {
+		t.Fatalf("stats: exit %d\n%s", code, errOut)
+	}
+	// Expected values computed from the fixtures independently of this code.
+	for _, want := range []string{
+		"Seeds:      1 you added",
+		"Works:      1,041 — 47 fetched, 986 still to fetch, 8 not in OpenAlex",
+		"Citations:  1,655",
+		"Coverage:   39 of 47 fetched works have a reference list (83%)",
+		"Duplicates: 3 titles that more than one fetched work shares",
+		"fil does not merge these on its own",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("stats lacks %q:\n%s", want, out)
+		}
+	}
+
+	_, out, _ = h.run(false, "", "stats", "--duplicates")
+	for _, want := range []string{
+		"merges nothing",
+		"Sci-Hub provides access to nearly all scholarly literature",
+		"W2737712680  2017  preprint",
+		"W2785823074  2018  article",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("stats --duplicates lacks %q:\n%s", want, out)
+		}
+	}
+	// D14: reporting merges nothing.
+	_, after, _ := h.run(false, "", "stats")
+	if !strings.Contains(after, "Works:      1,041") {
+		t.Errorf("listing duplicates changed the library:\n%s", after)
+	}
+}
+
+func TestStatsEmptyLibraryCreatesNothing(t *testing.T) {
+	h := newHarness(t, nil)
+	code, out, _ := h.run(false, "", "stats")
+	if code != exitOK || !strings.Contains(out, "Your library is empty") {
+		t.Errorf("exit %d:\n%s", code, out)
+	}
+	if _, err := os.Stat(h.configDir); !os.IsNotExist(err) {
+		t.Errorf("stats on a first run created the config directory")
+	}
+}

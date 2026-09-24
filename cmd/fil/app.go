@@ -107,7 +107,7 @@ func (a *app) rootCommand() *cobra.Command {
 	root.PersistentFlags().StringVar(&a.dbFlag, "db", "", "use the library at this path instead of the default")
 	root.PersistentFlags().BoolVar(&a.noCache, "no-cache", false, "fetch from OpenAlex even if a response is cached")
 
-	root.AddCommand(a.addCommand(), a.expandCommand(), a.whereCommand(), a.versionCommand(), a.cacheCommand())
+	root.AddCommand(a.addCommand(), a.expandCommand(), a.statsCommand(), a.whereCommand(), a.versionCommand(), a.cacheCommand())
 	return root
 }
 

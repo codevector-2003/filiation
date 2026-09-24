@@ -1,11 +1,11 @@
 # Project status
 
-**Date:** 24 September 2026 · **Position:** **M0 complete** · M1 in progress — steps 1–3 of 6
+**Date:** 24 September 2026 · **Position:** **M0 complete** · M1 in progress — steps 1–4 of 6
 **Phase 1 target:** v0.1 by 14 November 2026
 
 > **In one line:** M0 is done, and M1's expander works live — `fil expand` grew one seed to 525
-> fetched works and 11,802 citations, with no duplicate IDs or DOIs. One decision is open:
-> ~4% of works are still title-level duplicates OpenAlex keeps under different DOIs.
+> fetched works and 11,802 citations, with no duplicate IDs or DOIs. Title-level duplicates
+> (~4%) are reported by `fil stats --duplicates` and never merged on a guess (D14).
 > The schedule has slack: §10 planned the expander for 13–26 October.
 
 ---
@@ -418,8 +418,8 @@ twice adds nothing the second time, and the seed's 54 references are present as 
 | 1 | `store`: best-first frontier query, merged-record folding | **Done** |
 | 2 | `graph.Expand`: the budgeted loop, with §8's resume, idempotency, budget, cycle and single-writer tests | **Done** |
 | 3 | `library.Expand` and `fil expand`, with progress and a coverage report | **Done** — verified live |
-| 4 | **Title-level duplicates** — see the open decision below | **Needs a decision** |
-| 5 | `fil neighbours`, `fil path` (recursive CTEs with a visited set — the graph is not a DAG), `fil stats` | |
+| 4 | Title-level duplicates: reported by `fil stats --duplicates`, never merged (D14) | **Done** |
+| 5 | `fil neighbours`, `fil path` (recursive CTEs with a visited set — the graph is not a DAG). `fil stats` landed with step 4 | **Next** |
 | 6 | GraphML export, then GoReleaser, the multi-field validation run, and **v0.1** | |
 
 **Steps 1–3.** `fil expand` grows the graph from everything in the library, best first — in-graph
@@ -450,20 +450,23 @@ when it drops below 70%.
 Live, the second run fetched 478 works in 21 s: 525 hydrated, 7,677 works, 11,802 edges, with no
 duplicate IDs or DOIs, no self-loops and no dangling edges.
 
-### Open decision: title-level duplicates
+### Decided: title-level duplicates are reported, not merged (D14)
 
-After ID and DOI dedup, **~4% of hydrated works still share a title with another** (20 groups in
-525) — OpenAlex records with different DOIs or none, such as a preprint and its journal version.
-M1's "no duplicates" is not met while they remain. Folding on title alone is wrong: one group
-contains a *book review* titled like the book it reviews. Options, roughly in order of caution:
+After ID and DOI dedup, ~4% of fetched works still share a title with another — OpenAlex records
+under different DOIs or none. **Decided 24 Sept: report them, merge nothing on a title match.**
+The live run proved the point: the shared-title groups include a book review titled like its
+book, two different magazine pieces titled like Ioannidis's 2005 paper, and 1970s reviews of
+*Invisible Colleges*. Full reasoning and the rejected options are in
+[`DECISIONS.md`](DECISIONS.md#d14--title-level-duplicates-are-reported-never-merged-automatically).
 
-1. **Report only** — `fil stats` lists probable duplicates; the user decides. No wrong merges.
-2. **Fold on title + year + a shared author + neither being a review, erratum or paratext.**
-   Catches the clear cases; needs author IDs, which the store does not persist yet.
-3. **Fold on title + year alone.** Simplest, and wrong for the book-review case.
+`fil stats` now reports the library at a glance — seeds, fetched, still to fetch, not in
+OpenAlex, citations, and reference coverage (D12) — and the number of shared titles;
+`fil stats --duplicates` lists them with year, type and DOI so a person can judge. Titles under 20
+letters and digits ("Editorial") are not reported. Automatic merging on title + year + a shared
+author is the revisit, once the store persists authors.
 
-Recommended: 1 now, 2 when authors are stored. Nothing is merged on a guess — the same stance as
-ADR-005 takes for title search.
+M1's "no duplicates" is therefore read as: no duplicate IDs or DOIs, no merged records left
+unfolded, and every probable title duplicate reported.
 
 ### Carry forward from the spikes
 
