@@ -1,6 +1,6 @@
 # Project status
 
-**Date:** 24 September 2026 · **Position:** M0 in progress — 6 of 9 packages done
+**Date:** 24 September 2026 · **Position:** M0 in progress — 7 of 9 packages done
 **Phase 1 target:** v0.1 by 14 November 2026
 
 > **In one line:** Phase 0 is closed — the design survived contact with the API, but three of its
@@ -21,7 +21,7 @@ protected for them.
 | Phase | Milestone | State |
 | --- | --- | --- |
 | 0 | Spikes, scaffolding, toolchain | **Complete** |
-| 1 | M0 — skeleton, `fil add` writes one node | **In progress** — steps 1–6 of 9 |
+| 1 | M0 — skeleton, `fil add` writes one node | **In progress** — steps 1–7 of 9 |
 | 1 | M1 — budgeted expansion, export, **first release** | Not started |
 | 2 | M2 — MCP server | Not started |
 | 3 | M3 — PDFs, text, citation context, FTS5 | Not started |
@@ -142,8 +142,8 @@ decisions:
 
 DOIs are lower-cased (case-insensitive by specification), and stray trailing punctuation is
 trimmed — a closing bracket only when unbalanced, because real DOIs contain balanced ones.
-`ArXivDOI` maps an arXiv ID to its DataCite DOI (`10.48550/arxiv.…`); whether OpenAlex resolves
-every one is **unverified** and is for step 7 to check against a recorded response.
+`ArXivDOI` maps an arXiv ID to its DataCite DOI (`10.48550/arxiv.…`). Step 7 checked whether
+OpenAlex resolves it: **not reliably** — see below.
 
 **Read against `quelle`** ([vcoeur/quelle](https://github.com/vcoeur/quelle), MIT) — as prior art
 only; nothing is imported or copied. Its DOI and arXiv patterns match ours. Three of its ideas were
@@ -196,6 +196,33 @@ reading the allowance rather than trusting a constant. Where the cache lives is 
 the module's `go` line to match, which would have broken the Go 1.25 convention. Tests use a stub
 `RoundTripper` and a recorded sleep, so the suite never touches the network and never actually waits
 out a backoff; one test runs the real limiter to prove it spaces requests.
+
+**M0 step 7 — `internal/sources/openalex`.** `Resolve` fetches the one work a deterministic
+identifier names; `GetWorksBatch` hydrates by OpenAlex ID, 100 to a request; `SearchByTitle`
+returns candidates. Tested against **real recorded responses** (`testdata/`, 24 Sept 2026), and
+recording them overturned two assumptions — see "Recorded while building step 7" in
+[`SPIKES.md`](SPIKES.md). Five decisions:
+
+- **arXiv resolves in two steps.** OpenAlex 404s "Attention Is All You Need" by its arXiv DOI, so
+  the DOI is tried first (free) and on a 404 the work is found by its arXiv `/abs/` landing page
+  (1 credit). The arXiv ID it was found by is kept on the work.
+- **A batch's silence is confirmed, not trusted.** A filter omits IDs it cannot match, and the
+  absence means either "gone" or "merged into another record". Each omitted ID gets one free single
+  lookup: a 404 goes in `Missing` (to be marked unresolved), a different ID coming back goes in
+  `Aliases` (the caller must fold the old node into the new, or hard rule 6 breaks).
+- **A 404 is `ErrUnresolved`, never transient**, and its HTML body never reaches the user.
+- **Title search flags, never accepts.** Candidates arrive hydrated, sorted so a close
+  `identity.TitlesMatch` comes first. In the recorded search, only the exact title is flagged —
+  not "Attention Is All You Need *In Speech Separation*". It costs 10 credits.
+- **No `sources.Source` interface yet.** `ARCHITECTURE_PHASE1.md` §2 sketched one so Crossref could
+  slot in later. With one implementation it would be a guess at a shape; the idiom is to declare it
+  where it is consumed, in `internal/graph`, once there is a second source to fit.
+
+`HTTPOptions` holds the facts about OpenAlex — 5 req/s, `mailto` — so whoever builds the client
+cannot get them wrong. Identifiers from responses all pass through `identity`, because OpenAlex
+returns every one as a URL. References that fail to normalise are skipped, so one bad entry cannot
+cost a work its other edges. Recording the fixtures cost about 13 of the day's 1,000 credits and
+did not send `mailto`.
 
 **Dependencies, all licence-checked before adding.** `ncruces/go-sqlite3` MIT ·
 `go-sqlite3-wasm/v3` MIT-0 · `julianday` MIT · `golang.org/x/sys` BSD-3 · `BurntSushi/toml` MIT ·
@@ -301,8 +328,8 @@ package is proven early rather than discovered late.
 | 4 | `internal/store` | Two handles — read pool, and a write handle at `SetMaxOpenConns(1)`. PRAGMAs, embedded schema, `Tx`, and the first queries | **Done** |
 | 5 | `internal/identity` | DOI, arXiv, OpenAlex ID, PMID, URL, title. **Title search never auto-accepts** (ADR-005). It also owns normalising the OpenAlex URL form, which `store` refuses outright | **Done** |
 | 6 | `internal/httpx` | 5 req/s token bucket, `mailto`, backoff honouring `Retry-After`, response cache in a separate file || **Done** |
-| 7 | **`internal/sources/openalex`** | `GetWork`, `GetWorksBatch` (**chunks of 100**), `SearchByTitle` || **Next** |
-| 8 | `internal/library` | `Add` — resolve, hydrate seed, record edges and stubs | |
+| 7 | `internal/sources/openalex` | `GetWork`, `GetWorksBatch` (**chunks of 100**), `SearchByTitle` || **Done** |
+| 8 | **`internal/library`** | `Add` — resolve, hydrate seed, record edges and stubs || **Next** |
 | 9 | `cmd/fil` | cobra wiring, plus the lint rule forbidding front doors from importing `store` | |
 
 **The two gotchas from spike 5 are handled**, both in `internal/store`, and both were silent
@@ -317,6 +344,12 @@ obey the same rules:
 
 **M0 is done when** `fil add 10.1145/3292500` writes a row and prints the title, running it twice
 adds nothing the second time, and the seed's ~40–100 references are present as stubs with edges.
+
+> **The last clause cannot pass with that DOI** (found in step 7). `10.1145/3292500` is the KDD
+> 2019 *proceedings volume* — type `paratext`, zero references. It resolves and prints a title,
+> so the first two clauses hold, but it has no references to stub. **Proposed replacement:**
+> `10.7717/peerj.4375` ("The state of OA", 54 references, gold OA — so it also exercises M3's PDF
+> path). Awaiting a decision; `CLAUDE.md` still names the original.
 
 ### Then M1
 
