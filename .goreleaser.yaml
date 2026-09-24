@@ -1,0 +1,60 @@
+# GoReleaser v2. Builds fil for every platform from one machine and publishes
+# the archives to GitHub Releases (D8, D9).
+#
+# Try it without publishing anything:
+#
+#   go run github.com/goreleaser/goreleaser/v2@latest release --snapshot --clean
+#
+# A real release runs from .github/workflows/release.yml when a v* tag is pushed.
+version: 2
+
+project_name: fil
+
+before:
+  hooks:
+    - go mod tidy
+    - go test ./...
+
+builds:
+  - id: fil
+    main: ./cmd/fil
+    binary: fil
+    env:
+      # Hard rule 4. The whole point of Go here is one static binary a
+      # researcher can double-click; a cgo dependency breaks that.
+      - CGO_ENABLED=0
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    ldflags:
+      - -s -w -X main.Version={{ .Version }}
+
+archives:
+  - id: fil
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    name_template: "fil_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - LICENSE*
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^Merge"
+
+release:
+  github:
+    owner: codevector-2003
+    name: filiation
+  # A tag like v0.1.0-rc1 publishes as a pre-release.
+  prerelease: auto
+  header: |
+    Download the archive for your system, unpack it, and run `fil`. There is nothing else to
+    install. Start with `fil add <DOI>`, then `fil expand`; see the README for more.
