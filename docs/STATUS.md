@@ -1,6 +1,6 @@
 # Project status
 
-**Date:** 24 September 2026 · **Position:** M0 in progress — 7 of 9 packages done
+**Date:** 24 September 2026 · **Position:** M0 in progress — 8 of 9 steps done
 **Phase 1 target:** v0.1 by 14 November 2026
 
 > **In one line:** Phase 0 is closed — the design survived contact with the API, but three of its
@@ -21,7 +21,7 @@ protected for them.
 | Phase | Milestone | State |
 | --- | --- | --- |
 | 0 | Spikes, scaffolding, toolchain | **Complete** |
-| 1 | M0 — skeleton, `fil add` writes one node | **In progress** — steps 1–7 of 9 |
+| 1 | M0 — skeleton, `fil add` writes one node | **In progress** — steps 1–8 of 9 |
 | 1 | M1 — budgeted expansion, export, **first release** | Not started |
 | 2 | M2 — MCP server | Not started |
 | 3 | M3 — PDFs, text, citation context, FTS5 | Not started |
@@ -224,6 +224,36 @@ returns every one as a URL. References that fail to normalise are skipped, so on
 cost a work its other edges. Recording the fixtures cost about 13 of the day's 1,000 credits and
 did not send `mailto`.
 
+**M0 step 8 — `internal/library`, and the first of `internal/graph`.** `library.Add` takes what the
+user typed and makes it a seed: parse, resolve, then the work, a stub per reference and the edges
+in one transaction. **It passes M0's definition of done end to end** — every package real except
+the network, which replays step 7's recorded responses: `10.7717/peerj.4375` adds 55 works (54
+stubs) and 54 edges, and adding it again writes nothing and makes no request.
+
+- **The two package notes contradicted each other**, and the split resolves it. `library/doc.go`
+  said library calls store and sources; `graph/doc.go` and `store` said only graph may know both.
+  Now **`graph` moves data** (`AddSeed`, `AddSeedWork`) and **`library` is the composition root**:
+  it builds the store and the OpenAlex client and hands both to graph, but never passes data
+  between them. `go list` confirms `store` never reaches `sources` and `sources` never reaches
+  `store`.
+- **`graph.Source` is declared where it is consumed**, with only the two methods graph uses. It is
+  what lets graph's tests use a map instead of OpenAlex — not a guess at Crossref's shape.
+- **A title never writes before a choice** (ADR-005). `Add` returns an `*AmbiguousError` matching
+  `errs.ErrAmbiguous` with the candidates, closest title first. `AddCandidate` adds the chosen one
+  **without a second request** — candidates carry their reference lists. `AcceptFirst` is the
+  scripted path.
+- **Re-adding is reported, not silent.** `Added.AlreadySeed` is read inside the writing
+  transaction, so the CLI can say "already in your library" rather than print zeros; `Added.DeadEnd`
+  says a seed cannot grow the graph (D12) instead of leaving the user to wonder.
+- **The cache lives at `config.DefaultCacheDir`** — `os.UserCacheDir()/filiation/http`, deliberately
+  not beside the library, because one is disposable and the other is not. `Options.NoCache` and
+  `ClearCache` are the `--no-cache` and `fil cache clear` ADR-004 requires from day one.
+
+Front doors get only `model` types, `library` types and `errs` sentinels, so `cmd/fil` can
+branch on every outcome without importing `store`. **Not handled yet:** a seed whose DOI already
+belongs to a *different* OpenAlex ID in the library fails on the `UNIQUE` index rather than being
+reconciled. That is `graph`'s identity-resolution job, and lands with M1's merged-record handling.
+
 **Dependencies, all licence-checked before adding.** `ncruces/go-sqlite3` MIT ·
 `go-sqlite3-wasm/v3` MIT-0 · `julianday` MIT · `golang.org/x/sys` BSD-3 · `BurntSushi/toml` MIT ·
 `golang.org/x/time` BSD-3.
@@ -329,8 +359,8 @@ package is proven early rather than discovered late.
 | 5 | `internal/identity` | DOI, arXiv, OpenAlex ID, PMID, URL, title. **Title search never auto-accepts** (ADR-005). It also owns normalising the OpenAlex URL form, which `store` refuses outright | **Done** |
 | 6 | `internal/httpx` | 5 req/s token bucket, `mailto`, backoff honouring `Retry-After`, response cache in a separate file || **Done** |
 | 7 | `internal/sources/openalex` | `GetWork`, `GetWorksBatch` (**chunks of 100**), `SearchByTitle` || **Done** |
-| 8 | **`internal/library`** | `Add` — resolve, hydrate seed, record edges and stubs || **Next** |
-| 9 | `cmd/fil` | cobra wiring, plus the lint rule forbidding front doors from importing `store` | |
+| 8 | `internal/library` | `Add` — resolve, hydrate seed, record edges and stubs || **Done** |
+| 9 | **`cmd/fil`** | cobra wiring, plus the lint rule forbidding front doors from importing `store` || **Next** |
 
 **The two gotchas from spike 5 are handled**, both in `internal/store`, and both were silent
 failures if missed. They stay written down because a future connection opened anywhere else has to
@@ -342,14 +372,13 @@ obey the same rules:
   every connection in both the read pool and the write handle. The one in `schema.sql` only ever
   bound the connection that applied it.
 
-**M0 is done when** `fil add 10.1145/3292500` writes a row and prints the title, running it twice
-adds nothing the second time, and the seed's ~40–100 references are present as stubs with edges.
+**M0 is done when** `fil add 10.7717/peerj.4375` writes a row and prints the title, running it
+twice adds nothing the second time, and the seed's 54 references are present as stubs with edges.
 
-> **The last clause cannot pass with that DOI** (found in step 7). `10.1145/3292500` is the KDD
-> 2019 *proceedings volume* — type `paratext`, zero references. It resolves and prints a title,
-> so the first two clauses hold, but it has no references to stub. **Proposed replacement:**
-> `10.7717/peerj.4375` ("The state of OA", 54 references, gold OA — so it also exercises M3's PDF
-> path). Awaiting a decision; `CLAUDE.md` still names the original.
+> **Changed 24 Sept 2026.** The original acceptance DOI, `10.1145/3292500`, turned out in step 7
+> to be the KDD 2019 *proceedings volume* — type `paratext`, zero references — so the last clause
+> could never pass. `10.7717/peerj.4375` ("The state of OA") has 54 references and is gold OA, so
+> it also exercises M3's PDF path.
 
 ### Then M1
 

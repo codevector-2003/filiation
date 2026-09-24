@@ -200,7 +200,7 @@ One SQLite file plus a directory of PDFs. Rationale in `DECISIONS.md` D3 and D4.
 | Keyword index | `library.db` (FTS5) | Built in, no dependency |
 | Embeddings | `library.db` (sqlite-vec) | Same file. Pre-1.0: pin the version |
 | PDFs | `blobs/ab/<sha256>.pdf` | Content-addressed, sharded two chars deep |
-| HTTP cache | `cache.db` | **Separate file** — deletable without touching user data |
+| HTTP cache | `http/` under the OS cache directory | **Separate from the library** — deletable without touching user data. A directory of files, not `cache.db`; see ADR-004's implementation note |
 | Config | `config.toml` | Alongside the library |
 | Web UI assets | inside the binary | `//go:embed` — nothing to ship separately |
 
