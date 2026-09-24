@@ -1,13 +1,12 @@
 # Project status
 
-**Date:** 24 September 2026 · **Position:** **M0 complete** — M1 next
+**Date:** 24 September 2026 · **Position:** **M0 complete** · M1 in progress — steps 1–3 of 6
 **Phase 1 target:** v0.1 by 14 November 2026
 
-> **In one line:** M0 is done — `fil add` takes a DOI, arXiv ID, PMID, OpenAlex ID, link or title,
-> and records the paper and everything it cites, verified live against OpenAlex. Building it
-> overturned three more assumptions (arXiv DOIs, title-search cost, the acceptance DOI itself).
-> **M1 is next: the budgeted best-first expander**, which §10 names as the only genuinely hard code
-> in Phase 1.
+> **In one line:** M0 is done, and M1's expander works live — `fil expand` grew one seed to 525
+> fetched works and 11,802 citations, with no duplicate IDs or DOIs. One decision is open:
+> ~4% of works are still title-level duplicates OpenAlex keeps under different DOIs.
+> The schedule has slack: §10 planned the expander for 13–26 October.
 
 ---
 
@@ -23,7 +22,7 @@ protected for them.
 | --- | --- | --- |
 | 0 | Spikes, scaffolding, toolchain | **Complete** |
 | 1 | M0 — skeleton, `fil add` writes one node | **Complete** — 24 Sept, verified live |
-| 1 | M1 — budgeted expansion, export, **first release** | Not started |
+| 1 | M1 — budgeted expansion, export, **first release** | **In progress** — expander and `fil expand` done, verified live |
 | 2 | M2 — MCP server | Not started |
 | 3 | M3 — PDFs, text, citation context, FTS5 | Not started |
 | 4 | M4 — retrieval and answers | Not started |
@@ -410,12 +409,61 @@ twice adds nothing the second time, and the seed's 54 references are present as 
 > could never pass. `10.7717/peerj.4375` ("The state of OA") has 54 references and is gold OA, so
 > it also exercises M3's PDF path.
 
-### Then M1
+### M1, in progress
 
-Budgeted best-first expansion, dedup, `expand` / `neighbours` / `path`, GraphML export, and the
-first cross-compiled release. Write the idempotency and resume tests *before* `internal/graph`,
-not after — `ARCHITECTURE_PHASE1.md` §8 names them as the two that will actually catch
-regressions.
+*Done when:* one seed gives a clean 500-node graph with no duplicates, and it opens in Gephi.
+
+| Order | Work | State |
+| --- | --- | --- |
+| 1 | `store`: best-first frontier query, merged-record folding | **Done** |
+| 2 | `graph.Expand`: the budgeted loop, with §8's resume, idempotency, budget, cycle and single-writer tests | **Done** |
+| 3 | `library.Expand` and `fil expand`, with progress and a coverage report | **Done** — verified live |
+| 4 | **Title-level duplicates** — see the open decision below | **Needs a decision** |
+| 5 | `fil neighbours`, `fil path` (recursive CTEs with a visited set — the graph is not a DAG), `fil stats` | |
+| 6 | GraphML export, then GoReleaser, the multi-field validation run, and **v0.1** | |
+
+**Steps 1–3.** `fil expand` grows the graph from everything in the library, best first — in-graph
+in-degree, then depth, then ID, so the order is deterministic and resume is exact. One transaction
+per batch of up to 100; Ctrl-C loses only the batch in flight, and what was already fetched for it
+is committed. Stopping on the budget, an empty frontier, the depth limit or Ctrl-C is a normal
+outcome with its own message; the report always gives reference coverage (D12), and explains it
+when it drops below 70%.
+
+- **Every hydrated work records all its references**, including at the depth limit. §4's
+  pseudocode skipped them there; that would leave hydrated works without their edges and force a
+  refetch when a later run goes deeper. The depth limit governs only which stubs are fetched.
+- **The per-work cap lives in the frontier query**, as a window function over the order OpenAlex
+  sent references in — so a review's 800 edges are all kept, but only its first
+  `max_refs_per_work` compete for the budget.
+- **A batch's silence is confirmed**, and the live run proved it matters: 10 of the seed's 54
+  references were omitted by the filter, and 2 of those exist. See `SPIKES.md`.
+- **Duplicates by DOI are folded.** The first live run died on OpenAlex holding one preprint
+  under two IDs with one DOI; the whole batch rolled back. `graph.hydrate`, the one path by which
+  a fetched work enters the library, now folds a work into the record already holding its DOI —
+  edges move, the references are kept as the holder's, and the report counts it as merged. Seeds
+  go through the same path.
+- **The report cannot count a rolled-back batch.** The failed run reported 137 works fetched when
+  only 46 were saved; counts are now applied only after the commit succeeds, and a test pins it.
+- **Three batches failing in a row stops the run** with `ErrTransient` — the network is gone —
+  while a single failed batch is skipped for the rest of the run and left on the frontier (§7).
+
+Live, the second run fetched 478 works in 21 s: 525 hydrated, 7,677 works, 11,802 edges, with no
+duplicate IDs or DOIs, no self-loops and no dangling edges.
+
+### Open decision: title-level duplicates
+
+After ID and DOI dedup, **~4% of hydrated works still share a title with another** (20 groups in
+525) — OpenAlex records with different DOIs or none, such as a preprint and its journal version.
+M1's "no duplicates" is not met while they remain. Folding on title alone is wrong: one group
+contains a *book review* titled like the book it reviews. Options, roughly in order of caution:
+
+1. **Report only** — `fil stats` lists probable duplicates; the user decides. No wrong merges.
+2. **Fold on title + year + a shared author + neither being a review, erratum or paratext.**
+   Catches the clear cases; needs author IDs, which the store does not persist yet.
+3. **Fold on title + year alone.** Simplest, and wrong for the book-review case.
+
+Recommended: 1 now, 2 when authors are stored. Nothing is merged on a guess — the same stance as
+ADR-005 takes for title search.
 
 ### Carry forward from the spikes
 

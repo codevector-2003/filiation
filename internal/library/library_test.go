@@ -1,11 +1,13 @@
 package library
 
 import (
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -80,7 +82,13 @@ func openTest(t *testing.T, routes map[string]string, opts Options) (*Library, *
 		opts.CacheDir = filepath.Join(dir, "cache")
 	}
 	opts.Transport = r
-	l, err := Open(t.Context(), &config.Config{DBPath: filepath.Join(dir, "My Library", "library.db")}, opts)
+	cfg := &config.Config{
+		DBPath:         filepath.Join(dir, "My Library", "library.db"),
+		MaxNodes:       config.DefaultMaxNodes,
+		MaxDepth:       config.DefaultMaxDepth,
+		MaxRefsPerWork: config.DefaultMaxRefsPerWork,
+	}
+	l, err := Open(t.Context(), cfg, opts)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -330,5 +338,92 @@ func TestClearCache(t *testing.T) {
 	entries, _ := os.ReadDir(cache)
 	if len(entries) != 0 {
 		t.Errorf("cache still holds %d entries", len(entries))
+	}
+}
+
+// peerjExpansion routes the recorded responses for one expansion hop from the
+// M0 seed: its 54 references in one batch, of which OpenAlex's filter returned
+// 44. The other ten were each confirmed by a single lookup — eight are 404s
+// (dangling references) and two exist under the same ID but are not matched by
+// the filter. Recorded 24 Sept 2026.
+func peerjExpansion(t *testing.T) map[string]string {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join(fixtureDir, "work_W2741809807.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var seed struct {
+		ReferencedWorks []string `json:"referenced_works"`
+	}
+	if err := json.Unmarshal(raw, &seed); err != nil {
+		t.Fatal(err)
+	}
+	ids := make([]string, len(seed.ReferencedWorks))
+	for i, r := range seed.ReferencedWorks {
+		ids[i] = r[strings.LastIndexByte(r, '/')+1:]
+	}
+	// Every reference has in-degree 1 at depth 1, so the frontier orders them
+	// by ID — the order the batch filter was recorded in.
+	sort.Strings(ids)
+
+	routes := map[string]string{
+		"/works/doi:10.7717/peerj.4375":                       "work_W2741809807.json",
+		"/works?filter=openalex_id:" + strings.Join(ids, "|"): "batch_peerj_refs.json",
+		"/works/W6887727194":                                  "single_W6887727194.json",
+		"/works/W6948399261":                                  "single_W6948399261.json",
+	}
+	for _, id := range []string{"W2611818942", "W6637734586", "W6640061894", "W6640335369",
+		"W6640848857", "W6687877900", "W6725637556", "W6744027076"} {
+		routes["/works/"+id] = "404"
+	}
+	return routes
+}
+
+func TestExpandOneHopFromTheM0Seed(t *testing.T) {
+	t.Parallel()
+	l, r := openTest(t, peerjExpansion(t), Options{})
+	if _, err := l.Add(t.Context(), "10.7717/peerj.4375", AddOptions{}); err != nil {
+		t.Fatal(err)
+	}
+
+	var progress []int
+	res, err := l.Expand(t.Context(), ExpandOptions{MaxNodes: 54,
+		Progress: func(r model.ExpansionResult) { progress = append(progress, r.Hydrated) }})
+	if err != nil {
+		t.Fatalf("Expand: %v", err)
+	}
+
+	// Expected values computed from the fixtures independently of this code.
+	if res.Hydrated != 46 || res.Unresolved != 8 || res.DeadEnds != 8 || res.Edges != 1601 {
+		t.Errorf("result = %+v; want 46 hydrated, 8 unresolved, 8 dead ends, 1601 edges", res)
+	}
+	if res.StoppedBecause != model.StopBudgetExhausted || res.MaxDepthReached != 1 {
+		t.Errorf("stopped %q at depth %d; want budget-exhausted at depth 1", res.StoppedBecause, res.MaxDepthReached)
+	}
+	s, _ := l.Stats(t.Context())
+	if s != (Stats{Works: 1041, Stubs: 994, Edges: 1655}) {
+		t.Errorf("Stats = %+v, want 1041 works (994 stubs), 1655 edges", s)
+	}
+	if len(progress) != 1 || progress[0] != 46 {
+		t.Errorf("progress = %v, want one report of 46", progress)
+	}
+	// The seed, the batch, and ten confirming lookups.
+	if r.count() != 12 {
+		t.Errorf("requests = %d, want 12", r.count())
+	}
+}
+
+func TestExpandUsesConfiguredBudget(t *testing.T) {
+	t.Parallel()
+	l, _ := openTest(t, peerj, Options{})
+	nodes, depth := l.Budget()
+	if nodes != config.DefaultMaxNodes || depth != config.DefaultMaxDepth {
+		t.Errorf("Budget() = %d, %d; want the configured defaults", nodes, depth)
+	}
+	// An empty library has nothing to expand from, and says so by stopping
+	// on an empty frontier rather than failing.
+	res, err := l.Expand(t.Context(), ExpandOptions{})
+	if err != nil || res.StoppedBecause != model.StopFrontierEmpty || res.Hydrated != 0 {
+		t.Errorf("Expand on an empty library = %+v, %v", res, err)
 	}
 }

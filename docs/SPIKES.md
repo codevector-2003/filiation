@@ -298,6 +298,24 @@ Not a spike, but measured the same way: real responses, recorded as the fixtures
 
 ---
 
+## Measured in M1's first live expansion — 24 Sept 2026
+
+`fil expand` from `10.7717/peerj.4375` ("The state of OA"), default budget 500, max depth 3, in a
+throwaway profile. About 7 credits. Three things no spike had measured:
+
+| Question | Answer |
+| --- | --- |
+| How many of a real seed's references does a batch filter return? | **44 of 54.** Of the ten omitted, **8 are dangling** — listed in `referenced_works`, 404 by ID — and **2 exist under the same ID** but are not matched by the filter. Without a confirming single lookup, those two real papers would be marked unresolved |
+| Does OpenAlex hold one paper under two IDs with one DOI? | **Yes.** `W2949614626` and `W4294576234` are one arXiv preprint (`10.48550/arxiv.astro-ph/0411275`). Writing the second tripped the `UNIQUE` index on `work.doi` and rolled back a whole batch — the first live run stopped there |
+| After ID and DOI dedup, how many duplicates remain? | **20 same-title groups among 525 hydrated works (~4%)**: different DOIs or none. Some are one paper (two 2008 "articles"; a 2017 preprint and its 2018 journal version). At least one mixes in a **book review sharing the book's title**, so title alone cannot decide |
+
+End state: 525 hydrated, 7,677 works, 11,802 edges; depth 0–3; no duplicate IDs or DOIs, no
+self-loops, no dangling edges. Budget exact: 478 hydrated + 21 unresolved + 1 merged = 500.
+Reference coverage 67% — this seed's neighbourhood is information science, which sits with the
+social sciences in D12's table.
+
+---
+
 ## Consequences for the build
 
 - **`go.mod` moved to `go 1.25.0`.** `go get` bumped it: `go-sqlite3-wasm/v3` requires it. CLAUDE.md

@@ -1,39 +1,15 @@
 package graph
 
 import (
-	"context"
 	"errors"
-	"fmt"
 	"path/filepath"
 	"testing"
 
 	"github.com/codevector-2003/filiation/internal/errs"
 	"github.com/codevector-2003/filiation/internal/identity"
 	"github.com/codevector-2003/filiation/internal/model"
-	"github.com/codevector-2003/filiation/internal/sources/openalex"
 	"github.com/codevector-2003/filiation/internal/store"
 )
-
-// fakeSource resolves from a map, so these tests are about what the graph
-// writes, not about OpenAlex. sources/openalex has its own tests against
-// recorded responses.
-type fakeSource struct {
-	works    map[string]model.HydratedWork // keyed by identity Value
-	resolved int
-}
-
-func (f *fakeSource) Resolve(_ context.Context, id identity.ID) (model.HydratedWork, error) {
-	f.resolved++
-	h, ok := f.works[id.Value]
-	if !ok {
-		return model.HydratedWork{}, fmt.Errorf("fake: %s: %w", id.Value, errs.ErrUnresolved)
-	}
-	return h, nil
-}
-
-func (f *fakeSource) SearchByTitle(context.Context, string, int) ([]openalex.Candidate, error) {
-	return nil, nil
-}
 
 func hydrated(id, doi string, refs ...string) model.HydratedWork {
 	return model.HydratedWork{
@@ -58,10 +34,9 @@ func newGraph(t *testing.T, works ...model.HydratedWork) (*Graph, *store.DB, *fa
 	if err := db.Migrate(t.Context()); err != nil {
 		t.Fatalf("Migrate: %v", err)
 	}
-	src := &fakeSource{works: map[string]model.HydratedWork{}}
+	src := newFakeSource()
 	for _, w := range works {
-		src.works[w.OpenAlexID] = w
-		src.works[*w.DOI] = w
+		src.add(w)
 	}
 	return New(db, src), db, src
 }

@@ -2,15 +2,18 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
 
 	"github.com/codevector-2003/filiation/internal/config"
+	"github.com/codevector-2003/filiation/internal/model"
 )
 
 // These run the real command tree against a temporary config directory, a
@@ -345,6 +348,123 @@ func TestThousands(t *testing.T) {
 	for n, want := range map[int]string{0: "0", 999: "999", 1000: "1,000", 1234567: "1,234,567", -4200: "-4,200"} {
 		if got := thousands(n); got != want {
 			t.Errorf("thousands(%d) = %q, want %q", n, got, want)
+		}
+	}
+}
+
+// peerjExpansion routes one expansion hop from the M0 seed, recorded 24 Sept
+// 2026: the seed's 54 references in one batch (44 returned), and the ten the
+// filter omitted, each confirmed by a single lookup — eight 404s, two found.
+func peerjExpansion(t *testing.T) map[string]string {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join(fixtureDir, "work_W2741809807.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var seed struct {
+		ReferencedWorks []string `json:"referenced_works"`
+	}
+	if err := json.Unmarshal(raw, &seed); err != nil {
+		t.Fatal(err)
+	}
+	ids := make([]string, len(seed.ReferencedWorks))
+	for i, r := range seed.ReferencedWorks {
+		ids[i] = r[strings.LastIndexByte(r, '/')+1:]
+	}
+	sort.Strings(ids)
+	routes := map[string]string{
+		"/works/doi:10.7717/peerj.4375":                       "work_W2741809807.json",
+		"/works?filter=openalex_id:" + strings.Join(ids, "|"): "batch_peerj_refs.json",
+		"/works/W6887727194":                                  "single_W6887727194.json",
+		"/works/W6948399261":                                  "single_W6948399261.json",
+	}
+	for _, id := range []string{"W2611818942", "W6637734586", "W6640061894", "W6640335369",
+		"W6640848857", "W6687877900", "W6725637556", "W6744027076"} {
+		routes["/works/"+id] = "404"
+	}
+	return routes
+}
+
+func TestExpandOneHop(t *testing.T) {
+	h := newHarness(t, peerjExpansion(t))
+	if code, _, errOut := h.run(false, "", "add", "10.7717/peerj.4375"); code != exitOK {
+		t.Fatalf("add: exit %d\n%s", code, errOut)
+	}
+
+	code, out, errOut := h.run(false, "", "expand", "--max-nodes", "54")
+	if code != exitOK {
+		t.Fatalf("expand: exit %d\n%s\n%s", code, out, errOut)
+	}
+	for _, want := range []string{
+		"Fetched:   46 works",
+		"recording 1,601 new citations.",
+		"Coverage:  38 of 46 had a reference list (83%).",
+		"Not found: 8 cited works have no OpenAlex record.",
+		"Stopped:   budget reached.",
+		"Library:   1,041 works (994 not fetched yet), 1,655 citations.",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("stdout lacks %q:\n%s", want, out)
+		}
+	}
+	// 83% is not low: no field-coverage lecture.
+	if strings.Contains(out, "Low coverage") {
+		t.Errorf("low-coverage note shown at 83%%:\n%s", out)
+	}
+}
+
+func TestExpandEmptyLibraryCreatesNothing(t *testing.T) {
+	h := newHarness(t, nil)
+	code, out, _ := h.run(false, "", "expand")
+	if code != exitOK || !strings.Contains(out, "Your library is empty. Add a paper first") {
+		t.Errorf("exit %d:\n%s", code, out)
+	}
+	if _, err := os.Stat(h.configDir); !os.IsNotExist(err) {
+		t.Errorf("expand on a first run created the config directory")
+	}
+}
+
+func TestExpandRejectsNegativeBudgets(t *testing.T) {
+	h := newHarness(t, nil)
+	for _, args := range [][]string{{"expand", "--max-nodes", "-1"}, {"expand", "--max-depth", "-2"}} {
+		if code, _, errOut := h.run(false, "", args...); code != exitInvalidInput {
+			t.Errorf("fil %v: exit %d, want %d\n%s", args, code, exitInvalidInput, errOut)
+		}
+	}
+}
+
+func TestExpansionReport(t *testing.T) {
+	var out bytes.Buffer
+	a := &app{stdout: &out}
+
+	// Humanities-shaped: most works arrive with no reference list (D12).
+	a.printExpansion(model.ExpansionResult{Hydrated: 100, DeadEnds: 84,
+		StoppedBecause: model.StopMaxDepth}, 0, 3)
+	for _, want := range []string{
+		"Coverage:  16 of 100 had a reference list (16%).",
+		"Low coverage is usually the field, not fil",
+		"more than 3 citation steps from your papers",
+		"Pass --max-depth 4 to go further.",
+	} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("report lacks %q:\n%s", want, out.String())
+		}
+	}
+
+	out.Reset()
+	a.printExpansion(model.ExpansionResult{Hydrated: 10, Skipped: 5,
+		StoppedBecause: model.StopCancelled}, 0, 3)
+	for _, want := range []string{"Skipped:   5 works whose request failed", "interrupted. Everything fetched is saved"} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("report lacks %q:\n%s", want, out.String())
+		}
+	}
+}
+
+func TestPlural(t *testing.T) {
+	for n, want := range map[int]string{0: "0 works", 1: "1 work", 2: "2 works", 1500: "1,500 works"} {
+		if got := plural(n, "work", "works"); got != want {
+			t.Errorf("plural(%d) = %q, want %q", n, got, want)
 		}
 	}
 }

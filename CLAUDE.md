@@ -12,7 +12,7 @@ tool does for papers: it reconstructs where a claim came from by following the c
 - Language: **Go** (see D8 in `docs/DECISIONS.md`)
 - Module: `github.com/codevector-2003/filiation`
 - Binary / CLI command: `fil`
-- Status: **M0 complete** (24 Sept 2026) — `fil add` works end to end, verified live. **M1 is next.** See `docs/STATUS.md`.
+- Status: **M0 complete** (24 Sept 2026). **M1 in progress** — `fil expand` works, verified live; title-level duplicates need a decision. See `docs/STATUS.md`.
 
 ---
 
@@ -149,6 +149,9 @@ mistake. Be deliberate:
   - Free allowance is **1,000 credits/day** ($0.10 equivalent), not 100,000.
   - **Single-work fetches are free.** List requests cost **1 credit** flat, whatever the page size.
     A **title search costs 10**.
+  - **A batch filter silently omits IDs, and not only dead ones** — 10 of one seed's 54
+    references, 2 of which exist. Always confirm an omission with a single lookup (free).
+  - **OpenAlex holds some papers twice under one DOI.** Fold the second into the first.
   - **arXiv IDs do not reliably resolve by their `10.48550/arxiv.` DOI.** Fall back to
     `filter=locations.landing_page_url:` on the arXiv `/abs/` page. A 404 body is HTML, not JSON.
   - `per_page` max is **200**, but at most **100 IDs** may be piped into a filter — 101 is a hard
@@ -188,7 +191,9 @@ provides this for free and it is what makes retrieval better than everyone else'
 
 Current position: **M0 complete, 24 Sept 2026.** `fil add 10.7717/peerj.4375` was run live: it
 wrote the seed, printed the title, recorded 54 references as stubs with edges, and a second run
-added nothing. **M1 — the budgeted expander in `internal/graph` — is next.** Dates assume learning Go alongside building;
+added nothing. **M1 in progress:** the budgeted best-first expander and `fil expand` are done and
+verified live (525 works, 11,802 citations, no duplicate IDs or DOIs). Next: a decision on
+title-level duplicates, then `neighbours` / `path` / `stats`, GraphML export and the v0.1 release. Dates assume learning Go alongside building;
 Phase 1 carries two extra weeks for that.
 
 - [x] **M0 — Skeleton** (2–3 weeks). *Done 24 Sept 2026.* Module layout, config, embedded schema, `store` package,

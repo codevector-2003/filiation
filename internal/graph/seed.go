@@ -19,6 +19,7 @@ import (
 type Source interface {
 	Resolve(ctx context.Context, id identity.ID) (model.HydratedWork, error)
 	SearchByTitle(ctx context.Context, title string, limit int) ([]openalex.Candidate, error)
+	GetWorksBatch(ctx context.Context, ids []string) (openalex.Batch, error)
 }
 
 // Graph grows the citation graph: it takes works from a Source and writes them
@@ -81,36 +82,64 @@ func (g *Graph) AddSeedWork(ctx context.Context, h model.HydratedWork) (Seeded, 
 	h.Source = model.SourceSeed
 
 	var out Seeded
+	stored := h.OpenAlexID
 	err := g.db.Tx(ctx, func(tx *store.Tx) error {
 		// Read inside the transaction that writes, so the answer cannot be
-		// stale by the time the write lands.
-		prev, err := tx.GetWork(ctx, h.OpenAlexID)
-		switch {
-		case err == nil:
-			out.WasSeed = prev.IsSeed
-		case !errors.Is(err, errs.ErrNotFound):
-			return err
-		}
-		if err := tx.UpsertWork(ctx, &h.Work); err != nil {
-			return err
-		}
-		rec, err := tx.RecordEdgesAndStubs(ctx, &h)
+		// stale by the time the write lands. The seed may already be present
+		// under its own ID or, as an OpenAlex duplicate, under another ID
+		// holding the same DOI.
+		wasSeed, err := isSeed(ctx, tx, h.OpenAlexID)
 		if err != nil {
 			return err
 		}
-		out.Recorded = rec
+		if h.DOI != nil && !wasSeed {
+			if holder, err := tx.WorkIDByDOI(ctx, *h.DOI); err == nil {
+				if wasSeed, err = isSeed(ctx, tx, holder); err != nil {
+					return err
+				}
+			} else if !errors.Is(err, errs.ErrNotFound) {
+				return err
+			}
+		}
+		out.WasSeed = wasSeed
+
+		res, err := hydrate(ctx, tx, &h)
+		if err != nil {
+			return err
+		}
+		if res.Folded {
+			// The seed's flags were on the record that was folded away;
+			// they belong on the one that holds it now.
+			if err := tx.MarkSeed(ctx, res.ID); err != nil {
+				return err
+			}
+		}
+		stored, out.Recorded = res.ID, res.Recorded
 		return nil
 	})
 	if err != nil {
 		return Seeded{}, fmt.Errorf("add seed %s: %w", h.OpenAlexID, err)
 	}
 
-	w, err := g.db.GetWork(ctx, h.OpenAlexID)
+	w, err := g.db.GetWork(ctx, stored)
 	if err != nil {
-		return Seeded{}, fmt.Errorf("read back seed %s: %w", h.OpenAlexID, err)
+		return Seeded{}, fmt.Errorf("read back seed %s: %w", stored, err)
 	}
 	out.Work = *w
 	return out, nil
+}
+
+// isSeed reports whether id is in the library and marked as a seed.
+func isSeed(ctx context.Context, tx *store.Tx, id string) (bool, error) {
+	w, err := tx.GetWork(ctx, id)
+	switch {
+	case err == nil:
+		return w.IsSeed, nil
+	case errors.Is(err, errs.ErrNotFound):
+		return false, nil
+	default:
+		return false, err
+	}
 }
 
 // SearchTitle returns candidates for a title. It writes nothing: choosing is
