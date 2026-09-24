@@ -12,7 +12,7 @@ tool does for papers: it reconstructs where a claim came from by following the c
 - Language: **Go** (see D8 in `docs/DECISIONS.md`)
 - Module: `github.com/codevector-2003/filiation`
 - Binary / CLI command: `fil`
-- Status: **M0 in progress** — 3 of 9 packages done (`model`, `errs`, `config`). See `docs/STATUS.md`.
+- Status: **M0 in progress** — 4 of 9 packages done (`model`, `errs`, `config`, `store`). See `docs/STATUS.md`.
 
 ---
 
@@ -183,8 +183,8 @@ provides this for free and it is what makes retrieval better than everyone else'
 
 ## Build order
 
-Current position: **M0, steps 1–3 of 9 complete** — `internal/model`, `internal/errs` and
-`internal/config` are written and tested; `internal/store` is next. Dates assume learning Go alongside building;
+Current position: **M0, steps 1–4 of 9 complete** — `internal/model`, `internal/errs`,
+`internal/config` and `internal/store` are written and tested; `internal/identity` is next. Dates assume learning Go alongside building;
 Phase 1 carries two extra weeks for that.
 
 - [ ] **M0 — Skeleton** (2–3 weeks). Module layout, config, embedded schema, `store` package,
