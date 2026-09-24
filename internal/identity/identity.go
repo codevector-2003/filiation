@@ -72,10 +72,10 @@ const arXivDOIPrefix = "10.48550/arxiv."
 // the ID is not an arXiv ID.
 //
 // It exists because a lookup needs something OpenAlex indexes, and DOIs are.
-// Whether OpenAlex resolves every arXiv DOI is a question for
-// internal/sources/openalex to answer against a recorded response, not for
-// this package to assume; this package only knows the mapping, which is a fact
-// about arXiv.
+// But OpenAlex does not hold every arXiv paper under this DOI — 1706.03762 is a
+// 404 by it (recorded 24 Sept 2026) — so sources/openalex tries it first and
+// falls back to the arXiv landing page. This package only knows the mapping,
+// which is a fact about arXiv.
 func (id ID) ArXivDOI() string {
 	if id.Kind != KindArXiv {
 		return ""

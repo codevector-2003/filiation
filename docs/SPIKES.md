@@ -281,6 +281,23 @@ its extensions linked in**, which was the real question.
 
 ---
 
+## Recorded while building step 7 — 24 Sept 2026
+
+Not a spike, but measured the same way: real responses, recorded as the fixtures in
+`internal/sources/openalex/testdata/`. Ten requests, about 13 credits. `mailto` was not sent.
+
+| Question | Answer |
+| --- | --- |
+| Does OpenAlex resolve an arXiv paper by its DataCite DOI? | **Not reliably.** `doi:10.48550/arxiv.1706.03762` is a 404, although other works do carry arXiv DOIs. The work *is* found by `filter=locations.landing_page_url:` on its arXiv `/abs/` page (http and https), for 1 credit |
+| What does a 404 look like? | An **HTML page**, not JSON. Never show its body to the user |
+| What does a batch do with an ID it cannot match? | **Omits it silently** — 3 asked, 1 returned, `meta.count` 1. The absence is the only signal |
+| Does a missing ID redirect to a merged record? | Not the one tested: `W2963403868` is a plain 404. OpenAlex documents redirects for merged records, so absent IDs are confirmed by a free single lookup that would follow one |
+| What does a title search cost? | **10 credits** (`cost_usd` 0.001), ten times a list request. `title.search` is rewritten internally to `display_name.search` |
+| What is `10.1145/3292500`, the DOI in M0's definition of done? | The **KDD 2019 proceedings volume**: type `paratext`, **zero references**. It resolves, but it cannot seed a graph |
+| Types seen that the model has no constant for | `conference-paper`, `paratext`. Stored as they arrive |
+
+---
+
 ## Consequences for the build
 
 - **`go.mod` moved to `go 1.25.0`.** `go get` bumped it: `go-sqlite3-wasm/v3` requires it. CLAUDE.md

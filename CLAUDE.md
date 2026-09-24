@@ -12,7 +12,7 @@ tool does for papers: it reconstructs where a claim came from by following the c
 - Language: **Go** (see D8 in `docs/DECISIONS.md`)
 - Module: `github.com/codevector-2003/filiation`
 - Binary / CLI command: `fil`
-- Status: **M0 in progress** — 6 of 9 packages done (`model`, `errs`, `config`, `store`, `identity`, `httpx`). See `docs/STATUS.md`.
+- Status: **M0 in progress** — 7 of 9 packages done (`model`, `errs`, `config`, `store`, `identity`, `httpx`, `sources/openalex`). See `docs/STATUS.md`.
 
 ---
 
@@ -148,6 +148,9 @@ mistake. Be deliberate:
   over the published documentation, which contradicts itself:**
   - Free allowance is **1,000 credits/day** ($0.10 equivalent), not 100,000.
   - **Single-work fetches are free.** List requests cost **1 credit** flat, whatever the page size.
+    A **title search costs 10**.
+  - **arXiv IDs do not reliably resolve by their `10.48550/arxiv.` DOI.** Fall back to
+    `filter=locations.landing_page_url:` on the arXiv `/abs/` page. A 404 body is HTML, not JSON.
   - `per_page` max is **200**, but at most **100 IDs** may be piped into a filter — 101 is a hard
     400. So hydration batches at 100, and that is the binding constraint.
   - **Batch for round trips, not for credits.** The first 429 appears around **11 req/s**, so set
@@ -183,9 +186,9 @@ provides this for free and it is what makes retrieval better than everyone else'
 
 ## Build order
 
-Current position: **M0, steps 1–6 of 9 complete** — `internal/model`, `internal/errs`,
-`internal/config`, `internal/store`, `internal/identity` and `internal/httpx` are written and
-tested; `internal/sources/openalex` is next. Dates assume learning Go alongside building;
+Current position: **M0, steps 1–7 of 9 complete** — `internal/model`, `internal/errs`,
+`internal/config`, `internal/store`, `internal/identity`, `internal/httpx` and
+`internal/sources/openalex` are written and tested; `internal/library` is next. Dates assume learning Go alongside building;
 Phase 1 carries two extra weeks for that.
 
 - [ ] **M0 — Skeleton** (2–3 weeks). Module layout, config, embedded schema, `store` package,
