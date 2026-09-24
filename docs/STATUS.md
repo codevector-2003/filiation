@@ -1,6 +1,6 @@
 # Project status
 
-**Date:** 24 September 2026 · **Position:** M0 in progress — 4 of 9 packages done
+**Date:** 24 September 2026 · **Position:** M0 in progress — 6 of 9 packages done
 **Phase 1 target:** v0.1 by 14 November 2026
 
 > **In one line:** Phase 0 is closed — the design survived contact with the API, but three of its
@@ -21,7 +21,7 @@ protected for them.
 | Phase | Milestone | State |
 | --- | --- | --- |
 | 0 | Spikes, scaffolding, toolchain | **Complete** |
-| 1 | M0 — skeleton, `fil add` writes one node | **In progress** — steps 1–4 of 9 |
+| 1 | M0 — skeleton, `fil add` writes one node | **In progress** — steps 1–6 of 9 |
 | 1 | M1 — budgeted expansion, export, **first release** | Not started |
 | 2 | M2 — MCP server | Not started |
 | 3 | M3 — PDFs, text, citation context, FTS5 | Not started |
@@ -61,8 +61,10 @@ string-typed DOI would make the second stub without one fail to insert. `Hydrate
 from `Work` so that `IsDeadEnd` cannot be asked of a work loaded from the store, where the
 reference list is gone and every work would answer yes.
 
-`internal/errs` holds four sentinels — `ErrNotFound`, `ErrTransient`, `ErrUnresolved`,
-`ErrAmbiguous` — and no logic. `ErrNotFound` (this library has no such row) and `ErrUnresolved`
+`internal/errs` began with four sentinels — `ErrNotFound`, `ErrTransient`, `ErrUnresolved`,
+`ErrAmbiguous` — and no logic. It has since grown three, each added by the package that first
+needed the CLI to answer differently: `ErrInvalidConfig` (step 3), `ErrSchemaTooNew` (step 4) and
+`ErrInvalidInput` (step 5). `ErrNotFound` (this library has no such row) and `ErrUnresolved`
 (OpenAlex has no record) are deliberately distinct: the first is answered by adding the work, the
 second can never be answered, and merging them would have expansion retrying dead identifiers
 forever. Keeping the vocabulary in a leaf package is also what lets `cmd/fil` branch on an error
@@ -122,8 +124,82 @@ Twenty-six tests, including the two §8 names as the ones that will actually cat
 recording the same reference list twice writes nothing the second time, and a failure partway
 through a reference list leaves the citing work without `fetched_refs`.
 
+**M0 step 5 — `internal/identity`.** `Parse` turns whatever the user typed into a kind and one
+normalised value: OpenAlex IDs in bare and URL form, DOIs in the five resolver formats and inside
+publisher URLs, arXiv IDs in both schemes with the version dropped, PMIDs, and titles.
+`NormaliseOpenAlexID` and `NormaliseDOI` are exported for `sources/openalex`, which must run every
+ID in every response through them — OpenAlex returns the URL form, and `store` refuses it. Three
+decisions:
+
+- **A malformed identifier is refused, never searched as a title.** `W0123`, `10.12/abc` and
+  `doi:hello` return `errs.ErrInvalidInput` with the input quoted and the reason given. Falling
+  through would ask the user to pick a candidate for something that was never a title.
+- **`ErrInvalidInput` is a new sentinel.** The CLI answers it differently from
+  `ErrInvalidConfig` — echo the argument and list the accepted forms, rather than name the config
+  file — and `store` now uses it too, where step 4 had borrowed `ErrInvalidConfig`.
+- **Bare numbers are PMIDs only from five digits.** `2017` is refused with a hint to write
+  `PMID:2017`; a year typed by mistake must never seed a graph from an unrelated paper.
+
+DOIs are lower-cased (case-insensitive by specification), and stray trailing punctuation is
+trimmed — a closing bracket only when unbalanced, because real DOIs contain balanced ones.
+`ArXivDOI` maps an arXiv ID to its DataCite DOI (`10.48550/arxiv.…`); whether OpenAlex resolves
+every one is **unverified** and is for step 7 to check against a recorded response.
+
+**Read against `quelle`** ([vcoeur/quelle](https://github.com/vcoeur/quelle), MIT) — as prior art
+only; nothing is imported or copied. Its DOI and arXiv patterns match ours. Three of its ideas were
+reimplemented here:
+
+- **A DOI cut out of a URL loses the URL's wrapping.** Publishers append file extensions and view
+  segments after the DOI (`…/10.1073/pnas.1719367115.full.pdf`, `…/asi.24301/full`), and
+  bioRxiv and medRxiv append a version (`…002386v1`). Captured as-is, each is a DOI that resolves
+  to nothing. Trimmed for URLs only — a DOI the user typed is taken as typed.
+- **arXiv `/html/` links** are accepted alongside `/abs/` and `/pdf/`.
+- **`TitleKey` and `TitlesMatch`** — case-folded, letters and digits only, then edit-distance
+  similarity at 0.85. One deliberate difference: `quelle` also accepts one title *containing* the
+  other, which would call "Attention" a match for "Attention Is All You Need". Ours does not. It
+  ranks and flags title-search candidates; it never accepts one (ADR-005).
+
+Two more are **deferred, not dropped**:
+
+- **An ordered source fallback chain** — try each source in turn, treat not-found and network
+  failure as "try the next", keep the last error, and merge enrichment only when an `accept`
+  predicate agrees the record is the same work. This is the shape M3 needs for OpenAlex →
+  Unpaywall PDF locations, and the shape Crossref will slot into later.
+- **ISBNs.** `quelle` resolves books through Open Library, Google Books and BnF. That is directly
+  relevant to D12: the humanities graph dies after one hop because its citations are books. Not
+  in M0 scope, but it belongs in the conversation about what to do for those users.
+
+**M0 step 6 — `internal/httpx`.** One `Client` per upstream service, each with its own
+`rate.Limiter` — 5 req/s for OpenAlex against the measured first 429 at ~11 (spike 3). Retries
+three times on 429, 5xx and network failure (§7), with exponential backoff and jitter, honouring
+`Retry-After`. Four decisions:
+
+- **Failure is classified, not just reported.** A 429 or 5xx that never clears wraps
+  `errs.ErrTransient`, the expander's "skip this batch and carry on". Any other status fails at
+  once as a `*StatusError` carrying the code and the start of the body — OpenAlex explains a 400
+  only there, and `sources/openalex` needs a 404 to become `ErrUnresolved`, not a retry.
+- **A `Retry-After` over 60 s fails immediately**, with the wait attached for the CLI to report.
+  That is the daily allowance spent, and sleeping through it looks like a hang.
+- **The cache is a directory, not the SQLite file ADR-004 proposed** — all SQL stays in
+  `internal/store`, and no second WASM database handle. Files are written to a temporary name and
+  renamed, so a reader never sees half a response; the key is stored in each file and checked on
+  read. Only 2xx responses are cached, for a week by default, and a hit skips the rate limiter.
+- **The contact goes in the `User-Agent` and in a per-source query parameter** (`mailto` for
+  OpenAlex, `email` for Unpaywall), but **not in the cache key** — changing it does not empty the
+  cache, and the address is never written to disk.
+
+`Client.Quota` exposes the last `X-RateLimit-*` headers, closing the carry-forward below about
+reading the allowance rather than trusting a constant. Where the cache lives is not decided here:
+`config` has no cache path yet, and step 8 will choose one (likely `os.UserCacheDir`).
+
+`golang.org/x/time` is pinned at **v0.15.0**: v0.16.0 requires Go 1.26 and `go get` silently raised
+the module's `go` line to match, which would have broken the Go 1.25 convention. Tests use a stub
+`RoundTripper` and a recorded sleep, so the suite never touches the network and never actually waits
+out a backoff; one test runs the real limiter to prove it spaces requests.
+
 **Dependencies, all licence-checked before adding.** `ncruces/go-sqlite3` MIT ·
-`go-sqlite3-wasm/v3` MIT-0 · `julianday` MIT · `golang.org/x/sys` BSD-3 · `BurntSushi/toml` MIT.
+`go-sqlite3-wasm/v3` MIT-0 · `julianday` MIT · `golang.org/x/sys` BSD-3 · `BurntSushi/toml` MIT ·
+`golang.org/x/time` BSD-3.
 Nothing copyleft, nothing
 requiring cgo. The licence question in "Still open" remains genuinely open — no dependency has
 forced it.
@@ -223,9 +299,9 @@ package is proven early rather than discovered late.
 | 2 | `internal/errs` | Sentinels the CLI can act on: not found, transient, unresolved, ambiguous. **Not budget exhausted** — a run that stops on its budget succeeded, and reports `model.StopBudgetExhausted` (§7) | **Done** |
 | 3 | `internal/config` | `--db` > `FILIATION_DB` > config file > per-user default (ADR-006). Contact email. `MaxNodes` default **500** | **Done** |
 | 4 | `internal/store` | Two handles — read pool, and a write handle at `SetMaxOpenConns(1)`. PRAGMAs, embedded schema, `Tx`, and the first queries | **Done** |
-| 5 | **`internal/identity`** | DOI, arXiv, OpenAlex ID, PMID, URL, title. **Title search never auto-accepts** (ADR-005). It also owns normalising the OpenAlex URL form, which `store` refuses outright | **Next** |
-| 6 | `internal/httpx` | 5 req/s token bucket, `mailto`, backoff honouring `Retry-After`, response cache in a separate file | |
-| 7 | `internal/sources/openalex` | `GetWork`, `GetWorksBatch` (**chunks of 100**), `SearchByTitle` | |
+| 5 | `internal/identity` | DOI, arXiv, OpenAlex ID, PMID, URL, title. **Title search never auto-accepts** (ADR-005). It also owns normalising the OpenAlex URL form, which `store` refuses outright | **Done** |
+| 6 | `internal/httpx` | 5 req/s token bucket, `mailto`, backoff honouring `Retry-After`, response cache in a separate file || **Done** |
+| 7 | **`internal/sources/openalex`** | `GetWork`, `GetWorksBatch` (**chunks of 100**), `SearchByTitle` || **Next** |
 | 8 | `internal/library` | `Add` — resolve, hydrate seed, record edges and stubs | |
 | 9 | `cmd/fil` | cobra wiring, plus the lint rule forbidding front doors from importing `store` | |
 
@@ -254,8 +330,8 @@ regressions.
 - **Surface reference coverage per node** (D12) — the same way OA status is surfaced. `fil add`
   and `fil expand` should report how many works in a result have no reference list, and the README
   should state the field limitation before someone discovers it by installing the tool.
-- **Read `X-RateLimit-Remaining` from responses** rather than trusting a constant compiled into
-  the binary. OpenAlex has clearly changed its pricing model once already.
+- ~~**Read `X-RateLimit-Remaining` from responses** rather than trusting a constant compiled into
+  the binary.~~ **Done in step 6** — `httpx.Client.Quota`.
 - **Build M4's candidate generation before its semantic search** (D13).
 
 ---

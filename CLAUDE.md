@@ -12,7 +12,7 @@ tool does for papers: it reconstructs where a claim came from by following the c
 - Language: **Go** (see D8 in `docs/DECISIONS.md`)
 - Module: `github.com/codevector-2003/filiation`
 - Binary / CLI command: `fil`
-- Status: **M0 in progress** — 4 of 9 packages done (`model`, `errs`, `config`, `store`). See `docs/STATUS.md`.
+- Status: **M0 in progress** — 6 of 9 packages done (`model`, `errs`, `config`, `store`, `identity`, `httpx`). See `docs/STATUS.md`.
 
 ---
 
@@ -183,8 +183,9 @@ provides this for free and it is what makes retrieval better than everyone else'
 
 ## Build order
 
-Current position: **M0, steps 1–4 of 9 complete** — `internal/model`, `internal/errs`,
-`internal/config` and `internal/store` are written and tested; `internal/identity` is next. Dates assume learning Go alongside building;
+Current position: **M0, steps 1–6 of 9 complete** — `internal/model`, `internal/errs`,
+`internal/config`, `internal/store`, `internal/identity` and `internal/httpx` are written and
+tested; `internal/sources/openalex` is next. Dates assume learning Go alongside building;
 Phase 1 carries two extra weeks for that.
 
 - [ ] **M0 — Skeleton** (2–3 weeks). Module layout, config, embedded schema, `store` package,
@@ -246,10 +247,17 @@ documentation, including this file's own history.
 
 ## Prior art to check before writing code
 
-**`quelle`** (Python, MIT) fetches metadata from OpenAlex, Crossref, Semantic Scholar, arXiv and
-Unpaywall, caches in SQLite, and downloads open-access PDFs. It cannot be reused from Go, but
-**read its source before building M0 and M3** — it has already solved the identifier-resolution
-and fallback-chain problems you are about to hit.
+**`quelle`** ([vcoeur/quelle](https://github.com/vcoeur/quelle), Python, MIT) fetches metadata from
+OpenAlex, Crossref, Semantic Scholar, arXiv and Unpaywall, caches in SQLite, and downloads
+open-access PDFs. **Prior art only — never a dependency, never copied.** Read it for ideas, then
+write our own.
+
+- **Read for M0 step 5.** Its URL-wrapped DOI trimming and title comparison were reimplemented in
+  `internal/identity`; its looser substring title match was deliberately not (ADR-005). See
+  `docs/STATUS.md`.
+- **Read again before M3.** Its ordered source fallback chain (`services/resolver.py`,
+  `pdf_resolver.py`) is the shape M3 needs for OpenAlex → Unpaywall. Its ISBN handling for books
+  bears on the humanities coverage gap (D12).
 
 ---
 
