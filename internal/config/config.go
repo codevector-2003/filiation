@@ -111,6 +111,21 @@ func DefaultDir() (string, error) {
 	return filepath.Join(base, "filiation"), nil
 }
 
+// DefaultCacheDir is where the HTTP response cache lives unless told otherwise.
+//
+// It is deliberately not beside the library. The cache is regenerable and the
+// library is not, so it goes where each OS expects disposable data —
+// %LocalAppData% on Windows, ~/Library/Caches on macOS, $XDG_CACHE_HOME or
+// ~/.cache on Linux — where cleanup tools and backup exclusions already treat
+// it as such.
+func DefaultCacheDir() (string, error) {
+	base, err := os.UserCacheDir()
+	if err != nil {
+		return "", fmt.Errorf("locate user cache directory: %w", err)
+	}
+	return filepath.Join(base, "filiation", "http"), nil
+}
+
 // Load resolves configuration from, highest priority first: the --db flag, the
 // FILIATION_DB environment variable, the config file, then the defaults
 // (ADR-006).

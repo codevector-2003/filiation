@@ -12,7 +12,7 @@ tool does for papers: it reconstructs where a claim came from by following the c
 - Language: **Go** (see D8 in `docs/DECISIONS.md`)
 - Module: `github.com/codevector-2003/filiation`
 - Binary / CLI command: `fil`
-- Status: **M0 in progress** — 7 of 9 packages done (`model`, `errs`, `config`, `store`, `identity`, `httpx`, `sources/openalex`). See `docs/STATUS.md`.
+- Status: **M0 in progress** — 8 of 9 steps done — `model`, `errs`, `config`, `store`, `identity`, `httpx`, `sources/openalex`, and `library` with `graph`'s seeding. See `docs/STATUS.md`.
 
 ---
 
@@ -186,14 +186,15 @@ provides this for free and it is what makes retrieval better than everyone else'
 
 ## Build order
 
-Current position: **M0, steps 1–7 of 9 complete** — `internal/model`, `internal/errs`,
-`internal/config`, `internal/store`, `internal/identity`, `internal/httpx` and
-`internal/sources/openalex` are written and tested; `internal/library` is next. Dates assume learning Go alongside building;
+Current position: **M0, steps 1–8 of 9 complete** — everything below the CLI is written and
+tested, and `library.Add` passes M0's definition of done end to end against recorded responses.
+`cmd/fil` (cobra wiring) is next and last. Dates assume learning Go alongside building;
 Phase 1 carries two extra weeks for that.
 
 - [ ] **M0 — Skeleton** (2–3 weeks). Module layout, config, embedded schema, `store` package,
       one command that takes a DOI, fetches from OpenAlex, stores one node.
-      *Done when:* `fil add 10.1145/3292500` writes a row and prints the title.
+      *Done when:* `fil add 10.7717/peerj.4375` writes a row and prints the title, and its 54
+      references are present as stubs with edges.
 - [ ] **M1 — The graph** (3–4 weeks). Budgeted expansion, dedup, `expand`, `neighbours`, `path`,
       GraphML export. **First release, with cross-compiled binaries.**
       *Done when:* one seed gives a clean 500-node graph with no duplicates, opens in Gephi.

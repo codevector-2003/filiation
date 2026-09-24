@@ -313,3 +313,18 @@ func TestDefaultDir(t *testing.T) {
 		t.Errorf("DefaultDir() = %q, want it to end in filiation", dir)
 	}
 }
+
+func TestDefaultCacheDir(t *testing.T) {
+	cache, err := DefaultCacheDir()
+	if err != nil {
+		t.Skipf("no user cache directory: %v", err)
+	}
+	if !filepath.IsAbs(cache) {
+		t.Errorf("DefaultCacheDir() = %q, want an absolute path", cache)
+	}
+	// The cache is disposable and the library is not; they must never share a
+	// directory, or clearing one could take the other.
+	if dir, err := DefaultDir(); err == nil && (cache == dir || filepath.Dir(cache) == dir) {
+		t.Errorf("DefaultCacheDir() = %q sits in the library directory %q", cache, dir)
+	}
+}
