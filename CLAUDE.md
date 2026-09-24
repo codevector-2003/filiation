@@ -12,7 +12,7 @@ tool does for papers: it reconstructs where a claim came from by following the c
 - Language: **Go** (see D8 in `docs/DECISIONS.md`)
 - Module: `github.com/codevector-2003/filiation`
 - Binary / CLI command: `fil`
-- Status: **M0 complete** (24 Sept 2026). **M1 in progress** — `fil expand`, `fil stats`, `fil neighbours` and `fil path` work, verified live. Export and v0.1 next. See `docs/STATUS.md`.
+- Status: **M0 complete** (24 Sept 2026). **M1 in progress** — `fil expand`, `stats`, `neighbours`, `path` and `export graphml` work, verified live. The v0.1 release is what remains. See `docs/STATUS.md`.
 
 ---
 
@@ -196,8 +196,9 @@ wrote the seed, printed the title, recorded 54 references as stubs with edges, a
 added nothing. **M1 in progress:** the budgeted best-first expander and `fil expand` are done and
 verified live (525 works, 11,802 citations, no duplicate IDs or DOIs), and `fil stats` reports
 title-level duplicates without merging them (D14). `fil neighbours` and `fil path` work, path
-finding by breadth-first search rather than a recursive CTE (measured). Next: GraphML export and
-the v0.1 release. Dates assume learning Go alongside building;
+finding by breadth-first search rather than a recursive CTE (measured). `fil export graphml`
+writes the graph for Gephi and NetworkX, read back cleanly by NetworkX. Next: GoReleaser, the
+multi-field validation run and the v0.1 release. Dates assume learning Go alongside building;
 Phase 1 carries two extra weeks for that.
 
 - [x] **M0 — Skeleton** (2–3 weeks). *Done 24 Sept 2026.* Module layout, config, embedded schema, `store` package,

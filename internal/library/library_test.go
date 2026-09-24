@@ -1,7 +1,9 @@
 package library
 
 import (
+	"bytes"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"io"
 	"net/http"
@@ -553,5 +555,57 @@ func TestPathBetween(t *testing.T) {
 	// Not in the library is an error; no path is an answer.
 	if _, err := l.PathBetween(ctx, "W9999999999", "W1503178185", PathOptions{}); !errors.Is(err, errs.ErrNotFound) {
 		t.Errorf("unknown work = %v, want ErrNotFound", err)
+	}
+}
+
+func TestExportGraphML(t *testing.T) {
+	t.Parallel()
+	l := expanded(t)
+
+	// Counts computed from the fixtures independently of this code.
+	tests := []struct {
+		stubs        bool
+		nodes, edges int
+	}{
+		{false, 47, 162},   // fetched works and the citations between them
+		{true, 1041, 1655}, // everything
+	}
+	for _, tt := range tests {
+		var buf bytes.Buffer
+		got, err := l.ExportGraphML(t.Context(), &buf, ExportOptions{IncludeStubs: tt.stubs})
+		if err != nil {
+			t.Fatalf("ExportGraphML: %v", err)
+		}
+		if got.Nodes != tt.nodes || got.Edges != tt.edges {
+			t.Errorf("stubs=%v: %d nodes, %d edges; want %d and %d", tt.stubs, got.Nodes, got.Edges, tt.nodes, tt.edges)
+		}
+
+		// Read it back independently: well-formed, and no edge refers to a
+		// node the file does not contain — the thing that makes Gephi invent
+		// blank nodes or refuse the file.
+		var doc struct {
+			Nodes []struct {
+				ID string `xml:"id,attr"`
+			} `xml:"graph>node"`
+			Edges []struct {
+				Source string `xml:"source,attr"`
+				Target string `xml:"target,attr"`
+			} `xml:"graph>edge"`
+		}
+		if err := xml.Unmarshal(buf.Bytes(), &doc); err != nil {
+			t.Fatalf("stubs=%v: not well-formed: %v", tt.stubs, err)
+		}
+		ids := map[string]bool{}
+		for _, n := range doc.Nodes {
+			if ids[n.ID] {
+				t.Errorf("node %s written twice", n.ID)
+			}
+			ids[n.ID] = true
+		}
+		for _, e := range doc.Edges {
+			if !ids[e.Source] || !ids[e.Target] {
+				t.Fatalf("stubs=%v: edge %s -> %s refers to a node not in the file", tt.stubs, e.Source, e.Target)
+			}
+		}
 	}
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"encoding/xml"
 	"io"
 	"net/http"
 	"os"
@@ -613,5 +614,50 @@ func TestReadCommandsOnAnEmptyLibrary(t *testing.T) {
 	}
 	if _, err := os.Stat(h.configDir); !os.IsNotExist(err) {
 		t.Errorf("a read-only command created the config directory")
+	}
+}
+
+func TestExportGraphMLCommand(t *testing.T) {
+	h := expandedHarness(t)
+	file := filepath.Join(t.TempDir(), "my library.graphml")
+
+	code, out, errOut := h.run(false, "", "export", "graphml", "-o", file)
+	if code != exitOK {
+		t.Fatalf("exit %d\n%s", code, errOut)
+	}
+	if out != "" {
+		t.Errorf("wrote to stdout although -o was given:\n%s", out[:min(200, len(out))])
+	}
+	if !strings.Contains(errOut, "Wrote 47 works and 162 citations to "+file) || !strings.Contains(errOut, "--include-stubs") {
+		t.Errorf("stderr:\n%s", errOut)
+	}
+	raw, err := os.ReadFile(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Nodes []struct{} `xml:"graph>node"`
+	}
+	if err := xml.Unmarshal(raw, &doc); err != nil || len(doc.Nodes) != 47 {
+		t.Errorf("file: %d nodes, %v", len(doc.Nodes), err)
+	}
+	// No temporary file left beside it.
+	entries, _ := os.ReadDir(filepath.Dir(file))
+	if len(entries) != 1 {
+		t.Errorf("export left %d files in the directory, want 1", len(entries))
+	}
+
+	// To standard output, everything.
+	code, out, errOut = h.run(false, "", "export", "graphml", "--include-stubs")
+	if code != exitOK || !strings.HasPrefix(out, "<?xml") || !strings.Contains(errOut, "Wrote 1,041 works and 1,655 citations to standard output.") {
+		t.Errorf("stdout export: exit %d\n%s", code, errOut)
+	}
+}
+
+func TestExportGraphMLRefusesToFloodATerminal(t *testing.T) {
+	h := expandedHarness(t)
+	code, out, errOut := h.run(true, "", "export", "graphml")
+	if code != exitInvalidInput || strings.Contains(out, "<?xml") || !strings.Contains(errOut, "-o library.graphml") {
+		t.Errorf("exit %d\nstdout %q\nstderr %s", code, out[:min(80, len(out))], errOut)
 	}
 }
