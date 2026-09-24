@@ -289,6 +289,43 @@ func (l *Library) Stats(ctx context.Context) (Stats, error) {
 	return Stats{Works: s.Works, Stubs: s.Stubs, Edges: s.Edges}, nil
 }
 
+// Summary is the library at a glance.
+type Summary struct {
+	Works      int // every work, stubs included
+	Fetched    int // metadata fetched
+	Stubs      int // known only by ID so far
+	Unresolved int // of the stubs, those OpenAlex has no record of
+	Seeds      int // papers the user added
+	Citations  int
+
+	// DeadEnds is how many fetched works have no reference list, so the graph
+	// cannot grow through them (D12).
+	DeadEnds int
+}
+
+// Summarise counts the library.
+func (l *Library) Summarise(ctx context.Context) (Summary, error) {
+	s, err := l.db.Summary(ctx)
+	if err != nil {
+		return Summary{}, err
+	}
+	return Summary{
+		Works: s.Works, Fetched: s.Hydrated, Stubs: s.Stubs, Unresolved: s.Unresolved,
+		Seeds: s.Seeds, Citations: s.Edges, DeadEnds: s.DeadEnds,
+	}, nil
+}
+
+// DuplicateGroup is a set of fetched works that share a title: probably one
+// paper OpenAlex holds as more than one record.
+type DuplicateGroup = graph.DuplicateGroup
+
+// ProbableDuplicates lists fetched works that share a title. It reports and
+// never merges: a matching title is evidence, not proof — a book review carries
+// the title of the book it reviews (D14).
+func (l *Library) ProbableDuplicates(ctx context.Context) ([]DuplicateGroup, error) {
+	return l.graph.ProbableDuplicates(ctx)
+}
+
 // Quota is the OpenAlex allowance as last reported: requests left today and
 // how long until it resets.
 type Quota = httpx.Quota

@@ -45,7 +45,12 @@ Library:   7,677 works (7,152 not fetched yet), 11,802 citations.
 
 `fil expand` fetches the most-cited works first — a paper five of yours cite comes before one
 cited once — up to 500 per run by default (`--max-nodes`), and at most three citation steps from
-your own papers (`--max-depth`). Run it again to continue; Ctrl-C loses nothing already fetched. `fil where` prints where your library lives — the default differs on every
+your own papers (`--max-depth`). Run it again to continue; Ctrl-C loses nothing already fetched.
+
+`fil stats` summarises the library, including how many works have no reference list. It also
+reports works that share a title — usually one paper OpenAlex keeps as two records — and
+`fil stats --duplicates` lists them. fil never merges those on its own: a shared title is not
+proof, and a book review, for one, carries the title of the book it reviews. `fil where` prints where your library lives — the default differs on every
 operating system. `fil cache clear` empties the cache of OpenAlex responses without touching your
 library.
 

@@ -301,3 +301,55 @@ demonstrated on a real library. Edge weighting and candidate generation come fir
 
 **Also settled:** keyword search is safe. FTS5 works via `AutoExtension` (spike 5), so M3 needs no
 external index. Both extensions must be registered on **every** connection in `store.Open`.
+
+---
+
+## D14 — Title-level duplicates are reported, never merged automatically
+
+**Decided:** 24 Sept 2026 · extends D2
+
+D2 deduplicates on the OpenAlex work ID, and M1 folds two further kinds of duplicate on the way
+in, because in both the evidence is conclusive: a **merged record** (OpenAlex redirects the old ID
+to the survivor) and a **shared DOI** (OpenAlex holds one paper under two IDs with the same DOI —
+seen live as `W2949614626` and `W4294576234`). Neither involves a judgement.
+
+What is left after that is not conclusive. M1's first live expansion (`10.7717/peerj.4375`,
+~500 works fetched) found **18–20 groups of fetched works sharing a title, about 4%**, under
+different DOIs or none. Some are one paper: two 1998 records of "Free Internet access to
+traditional journals"; a 2017 preprint and its 2018 journal version. Others are not:
+
+- *The access principle* (2006) appears as an article **and a book review** — the review carries
+  the book's title.
+- *Why Most Published Research Findings Are False* appears as Ioannidis's 2005 paper in PLoS
+  Medicine **and two different pieces in the magazine *Chance***, from 2005 and 2019.
+- *Invisible Colleges* appears in 1973 and 1974 under different DOIs — most likely reviews of the
+  book, not the book.
+
+**Decision.** A shared title is evidence, not proof. fil **reports** works that share a normalised
+title — `fil stats` counts them, `fil stats --duplicates` lists them with year, type and DOI — and
+**merges nothing on a title match**. Titles shorter than 20 letters and digits once normalised
+("Editorial", "Introduction", "Preface") are not reported: they are shared by thousands of
+unrelated works and would bury the real cases.
+
+**Why.** A wrong merge is worse than a duplicate. A duplicate is visible — two nodes, one list
+entry to check — and splits a paper's citations in two. A wrong merge stitches two works into one
+node, gives each the other's citations and references, and is invisible afterwards. It is the
+same asymmetry ADR-005 answers for title search: a title never decides on its own.
+
+**Rejected:**
+
+- *Merge on title and year.* Simplest, and wrong for every case listed above — the book review,
+  the *Chance* pieces and the reviews of *Invisible Colleges* all share a year with, or sit a year
+  from, the work they are not.
+- *Merge on title, year and a shared author, excluding reviews, errata and front matter.* The
+  right shape for automation, but it needs author IDs, which the store does not yet persist
+  (OpenAlex sends them; `authorship` is empty). **Revisit when authors are stored** — and even
+  then, measure its precision on real libraries before letting it write.
+
+**Relation to D2's fallback.** D2's "normalised title + year + first author surname" is for works
+OpenAlex does not know at all — identifying a paper that has no ID. It is not a licence to merge
+two records OpenAlex does know. D14 governs that case.
+
+**Consequence for M1.** Its definition of done — "a clean 500-node graph with no duplicates" —
+is read as: no duplicate IDs, no duplicate DOIs, no merged records left unfolded, and every
+probable title duplicate reported to the user. That is what can be guaranteed without guessing.
