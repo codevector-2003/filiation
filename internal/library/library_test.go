@@ -427,3 +427,131 @@ func TestExpandUsesConfiguredBudget(t *testing.T) {
 		t.Errorf("Expand on an empty library = %+v, %v", res, err)
 	}
 }
+
+// expanded is a library holding the M0 seed and one recorded hop out from it.
+func expanded(t *testing.T) *Library {
+	t.Helper()
+	l, _ := openTest(t, peerjExpansion(t), Options{})
+	if _, err := l.Add(t.Context(), "10.7717/peerj.4375", AddOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := l.Expand(t.Context(), ExpandOptions{MaxNodes: 54}); err != nil {
+		t.Fatal(err)
+	}
+	return l
+}
+
+func TestFindLooksOnlyInTheLibrary(t *testing.T) {
+	t.Parallel()
+	l := expanded(t)
+	ctx := t.Context()
+
+	for _, input := range []string{
+		"10.7717/peerj.4375",
+		"https://openalex.org/W2741809807",
+		"PMID:29456894",
+		// A title from memory: wrong case, no punctuation, one typo.
+		"the state of oa a large scale analysis of the prevalence and impact of open acess articles",
+	} {
+		w, err := l.Find(ctx, input)
+		if err != nil || w.OpenAlexID != "W2741809807" {
+			t.Errorf("Find(%q) = %s, %v", input, w.OpenAlexID, err)
+		}
+	}
+
+	// A stub is in the library too.
+	if w, err := l.Find(ctx, "W1503178185"); err != nil || !w.IsStub() {
+		t.Errorf("Find(stub) = %+v, %v", w, err)
+	}
+	for input, want := range map[string]error{
+		"W9999999999":        errs.ErrNotFound,
+		"10.1000/not-here":   errs.ErrNotFound,
+		"A title nobody has": errs.ErrNotFound,
+		"2017":               errs.ErrInvalidInput,
+	} {
+		if _, err := l.Find(ctx, input); !errors.Is(err, want) {
+			t.Errorf("Find(%q) = %v, want %v", input, err, want)
+		}
+	}
+}
+
+func TestNeighbours(t *testing.T) {
+	t.Parallel()
+	l := expanded(t)
+
+	seed, err := l.Neighbours(t.Context(), "10.7717/peerj.4375")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A real cycle (§7): the seed cites "Sci-Hub provides access to nearly all
+	// scholarly literature" (2018), and that paper cites the seed back — two
+	// papers written at once, each citing the other's preprint.
+	if len(seed.Cites) != 54 || len(seed.CitedBy) != 1 || seed.CitedBy[0].OpenAlexID != "W2785823074" {
+		t.Errorf("seed cites %d, cited by %d; want 54, and 1 — the Sci-Hub paper citing it back",
+			len(seed.Cites), len(seed.CitedBy))
+	}
+	// Fetched references first: 46 of them, then the 8 not in OpenAlex.
+	if seed.Cites[45].IsStub() || !seed.Cites[46].IsStub() {
+		t.Errorf("references not ordered fetched-first")
+	}
+
+	green, err := l.Neighbours(t.Context(), "W1560783210")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(green.CitedBy) != 7 {
+		t.Errorf("%q cited by %d in the library, want 7 (the seed and six of its references)",
+			green.Work.DisplayTitle(), len(green.CitedBy))
+	}
+}
+
+func TestPathBetween(t *testing.T) {
+	t.Parallel()
+	l := expanded(t)
+	ctx := t.Context()
+	ids := func(p Path) string {
+		var s []string
+		for i, w := range p.Works {
+			if i > 0 {
+				if p.Cites[i-1] {
+					s = append(s, ">")
+				} else {
+					s = append(s, "<")
+				}
+			}
+			s = append(s, w.OpenAlexID)
+		}
+		return strings.Join(s, "")
+	}
+
+	tests := []struct {
+		from, to string
+		any      bool
+		found    bool
+		want     string
+	}{
+		// Lineage: the seed descends from W1503178185 through a reference.
+		{"10.7717/peerj.4375", "W1503178185", false, true, "W2741809807>W1560783210>W1503178185"},
+		// Asked the other way round, the same chain, read from the first work.
+		{"W1503178185", "10.7717/peerj.4375", false, true, "W1503178185<W1560783210<W2741809807"},
+		// Two works known only by ID cite nothing, so neither descends from the other...
+		{"W2611818942", "W1503178185", false, false, ""},
+		// ...but they are connected through the seed.
+		{"W2611818942", "W1503178185", true, true, "W2611818942<W2741809807>W1560783210>W1503178185"},
+	}
+	for _, tt := range tests {
+		p, err := l.PathBetween(ctx, tt.from, tt.to, PathOptions{AnyDirection: tt.any})
+		if err != nil {
+			t.Fatalf("PathBetween(%s, %s): %v", tt.from, tt.to, err)
+		}
+		if p.Found != tt.found || (tt.found && ids(p) != tt.want) {
+			t.Errorf("PathBetween(%s, %s, any=%v) = found %v %q; want found %v %q",
+				tt.from, tt.to, tt.any, p.Found, ids(p), tt.found, tt.want)
+		}
+	}
+
+	// Not in the library is an error; no path is an answer.
+	if _, err := l.PathBetween(ctx, "W9999999999", "W1503178185", PathOptions{}); !errors.Is(err, errs.ErrNotFound) {
+		t.Errorf("unknown work = %v, want ErrNotFound", err)
+	}
+}

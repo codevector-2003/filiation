@@ -50,7 +50,21 @@ your own papers (`--max-depth`). Run it again to continue; Ctrl-C loses nothing 
 `fil stats` summarises the library, including how many works have no reference list. It also
 reports works that share a title — usually one paper OpenAlex keeps as two records — and
 `fil stats --duplicates` lists them. fil never merges those on its own: a shared title is not
-proof, and a book review, for one, carries the title of the book it reviews. `fil where` prints where your library lives — the default differs on every
+proof, and a book review, for one, carries the title of the book it reviews.
+
+Explore what you have:
+
+```
+$ fil neighbours "anatomy of green open access"     # what it cites, and what cites it
+$ fil path 10.7717/peerj.4375 W4300313809           # how one paper descends from another
+"The state of OA: …" descends from "Invisible Colleges: …" in 2 steps:
+
+  The state of OA: … (2018, article)  W2741809807
+      cites
+  Open access, readership, citations: a randomized controlled trial … (2011, article)  W2160597895
+      cites
+  Invisible Colleges: Diffusion of Knowledge in Scientific Communities. (1973, article)  W4300313809
+``` `fil where` prints where your library lives — the default differs on every
 operating system. `fil cache clear` empties the cache of OpenAlex responses without touching your
 library.
 

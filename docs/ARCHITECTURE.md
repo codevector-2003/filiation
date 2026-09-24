@@ -195,7 +195,7 @@ One SQLite file plus a directory of PDFs. Rationale in `DECISIONS.md` D3 and D4.
 
 | What | Where | Notes |
 | --- | --- | --- |
-| Works, authors, edges | `library.db` | Edge table plus recursive CTEs for traversal |
+| Works, authors, edges | `library.db` | Edge table; traversal is a breadth-first search, one SQL query per step |
 | Chunk text | `library.db` | Small; must be searchable and joinable |
 | Keyword index | `library.db` (FTS5) | Built in, no dependency |
 | Embeddings | `library.db` (sqlite-vec) | Same file. Pre-1.0: pin the version |

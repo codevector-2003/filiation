@@ -12,7 +12,7 @@ tool does for papers: it reconstructs where a claim came from by following the c
 - Language: **Go** (see D8 in `docs/DECISIONS.md`)
 - Module: `github.com/codevector-2003/filiation`
 - Binary / CLI command: `fil`
-- Status: **M0 complete** (24 Sept 2026). **M1 in progress** — `fil expand` and `fil stats` work, verified live; title duplicates are reported, not merged (D14). See `docs/STATUS.md`.
+- Status: **M0 complete** (24 Sept 2026). **M1 in progress** — `fil expand`, `fil stats`, `fil neighbours` and `fil path` work, verified live. Export and v0.1 next. See `docs/STATUS.md`.
 
 ---
 
@@ -67,7 +67,7 @@ than plain search.
 | SQLite driver | `ncruces/go-sqlite3` | WASM build, **no cgo**. Ships FTS5 and vec1 as loadable extensions |
 | Vector search | `ext/vec1` (SQLite's own) | Same file, no new dependency. **Exact but brute-force — no ANN index.** See D13 |
 | Keyword search | SQLite FTS5 | Confirmed working (spike 5) — but must be registered per connection |
-| Graph traversal | Recursive CTEs in SQL | Standard SQL, so it survives a move to Postgres |
+| Graph traversal | Breadth-first search, one set-based SQL query per step | Standard SQL, so it survives a move to Postgres. **Not a recursive CTE** — measured 20.8M rows / 125 s to depth 5 on a 10k-edge library; see `docs/SPIKES.md` |
 | Graph algorithms | `gonum/graph` | PageRank and communities in memory. 2M edges fits easily |
 | CLI | `spf13/cobra` | Standard, and matches what users expect from a Go tool |
 | HTTP client | stdlib `net/http` + `golang.org/x/time/rate` | `rate.Limiter` is exactly the token bucket ADR-004 needs |
@@ -195,7 +195,8 @@ Current position: **M0 complete, 24 Sept 2026.** `fil add 10.7717/peerj.4375` wa
 wrote the seed, printed the title, recorded 54 references as stubs with edges, and a second run
 added nothing. **M1 in progress:** the budgeted best-first expander and `fil expand` are done and
 verified live (525 works, 11,802 citations, no duplicate IDs or DOIs), and `fil stats` reports
-title-level duplicates without merging them (D14). Next: `neighbours` / `path`, GraphML export and
+title-level duplicates without merging them (D14). `fil neighbours` and `fil path` work, path
+finding by breadth-first search rather than a recursive CTE (measured). Next: GraphML export and
 the v0.1 release. Dates assume learning Go alongside building;
 Phase 1 carries two extra weeks for that.
 

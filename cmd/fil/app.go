@@ -69,6 +69,10 @@ func (a *app) run(ctx context.Context, args []string) int {
 		if errors.Is(err, errCancelled) {
 			return exitCancelled
 		}
+		var code exitCode
+		if errors.As(err, &code) {
+			return int(code)
+		}
 		return report(a.stderr, err, a.configPath)
 	}
 	return exitOK
@@ -107,7 +111,8 @@ func (a *app) rootCommand() *cobra.Command {
 	root.PersistentFlags().StringVar(&a.dbFlag, "db", "", "use the library at this path instead of the default")
 	root.PersistentFlags().BoolVar(&a.noCache, "no-cache", false, "fetch from OpenAlex even if a response is cached")
 
-	root.AddCommand(a.addCommand(), a.expandCommand(), a.statsCommand(), a.whereCommand(), a.versionCommand(), a.cacheCommand())
+	root.AddCommand(a.addCommand(), a.expandCommand(), a.neighboursCommand(), a.pathCommand(),
+		a.statsCommand(), a.whereCommand(), a.versionCommand(), a.cacheCommand())
 	return root
 }
 

@@ -522,3 +522,96 @@ func TestStatsEmptyLibraryCreatesNothing(t *testing.T) {
 		t.Errorf("stats on a first run created the config directory")
 	}
 }
+
+// expandedHarness is a harness whose library holds the M0 seed and one
+// recorded hop out from it.
+func expandedHarness(t *testing.T) *harness {
+	t.Helper()
+	h := newHarness(t, peerjExpansion(t))
+	h.run(false, "", "add", "10.7717/peerj.4375")
+	if code, _, errOut := h.run(false, "", "expand", "--max-nodes", "54"); code != exitOK {
+		t.Fatalf("expand: exit %d\n%s", code, errOut)
+	}
+	return h
+}
+
+func TestNeighboursCommand(t *testing.T) {
+	h := expandedHarness(t)
+
+	code, out, errOut := h.run(false, "", "neighbours", "10.7717/peerj.4375")
+	if code != exitOK {
+		t.Fatalf("exit %d\n%s", code, errOut)
+	}
+	for _, want := range []string{
+		"The state of OA: a large-scale analysis",
+		"Cites 54 works — 46 fetched, 8 known only by ID:",
+		"… and 39 more — pass --limit 0 to list all.",
+		"Cited by 1 work in your library:",
+		"Sci-Hub provides access to nearly all scholarly literature (2018, article)  W2785823074",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("neighbours lacks %q:\n%s", want, out)
+		}
+	}
+
+	// A title, unquoted, and a stub.
+	if code, out, _ := h.run(false, "", "neighbours", "anatomy", "of", "green", "open", "access"); code != exitOK ||
+		!strings.Contains(out, "Cited by 7 works in your library:") {
+		t.Errorf("neighbours by title: exit %d\n%s", code, out)
+	}
+	if _, out, _ := h.run(false, "", "neighbours", "W1503178185"); !strings.Contains(out, "not known yet") {
+		t.Errorf("neighbours of a stub:\n%s", out)
+	}
+	code, _, errOut = h.run(false, "", "neighbours", "W9999999999")
+	if code != exitNotFound || !strings.Contains(errOut, "Add it first with fil add") {
+		t.Errorf("neighbours of an unknown work: exit %d\n%s", code, errOut)
+	}
+}
+
+func TestPathCommand(t *testing.T) {
+	h := expandedHarness(t)
+
+	code, out, _ := h.run(false, "", "path", "10.7717/peerj.4375", "W1503178185")
+	if code != exitOK {
+		t.Fatalf("exit %d\n%s", code, out)
+	}
+	for _, want := range []string{
+		`"The state of OA: a large-scale analysis of the prevalence an…" descends from`,
+		"in 2 steps:",
+		"W2741809807\n      cites\n  Anatomy of green open access",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("path lacks %q:\n%s", want, out)
+		}
+	}
+
+	// Two works known only by ID: no lineage, exit 1 with the way forward...
+	code, out, _ = h.run(false, "", "path", "W2611818942", "W1503178185")
+	if code != exitFailure || !strings.Contains(out, "Neither descends from the other") {
+		t.Errorf("no path: exit %d\n%s", code, out)
+	}
+	// ...but connected through the seed.
+	code, out, _ = h.run(false, "", "path", "W2611818942", "W1503178185", "--any-direction")
+	if code != exitOK || !strings.Contains(out, "Connected in 3 steps") || !strings.Contains(out, "is cited by") {
+		t.Errorf("any direction: exit %d\n%s", code, out)
+	}
+
+	for _, args := range [][]string{{"path", "W1"}, {"path", "W1", "W2", "W3"}, {"path", "W1", "W2", "--max-hops", "0"}} {
+		if code, _, errOut := h.run(false, "", args...); code != exitInvalidInput {
+			t.Errorf("fil %v: exit %d, want %d\n%s", args, code, exitInvalidInput, errOut)
+		}
+	}
+}
+
+func TestReadCommandsOnAnEmptyLibrary(t *testing.T) {
+	h := newHarness(t, nil)
+	for _, args := range [][]string{{"neighbours", "W1"}, {"path", "W1", "W2"}} {
+		code, out, _ := h.run(false, "", args...)
+		if code != exitOK || !strings.Contains(out, "Your library is empty") {
+			t.Errorf("fil %v: exit %d\n%s", args, code, out)
+		}
+	}
+	if _, err := os.Stat(h.configDir); !os.IsNotExist(err) {
+		t.Errorf("a read-only command created the config directory")
+	}
+}
