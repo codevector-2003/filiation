@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
 	"github.com/codevector-2003/filiation/internal/config"
 	"github.com/codevector-2003/filiation/internal/errs"
+	"github.com/codevector-2003/filiation/internal/export"
 	"github.com/codevector-2003/filiation/internal/graph"
 	"github.com/codevector-2003/filiation/internal/httpx"
 	"github.com/codevector-2003/filiation/internal/identity"
@@ -490,6 +492,44 @@ func reversePath(p store.Path) store.Path {
 		r.Cites[len(p.Cites)-1-i] = !c
 	}
 	return r
+}
+
+// ExportOptions control an export.
+type ExportOptions struct {
+	// IncludeStubs exports every work, including the many known only by ID.
+	// Without it the export holds fetched works and the citations between
+	// them: after one expansion that is ~500 readable nodes rather than ~500
+	// buried among ~7,000 that have no title, year or type.
+	IncludeStubs bool
+}
+
+// Exported reports what an export wrote.
+type Exported struct {
+	Nodes, Edges int
+}
+
+// ExportGraphML writes the library as GraphML to w, for Gephi, Cytoscape,
+// NetworkX and the rest. It streams, so a library of any size exports in
+// constant memory. An arrow means "cites".
+func (l *Library) ExportGraphML(ctx context.Context, w io.Writer, opts ExportOptions) (Exported, error) {
+	g := export.NewGraphML(w)
+	if err := l.db.EachWork(ctx, opts.IncludeStubs, func(work *model.Work) error {
+		g.WriteNode(work)
+		return nil
+	}); err != nil {
+		return Exported{}, err
+	}
+	if err := l.db.EachEdge(ctx, opts.IncludeStubs, func(from, to string) error {
+		g.WriteEdge(from, to)
+		return nil
+	}); err != nil {
+		return Exported{}, err
+	}
+	if err := g.Close(); err != nil {
+		return Exported{}, fmt.Errorf("write GraphML: %w", err)
+	}
+	n, e := g.Counts()
+	return Exported{Nodes: n, Edges: e}, nil
 }
 
 // Summary is the library at a glance.

@@ -1,11 +1,12 @@
 # Project status
 
-**Date:** 24 September 2026 · **Position:** **M0 complete** · M1 in progress — steps 1–5 of 6
+**Date:** 24 September 2026 · **Position:** **M0 complete** · M1 in progress — steps 1–5 of 6, and export from step 6
 **Phase 1 target:** v0.1 by 14 November 2026
 
 > **In one line:** M0 is done, and M1's expander works live — `fil expand` grew one seed to 525
 > fetched works and 11,802 citations, with no duplicate IDs or DOIs. Title-level duplicates
 > (~4%) are reported by `fil stats --duplicates` and never merged on a guess (D14).
+> `fil path`, `fil neighbours` and GraphML export work; what remains of M1 is the release.
 > The schedule has slack: §10 planned the expander for 13–26 October.
 
 ---
@@ -420,7 +421,7 @@ twice adds nothing the second time, and the seed's 54 references are present as 
 | 3 | `library.Expand` and `fil expand`, with progress and a coverage report | **Done** — verified live |
 | 4 | Title-level duplicates: reported by `fil stats --duplicates`, never merged (D14) | **Done** |
 | 5 | `fil neighbours`, `fil path` — breadth-first search, not a recursive CTE (measured). `fil stats` landed with step 4 | **Done** |
-| 6 | GraphML export, then GoReleaser, the multi-field validation run, and **v0.1** | **Next** |
+| 6 | GraphML export — **done**. Then GoReleaser, the multi-field validation run, and **v0.1** | **In progress** |
 
 **Steps 1–3.** `fil expand` grows the graph from everything in the library, best first — in-graph
 in-degree, then depth, then ID, so the order is deterministic and resume is exact. One transaction
@@ -472,6 +473,28 @@ output; several are listed (exit 3). For a read-only question that is safe in a 
 On the live library, `fil path` found the seed descending from *Invisible Colleges* (1973) through
 a 2011 RCT in two steps, and the two *Invisible Colleges* records D14 reports turned out to be
 cited by different papers — the split citations that make a duplicate costly.
+
+**Step 6, first part — GraphML export.** `fil export graphml -o library.graphml` writes the
+graph for Gephi, Cytoscape, yEd, NetworkX or igraph. Each work is a node carrying label, title,
+year, type, venue, DOI, OA status, global citation count, depth, and seed / fetched / unresolved
+flags; each arrow means "cites". Absent values are left out, not written as zero — "year 0" would
+put every stub at the start of a timeline.
+
+- **Fetched works only, by default**, with the citations between them; `--include-stubs` exports
+  everything. After one expansion the library is ~93% stubs — no title, year or type — and they
+  bury the readable graph. No edge ever refers to a node the file does not contain.
+- **It streams** from the store, so a library of any size exports in constant memory, and writes
+  to a temporary file renamed into place, so a failed export never truncates a good file.
+- **It refuses to dump XML onto a terminal**: without `-o`, a person at a terminal is asked for a
+  file; a pipe or redirect gets standard output as usual.
+
+**Validated live with an independent reader.** The live library exported as 472 works / 2,593
+citations by default and 6,555 / 10,049 with stubs. NetworkX, installed in a throwaway
+environment, read both as directed graphs with typed attributes and one connected component. The
+most-cited node is Lawrence 2001, *Free online availability substantially increases a paper's
+impact* — the founding paper of this seed's field, which is what a correct graph should show.
+The 93%-stub export is §8's "stub handling" test, passed on real data. **Opening it in Gephi is
+still to be done by hand** — it is a GUI and was not available here.
 
 ### Decided: title-level duplicates are reported, not merged (D14)
 

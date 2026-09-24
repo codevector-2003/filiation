@@ -10,7 +10,7 @@ which — reconstructing the lines of descent between surviving texts. This tool
 research papers, and uses those lines to trace a claim back to whoever made it first.
 
 > Status: early development. `fil add` puts a paper and everything it cites into your library,
-> and `fil expand` follows those references outward. Export and the first release are next.
+> and `fil expand` follows those references outward. The first release is next.
 
 ## What works today
 
@@ -64,7 +64,19 @@ $ fil path 10.7717/peerj.4375 W4300313809           # how one paper descends fro
   Open access, readership, citations: a randomized controlled trial … (2011, article)  W2160597895
       cites
   Invisible Colleges: Diffusion of Knowledge in Scientific Communities. (1973, article)  W4300313809
-``` `fil where` prints where your library lives — the default differs on every
+```
+
+And take it anywhere:
+
+```
+$ fil export graphml -o library.graphml
+Wrote 472 works and 2,593 citations to library.graphml.
+```
+
+GraphML opens in [Gephi](https://gephi.org), Cytoscape and yEd, and loads into NetworkX or igraph.
+Each paper carries its title, year, type, DOI, open-access status and citation count; each arrow
+means "cites". Only fetched papers are exported by default — `--include-stubs` adds the thousands
+known so far only by ID. `fil where` prints where your library lives — the default differs on every
 operating system. `fil cache clear` empties the cache of OpenAlex responses without touching your
 library.
 
