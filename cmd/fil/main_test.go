@@ -119,6 +119,7 @@ func TestAddM0DefinitionOfDone(t *testing.T) {
 	}
 	for _, want := range []string{
 		"Added: The state of OA",
+		"by Heather Piwowar, Jason R Priem, Vincent Larivière and 6 others",
 		"W2741809807 · doi:10.7717/peerj.4375 · PeerJ · gold open access",
 		"References: 54 — 54 new to your library, 54 citations recorded.",
 		"Library:    55 works (54 not fetched yet), 54 citations.",

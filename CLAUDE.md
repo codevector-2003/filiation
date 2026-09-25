@@ -12,7 +12,7 @@ tool does for papers: it reconstructs where a claim came from by following the c
 - Language: **Go** (see D8 in `docs/DECISIONS.md`)
 - Module: `github.com/codevector-2003/filiation`
 - Binary / CLI command: `fil`
-- Status: **M0 complete** (24 Sept 2026). **M1 complete — v0.1 released** (25 Sept 2026). Every command works and the 20-seed validation run passed 20 of 20 (`docs/VALIDATION.md`). Licensed Apache-2.0 (D15). **M2 next.** See `docs/STATUS.md`.
+- Status: **M0 complete** (24 Sept 2026). **M1 complete — v0.1 released** (25 Sept 2026). Every command works and the 20-seed validation run passed 20 of 20 (`docs/VALIDATION.md`). Licensed Apache-2.0 (D15). **M2 complete — v0.2 released** (25 Sept 2026): `fil mcp` serves five tools to AI assistants (`docs/MCP.md`). **M3 next.** See `docs/STATUS.md`.
 
 ---
 
@@ -180,7 +180,8 @@ mistake. Be deliberate:
 - `docs/ARCHITECTURE.md` — whole-system design.
 - `docs/ARCHITECTURE_PHASE1.md` — detailed design for the core graph, with ADRs.
 - `docs/SPIKES.md` — measured answers. **Trust these over any documentation, including this file.**
-- `docs/VALIDATION.md` — the M1 validation run: 20 seeds, 5 fields, live.
+- `docs/VALIDATION.md` — live validation runs: M1 (20 seeds, 5 fields) and M2 (a real MCP client).
+- `docs/MCP.md` — the MCP server: client set-up, every tool, limits, troubleshooting.
 
 ## Data model
 
@@ -200,7 +201,9 @@ title-level duplicates without merging them (D14). `fil neighbours` and `fil pat
 finding by breadth-first search rather than a recursive CTE (measured). `fil export graphml`
 writes the graph for Gephi and NetworkX, read back cleanly by NetworkX. The 20-seed / 5-field
 validation run passed 20 of 20 (`docs/VALIDATION.md`), and GoReleaser plus a tag-triggered release
-workflow are in place. Licensed Apache-2.0 (D15). Next: **M2**. Dates assume learning Go alongside building;
+workflow are in place. Licensed Apache-2.0 (D15). **M2 complete:** `fil mcp` exposes `add_paper`, `expand_graph`,
+`neighbours`, `find_path` and `library_stats` over stdio, verified live; `expand_graph` runs inside
+the call, bounded, with progress notifications (D16). Verified from a real client; authors now stored and returned. **Released as v0.2.** Next: **M3**. Dates assume learning Go alongside building;
 Phase 1 carries two extra weeks for that.
 
 - [x] **M0 — Skeleton** (2–3 weeks). *Done 24 Sept 2026.* Module layout, config, embedded schema, `store` package,
@@ -210,7 +213,8 @@ Phase 1 carries two extra weeks for that.
 - [x] **M1 — The graph** (3–4 weeks). *Done 25 Sept 2026 — v0.1.* Budgeted expansion, dedup, `expand`, `neighbours`, `path`,
       GraphML export. **First release, with cross-compiled binaries.**
       *Done when:* one seed gives a clean 500-node graph with no duplicates, opens in Gephi.
-- [ ] **M2 — MCP server** (~1 week). Expose M1 as MCP tools. The differentiator.
+- [x] **M2 — MCP server** (~1 week). Expose M1 as MCP tools. The differentiator.
+      *Done 25 Sept 2026 — v0.2.*
 - [ ] **M3 — Papers on disk** (3–4 weeks). OA PDF fetch, content-addressed storage, text
       extraction, chunking, FTS5. **Capture citation context sentences here.** Longer than the
       Python plan because the ingestion layer is now ours to write.

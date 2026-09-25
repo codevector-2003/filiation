@@ -121,6 +121,10 @@ func TestAddByDOI(t *testing.T) {
 	if got.Refs != 54 || got.NewStubs != 54 || got.NewEdges != 54 {
 		t.Errorf("refs %d, stubs %d, edges %d; want 54 of each", got.Refs, got.NewStubs, got.NewEdges)
 	}
+	// The byline is stored and read back in order, not just decoded.
+	if a := got.Work.Authors; len(a) != 9 || a[0].Name != "Heather Piwowar" || a[8].Name != "Stefanie Haustein" {
+		t.Errorf("authors = %+v; want 9, Piwowar first and Haustein last", a)
+	}
 
 	s, err := l.Stats(t.Context())
 	if err != nil {
@@ -495,6 +499,20 @@ func TestNeighbours(t *testing.T) {
 	// Fetched references first: 46 of them, then the 8 not in OpenAlex.
 	if seed.Cites[45].IsStub() || !seed.Cites[46].IsStub() {
 		t.Errorf("references not ordered fetched-first")
+	}
+	// Fetched references come with their bylines; stubs have none to give.
+	withAuthors := 0
+	for _, w := range seed.Cites {
+		if w.IsStub() && w.AuthorsLoaded() {
+			t.Errorf("stub %s has authors %v", w.OpenAlexID, w.Authors)
+		}
+		if len(w.Authors) > 0 {
+			withAuthors++
+		}
+	}
+	if withAuthors < 40 || len(seed.Work.Authors) != 9 {
+		t.Errorf("%d of 46 fetched references have authors, seed has %d; want nearly all, and 9",
+			withAuthors, len(seed.Work.Authors))
 	}
 
 	green, err := l.Neighbours(t.Context(), "W1560783210")

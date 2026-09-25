@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/codevector-2003/filiation/releases/tag/v0.1.0"><img src="https://img.shields.io/badge/release-v0.1.0-6366f1" alt="Release v0.1.0"></a>
+  <a href="https://github.com/codevector-2003/filiation/releases/tag/v0.2.0"><img src="https://img.shields.io/badge/release-v0.2.0-6366f1" alt="Release v0.2.0"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/licence-Apache--2.0-6366f1" alt="Licence: Apache-2.0"></a>
   <img src="https://img.shields.io/badge/go-1.25-00ADD8?logo=go&logoColor=white" alt="Go 1.25">
   <img src="https://img.shields.io/badge/platforms-Windows%20%C2%B7%20macOS%20%C2%B7%20Linux-64748b" alt="Windows, macOS, Linux">
@@ -21,6 +21,7 @@
 <p align="center">
   <a href="#quick-start">Quick start</a> ·
   <a href="#commands">Commands</a> ·
+  <a href="#use-it-from-an-ai-assistant">AI assistants</a> ·
   <a href="#how-it-works">How it works</a> ·
   <a href="#know-this-before-you-start">Coverage</a> ·
   <a href="#roadmap">Roadmap</a> ·
@@ -96,10 +97,45 @@ On the first run fil asks where to keep your library. `fil where` shows it at an
 | `fil path <a> <b>` | The shortest chain of references from one paper to another. `--any-direction` allows citations either way. |
 | `fil stats` | The library at a glance, including reference coverage. `--duplicates` lists works that share a title. |
 | `fil export graphml` | The graph as GraphML for Gephi, Cytoscape, yEd, NetworkX or igraph. `--include-stubs` adds works known so far only by ID. |
+| `fil mcp` | Serve your library to an AI assistant over MCP. Your MCP client runs it. See the [MCP guide](docs/MCP.md). |
 | `fil where` | Where your library, settings and cache live. |
 | `fil cache clear` | Empty the cache of OpenAlex responses. Your library isn't touched. |
 
 Every command has `--help`. Exit codes are distinct per outcome (not found, ambiguous, network, and so on), so scripts can branch on them.
+
+## Use it from an AI assistant
+
+`fil mcp` lets an assistant such as Claude, Cursor or any other MCP client use your library directly. It can add papers, grow the graph, and answer *"how does this paper descend from that one?"* against a map you own.
+
+**Claude Code**
+
+```sh
+claude mcp add filiation -- fil mcp
+```
+
+**Claude Desktop, Cursor and most other clients:** add this to the client's MCP settings file.
+
+```json
+{
+  "mcpServers": {
+    "filiation": { "command": "fil", "args": ["mcp"] }
+  }
+}
+```
+
+Use the full path to `fil` if it isn't on your `PATH`. Set-up for Cursor, VS Code and others is in the [MCP guide](docs/MCP.md#set-up). The assistant gets five tools:
+
+| Tool | What the assistant can do |
+| --- | --- |
+| `add_paper` | Add a paper by DOI, arXiv ID, PMID, link or title. A title that matches several papers comes back as a list to choose from, never as a guess. |
+| `expand_graph` | Follow references outward, most-cited first, with live progress. |
+| `neighbours` | What a paper cites and what cites it: ranked, capped, and saying what was left out. |
+| `find_path` | The chain of citations between two papers. |
+| `library_stats` | What the library holds, its reference coverage, and possible duplicates. |
+
+Every paper the assistant sees carries its OpenAlex ID and open-access status. Papers known only by ID are marked as such, so the assistant can't talk about a paper as if it had read it.
+
+📘 **[Full MCP guide](docs/MCP.md)**: set-up for Claude Desktop, Claude Code, Cursor and VS Code; every tool's arguments and results; limits; troubleshooting.
 
 ## How it works
 
@@ -130,14 +166,15 @@ Where books and chapters dominate, publishers rarely deposit reference lists, an
 | --- | --- | --- |
 | ✅ | **M0: Skeleton.** `fil add`: any identifier to a stored paper and its references | Done |
 | ✅ | **M1: The graph.** Budgeted expansion, dedup, `path`, `neighbours`, `stats`, GraphML export, cross-platform release | Done: **v0.1** |
-| ⏳ | **M2: MCP server.** Let AI assistants query your library directly | Next |
-| ⏳ | **M3: Papers on disk.** Open-access PDFs, full text, and the sentence around each citation | |
+| ✅ | **M2: MCP server.** Let AI assistants query your library directly | Done: **v0.2** |
+| ⏳ | **M3: Papers on disk.** Open-access PDFs, full text, and the sentence around each citation | Next |
 | ⏳ | **M4: Retrieval and answers.** Search across everything you've read, answers with citations | |
 | ⏳ | **M5: Web interface.** The same library for people who don't use a terminal | |
 | ⏳ | **M6: Claim genealogy.** Why each paper cites another, and tracing a claim to its earliest source | |
 
 ## Documentation
 
+- [`docs/MCP.md`](docs/MCP.md): using fil from an AI assistant: set-up, tools, limits, troubleshooting
 - [`docs/STATUS.md`](docs/STATUS.md): where the project is, what's done, what's next
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md): whole-system design
 - [`docs/DECISIONS.md`](docs/DECISIONS.md): decisions made, and options rejected, with reasons

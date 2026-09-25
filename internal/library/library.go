@@ -163,7 +163,7 @@ func (l *Library) Add(ctx context.Context, input string, opts AddOptions) (Added
 		if err != nil {
 			return Added{}, err
 		}
-		return added(s), nil
+		return l.added(ctx, s)
 	}
 
 	found, err := l.graph.SearchTitle(ctx, id.Value, opts.SearchLimit)
@@ -193,10 +193,15 @@ func (l *Library) AddCandidate(ctx context.Context, c Candidate) (Added, error) 
 	if err != nil {
 		return Added{}, err
 	}
-	return added(s), nil
+	return l.added(ctx, s)
 }
 
-func added(s graph.Seeded) Added {
+func (l *Library) added(ctx context.Context, s graph.Seeded) (Added, error) {
+	works := []model.Work{s.Work}
+	if err := l.withAuthors(ctx, works); err != nil {
+		return Added{}, err
+	}
+	s.Work = works[0]
 	return Added{
 		Work:        s.Work,
 		AlreadySeed: s.WasSeed,
@@ -204,7 +209,36 @@ func added(s graph.Seeded) Added {
 		NewStubs:    s.Recorded.Stubs,
 		NewEdges:    s.Recorded.Edges,
 		DeadEnd:     s.Recorded.DeadEnd(),
+	}, nil
+}
+
+// withAuthors fills in the byline of every work in each list, in one query.
+// A work with no authorship rows keeps Authors nil — "not known", which is
+// honest both for a stub and for a work fetched before v0.2 stored authors.
+func (l *Library) withAuthors(ctx context.Context, lists ...[]model.Work) error {
+	var ids []string
+	for _, ws := range lists {
+		for _, w := range ws {
+			if !w.IsStub() {
+				ids = append(ids, w.OpenAlexID)
+			}
+		}
 	}
+	if len(ids) == 0 {
+		return nil
+	}
+	byWork, err := l.db.AuthorsOf(ctx, ids)
+	if err != nil {
+		return err
+	}
+	for _, ws := range lists {
+		for i := range ws {
+			if as, ok := byWork[ws[i].OpenAlexID]; ok {
+				ws[i].Authors = as
+			}
+		}
+	}
+	return nil
 }
 
 // ExpandOptions bound one expansion. Zero fields take the configured value —
@@ -387,7 +421,11 @@ func (l *Library) Neighbours(ctx context.Context, input string) (Neighbourhood, 
 	if err != nil {
 		return Neighbourhood{}, err
 	}
-	return Neighbourhood{Work: w, Cites: cites, CitedBy: citedBy}, nil
+	self := []model.Work{w}
+	if err := l.withAuthors(ctx, self, cites, citedBy); err != nil {
+		return Neighbourhood{}, err
+	}
+	return Neighbourhood{Work: self[0], Cites: cites, CitedBy: citedBy}, nil
 }
 
 // DefaultMaxHops is how far Path searches by default. Six citation steps
@@ -454,7 +492,11 @@ func (l *Library) PathBetween(ctx context.Context, from, to string, opts PathOpt
 		}
 	}
 	if errors.Is(err, errs.ErrNotFound) {
-		return Path{Works: []model.Work{a, b}}, nil
+		ends := []model.Work{a, b}
+		if err := l.withAuthors(ctx, ends); err != nil {
+			return Path{}, err
+		}
+		return Path{Works: ends}, nil
 	}
 	if err != nil {
 		return Path{}, err
@@ -467,6 +509,9 @@ func (l *Library) PathBetween(ctx context.Context, from, to string, opts PathOpt
 			return Path{}, err
 		}
 		out.Works = append(out.Works, w)
+	}
+	if err := l.withAuthors(ctx, out.Works); err != nil {
+		return Path{}, err
 	}
 	return out, nil
 }
@@ -566,7 +611,15 @@ type DuplicateGroup = graph.DuplicateGroup
 // never merges: a matching title is evidence, not proof — a book review carries
 // the title of the book it reviews (D14).
 func (l *Library) ProbableDuplicates(ctx context.Context) ([]DuplicateGroup, error) {
-	return l.graph.ProbableDuplicates(ctx)
+	groups, err := l.graph.ProbableDuplicates(ctx)
+	if err != nil {
+		return nil, err
+	}
+	lists := make([][]model.Work, len(groups))
+	for i, g := range groups {
+		lists[i] = g.Works
+	}
+	return groups, l.withAuthors(ctx, lists...)
 }
 
 // Quota is the OpenAlex allowance as last reported: requests left today and

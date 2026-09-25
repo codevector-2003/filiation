@@ -101,6 +101,11 @@ ON CONFLICT(openalex_id) DO UPDATE SET
 	if err != nil {
 		return fmt.Errorf("store: upsert work %s: %w", w.OpenAlexID, err)
 	}
+	// Authors not loaded means this caller has no byline to give, which is not
+	// the same as a work with none; leave whatever is stored alone.
+	if w.AuthorsLoaded() {
+		return writeAuthors(ctx, e, w.OpenAlexID, w.Authors)
+	}
 	return nil
 }
 
