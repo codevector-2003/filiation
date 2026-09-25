@@ -38,7 +38,8 @@ archives:
     name_template: "fil_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     files:
       - README.md
-      - LICENSE*
+      - LICENSE
+      - NOTICE
 
 checksum:
   name_template: checksums.txt

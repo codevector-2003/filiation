@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="330" viewBox="0 0 960 330" role="img" aria-label="How fil works: one paper, resolved references from OpenAlex, a library on your machine, then exploration and export">
+  <style>
+    text { font-family: ui-sans-serif, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .h { font-size: 16px; font-weight: 700; fill: #0f172a; }
+    .s { font-size: 12.5px; fill: #475569; }
+    .n { font-size: 12px; font-weight: 700; fill: #ffffff; }
+    .m { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; fill: #4338ca; }
+    .soon { font-size: 12.5px; fill: #94a3b8; font-style: italic; }
+  </style>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0 0 L10 5 L0 10 z" fill="#6366f1"/>
+    </marker>
+    <linearGradient id="band" x1="0" x2="1">
+      <stop offset="0" stop-color="#f472b6"/>
+      <stop offset="1" stop-color="#6366f1"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="960" height="330" rx="18" fill="#f8fafc" stroke="#e2e8f0"/>
+  <rect x="0" y="0" width="960" height="6" rx="3" fill="url(#band)"/>
+
+  <!-- 1. One paper -->
+  <rect x="24" y="40" width="200" height="200" rx="14" fill="#ffffff" stroke="#e2e8f0"/>
+  <circle cx="48" cy="66" r="12" fill="#f472b6"/><text x="48" y="70" text-anchor="middle" class="n">1</text>
+  <text x="68" y="71" class="h">One paper</text>
+  <text x="40" y="104" class="s">Give fil anything that</text>
+  <text x="40" y="122" class="s">names it:</text>
+  <text x="40" y="150" class="m">10.7717/peerj.4375</text>
+  <text x="40" y="170" class="m">arXiv:1706.03762</text>
+  <text x="40" y="190" class="m">PMID:29051481</text>
+  <text x="40" y="210" class="m">Attention is all you need</text>
+
+  <line x1="228" y1="140" x2="258" y2="140" stroke="#6366f1" stroke-width="2.5" marker-end="url(#arrow)"/>
+
+  <!-- 2. OpenAlex -->
+  <rect x="264" y="40" width="200" height="200" rx="14" fill="#ffffff" stroke="#e2e8f0"/>
+  <circle cx="288" cy="66" r="12" fill="#c084fc"/><text x="288" y="70" text-anchor="middle" class="n">2</text>
+  <text x="308" y="71" class="h">OpenAlex</text>
+  <text x="280" y="104" class="s">The open index of 250M+</text>
+  <text x="280" y="122" class="s">works returns each paper's</text>
+  <text x="280" y="140" class="s">reference list, already</text>
+  <text x="280" y="158" class="s">resolved. No parsing,</text>
+  <text x="280" y="176" class="s">no API key, no cost.</text>
+  <text x="280" y="210" class="s">Batched, rate-limited,</text>
+  <text x="280" y="228" class="s">cached.</text>
+
+  <line x1="468" y1="140" x2="498" y2="140" stroke="#6366f1" stroke-width="2.5" marker-end="url(#arrow)"/>
+
+  <!-- 3. Your library -->
+  <rect x="504" y="40" width="200" height="200" rx="14" fill="#ffffff" stroke="#e2e8f0"/>
+  <circle cx="528" cy="66" r="12" fill="#818cf8"/><text x="528" y="70" text-anchor="middle" class="n">3</text>
+  <text x="548" y="71" class="h">Your library</text>
+  <text x="520" y="104" class="s">One SQLite file on your</text>
+  <text x="520" y="122" class="s">machine. fil expand grows</text>
+  <text x="520" y="140" class="s">it best-first — the most-</text>
+  <text x="520" y="158" class="s">cited works first — under</text>
+  <text x="520" y="176" class="s">a budget. Stop any time;</text>
+  <text x="520" y="194" class="s">it resumes. Duplicates</text>
+  <text x="520" y="212" class="s">folded by ID and DOI.</text>
+
+  <line x1="708" y1="140" x2="738" y2="140" stroke="#6366f1" stroke-width="2.5" marker-end="url(#arrow)"/>
+
+  <!-- 4. Answers -->
+  <rect x="744" y="40" width="192" height="200" rx="14" fill="#ffffff" stroke="#e2e8f0"/>
+  <circle cx="768" cy="66" r="12" fill="#6366f1"/><text x="768" y="70" text-anchor="middle" class="n">4</text>
+  <text x="788" y="71" class="h">Use it</text>
+  <text x="760" y="104" class="m">fil path</text>
+  <text x="760" y="122" class="s">where an idea came from</text>
+  <text x="760" y="146" class="m">fil neighbours</text>
+  <text x="760" y="164" class="s">what cites what</text>
+  <text x="760" y="188" class="m">fil export graphml</text>
+  <text x="760" y="206" class="s">into Gephi, NetworkX</text>
+
+  <text x="480" y="276" text-anchor="middle" class="soon">Coming next: an MCP server for AI assistants · open-access PDFs · search and answers with citations · tracing a claim to its source</text>
+  <text x="480" y="302" text-anchor="middle" class="s">One binary for Windows, macOS and Linux. Nothing else to install. Your data never leaves your machine.</text>
+</svg>

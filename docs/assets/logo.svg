@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120" role="img" aria-label="Filiation logo: a stemma, a family tree of manuscripts, with one line of descent highlighted">
+  <!-- A stemma codicum: the diagram textual critics draw to show which manuscript
+       was copied from which. The highlighted line is one line of descent —
+       what fil traces for papers. -->
+  <defs>
+    <linearGradient id="lineage" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f472b6"/>
+      <stop offset="1" stop-color="#6366f1"/>
+    </linearGradient>
+  </defs>
+  <g fill="none" stroke="#94a3b8" stroke-width="3" stroke-linecap="round">
+    <path d="M60 20 L32 55"/>
+    <path d="M32 55 L17 92"/>
+    <path d="M32 55 L46 92"/>
+    <path d="M88 55 L102 92"/>
+  </g>
+  <g fill="none" stroke="url(#lineage)" stroke-width="4.5" stroke-linecap="round">
+    <path d="M60 20 L88 55 L74 92"/>
+  </g>
+  <g stroke-width="3">
+    <circle cx="32" cy="55" r="7" fill="#f8fafc" stroke="#94a3b8"/>
+    <circle cx="17" cy="92" r="6" fill="#f8fafc" stroke="#94a3b8"/>
+    <circle cx="46" cy="92" r="6" fill="#f8fafc" stroke="#94a3b8"/>
+    <circle cx="102" cy="92" r="6" fill="#f8fafc" stroke="#94a3b8"/>
+    <circle cx="60" cy="20" r="9" fill="#f472b6" stroke="#f472b6"/>
+    <circle cx="88" cy="55" r="7" fill="#a78bfa" stroke="#a78bfa"/>
+    <circle cx="74" cy="92" r="7" fill="#6366f1" stroke="#6366f1"/>
+  </g>
+</svg>

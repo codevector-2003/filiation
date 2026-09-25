@@ -353,3 +353,33 @@ two records OpenAlex does know. D14 governs that case.
 **Consequence for M1.** Its definition of done — "a clean 500-node graph with no duplicates" —
 is read as: no duplicate IDs, no duplicate DOIs, no merged records left unfolded, and every
 probable title duplicate reported to the user. That is what can be guaranteed without guessing.
+
+---
+
+## D15 — Licence: Apache-2.0
+
+**Decided:** 24 Sept 2026 · closes the licence question in `CLAUDE.md`'s "Still open"
+
+Filiation is licensed under the **Apache License 2.0**, with the copyright line in `NOTICE`.
+
+**Why.** The people most likely to adopt a research tool are researchers inside universities and
+companies, and their legal teams approve Apache-2.0 readily: it is permissive like MIT, and adds an
+explicit patent licence from every contributor, which MIT lacks. It is also what `spf13/cobra` uses.
+Every dependency is already permissive (MIT, MIT-0, BSD-3, Apache-2.0), so nothing constrained the
+choice.
+
+**Rejected:**
+
+- *MIT.* Equally permissive and shorter, but without the patent grant — the difference that
+  matters to institutional users.
+- *AGPL-3.0.* The only option that stops a company hosting a modified fil as a closed, paid
+  service. The cost is adoption: many companies and some universities will not use AGPL code at
+  all. For a local-first tool whose first goal is to be used, that is the wrong trade today.
+- *MPL-2.0.* A reasonable middle ground, but less familiar, and it does not stop hosted services
+  either.
+
+**Accepted consequence.** Someone may host fil as a paid service without sharing their changes.
+If that ever becomes a real problem, the lever is the optional server mode, not the licence of the
+core. Loosening a licence later is easy for a sole author; tightening one after outside
+contributions is not — which is why the permissive choice is made deliberately, now.
+
