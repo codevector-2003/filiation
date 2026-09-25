@@ -33,3 +33,7 @@ internal/web/dist/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Source art for the README banner and social preview (large; the composed
+# docs/assets/banner.jpg and social-preview.png are what is committed).
+docs/assets/*.jfif
