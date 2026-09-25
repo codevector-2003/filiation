@@ -179,10 +179,11 @@ type OAStatus string
 
 const (
 	OAUnknown OAStatus = ""
-	OAGold    OAStatus = "gold"   // published open in a fully OA venue
-	OAGreen   OAStatus = "green"  // author copy in a repository
-	OAHybrid  OAStatus = "hybrid" // open article in a subscription venue
-	OABronze  OAStatus = "bronze" // free to read on the publisher site, no open licence
+	OADiamond OAStatus = "diamond" // open in a venue that charges authors nothing either
+	OAGold    OAStatus = "gold"    // published open in a fully OA venue
+	OAGreen   OAStatus = "green"   // author copy in a repository
+	OAHybrid  OAStatus = "hybrid"  // open article in a subscription venue
+	OABronze  OAStatus = "bronze"  // free to read on the publisher site, no open licence
 	OAClosed  OAStatus = "closed"
 )
 
@@ -195,7 +196,7 @@ const (
 // else. See hard rule 1.
 func (s OAStatus) IsOpen() bool {
 	switch s {
-	case OAGold, OAGreen, OAHybrid, OABronze:
+	case OADiamond, OAGold, OAGreen, OAHybrid, OABronze:
 		return true
 	default:
 		return false

@@ -193,7 +193,8 @@ func TestOAStatusIsOpen(t *testing.T) {
 		{OABronze, true},
 		{OAClosed, false},
 		{OAUnknown, false},
-		{OAStatus("diamond"), false}, // unrecognised must not read as open
+		{OADiamond, true},             // seen live 25 Sept 2026, in the MCP check
+		{OAStatus("platinum"), false}, // unrecognised must not read as open
 	}
 	for _, tt := range tests {
 		t.Run(string(tt.status), func(t *testing.T) {
