@@ -1,13 +1,13 @@
 # Project status
 
-**Date:** 24 September 2026 · **Position:** **M0 complete** · M1 in progress — steps 1–5 of 6, and export from step 6
+**Date:** 25 September 2026 · **Position:** **M1 complete — v0.1 released** · M2 next
 **Phase 1 target:** v0.1 by 14 November 2026
 
 > **In one line:** M0 is done, and M1's expander works live — `fil expand` grew one seed to 525
 > fetched works and 11,802 citations, with no duplicate IDs or DOIs. Title-level duplicates
 > (~4%) are reported by `fil stats --duplicates` and never merged on a guess (D14).
 > `fil path`, `fil neighbours` and GraphML export work, and the 20-seed validation run passed
-> 20 of 20. What remains of M1 is tagging the release — version name and licence to decide.
+> 20 of 20. Licensed Apache-2.0 (D15). **v0.1 released 25 Sept 2026** — M1 is complete.
 > The schedule has slack: §10 planned the expander for 13–26 October.
 
 ---
@@ -24,7 +24,7 @@ protected for them.
 | --- | --- | --- |
 | 0 | Spikes, scaffolding, toolchain | **Complete** |
 | 1 | M0 — skeleton, `fil add` writes one node | **Complete** — 24 Sept, verified live |
-| 1 | M1 — budgeted expansion, export, **first release** | **In progress** — expander and `fil expand` done, verified live |
+| 1 | M1 — budgeted expansion, export, **first release** | **Complete** — 25 Sept, released as v0.1 |
 | 2 | M2 — MCP server | Not started |
 | 3 | M3 — PDFs, text, citation context, FTS5 | Not started |
 | 4 | M4 — retrieval and answers | Not started |
@@ -411,7 +411,7 @@ twice adds nothing the second time, and the seed's 54 references are present as 
 > could never pass. `10.7717/peerj.4375` ("The state of OA") has 54 references and is gold OA, so
 > it also exercises M3's PDF path.
 
-### M1, in progress
+### M1, complete — v0.1, 25 Sept 2026
 
 *Done when:* one seed gives a clean 500-node graph with no duplicates, and it opens in Gephi.
 
@@ -422,7 +422,7 @@ twice adds nothing the second time, and the seed's 54 references are present as 
 | 3 | `library.Expand` and `fil expand`, with progress and a coverage report | **Done** — verified live |
 | 4 | Title-level duplicates: reported by `fil stats --duplicates`, never merged (D14) | **Done** |
 | 5 | `fil neighbours`, `fil path` — breadth-first search, not a recursive CTE (measured). `fil stats` landed with step 4 | **Done** |
-| 6 | GraphML export, the 20-seed validation run and GoReleaser — **done**. Tagging the release awaits a decision on its version and the licence | **Awaiting release** |
+| 6 | GraphML export, the 20-seed validation run, GoReleaser, and the licence (Apache-2.0, D15) — **done**. Tagged **v0.1.0** | **Done** |
 
 **Steps 1–3.** `fil expand` grows the graph from everything in the library, best first — in-graph
 in-degree, then depth, then ID, so the order is deterministic and resume is exact. One transaction
@@ -516,10 +516,9 @@ amd64 and arm64, with `CGO_ENABLED=0` (hard rule 4), the version stamped in, and
 `.github/workflows/release.yml` runs the tests and publishes on a pushed `v*` tag, so released
 binaries come from a clean runner and the tagged commit only.
 
-**Two decisions before tagging.** (1) *Version.* `CLAUDE.md` locks "v1 includes the full retrieval
-engine with Q&A — the graph alone does not count as done", and §10 names this release **v0.1**;
-tagging it v1.0 would contradict that and promise a stable interface M2–M6 will change. (2)
-*Licence* — still open. Without one, published binaries are not legally open source.
+**Both release decisions are made.** *Version:* **v0.1** — §10's name for it, and consistent with
+the locked decision that v1 includes the full retrieval engine. *Licence:* **Apache-2.0** (D15),
+in `LICENSE`, with the copyright line in `NOTICE`; both ship in every archive.
 
 ### Decided: title-level duplicates are reported, not merged (D14)
 
@@ -554,7 +553,7 @@ unfolded, and every probable title duplicate reported.
 
 | | Question | Blocking? |
 | --- | --- | --- |
-| 1 | **Licence** — MIT or Apache-2.0 for adoption, AGPL to stop paid rehosting | No. No dependency has forced it; all four are permissive |
+| 1 | ~~**Licence**~~ — **decided: Apache-2.0** (D15) | Closed |
 | 2 | **Zotero** — read from an existing library? Cheapest route to real users | Not yet, but decide before M3 |
 | 3 | **PDF text extraction** (ADR-009) — pure Go, bundled `pdftotext`, or external | No. Deliberately deferred to a Phase 3 bake-off |
 | 4 | **`sqlite-vec` revisit** (D13) — only if a pre-filtered query misses target, and only after checking whether it is a real ANN index or just a faster scan | No. Not before M4 |

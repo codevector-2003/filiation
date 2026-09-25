@@ -12,7 +12,7 @@ tool does for papers: it reconstructs where a claim came from by following the c
 - Language: **Go** (see D8 in `docs/DECISIONS.md`)
 - Module: `github.com/codevector-2003/filiation`
 - Binary / CLI command: `fil`
-- Status: **M0 complete** (24 Sept 2026). **M1 in progress** — every command works and the 20-seed validation run passed 20 of 20 (`docs/VALIDATION.md`). Tagging the release waits on its version and the licence. See `docs/STATUS.md`.
+- Status: **M0 complete** (24 Sept 2026). **M1 complete — v0.1 released** (25 Sept 2026). Every command works and the 20-seed validation run passed 20 of 20 (`docs/VALIDATION.md`). Licensed Apache-2.0 (D15). **M2 next.** See `docs/STATUS.md`.
 
 ---
 
@@ -194,20 +194,20 @@ provides this for free and it is what makes retrieval better than everyone else'
 
 Current position: **M0 complete, 24 Sept 2026.** `fil add 10.7717/peerj.4375` was run live: it
 wrote the seed, printed the title, recorded 54 references as stubs with edges, and a second run
-added nothing. **M1 in progress:** the budgeted best-first expander and `fil expand` are done and
+added nothing. **M1 complete, released as v0.1 on 25 Sept 2026:** the budgeted best-first expander and `fil expand` are done and
 verified live (525 works, 11,802 citations, no duplicate IDs or DOIs), and `fil stats` reports
 title-level duplicates without merging them (D14). `fil neighbours` and `fil path` work, path
 finding by breadth-first search rather than a recursive CTE (measured). `fil export graphml`
 writes the graph for Gephi and NetworkX, read back cleanly by NetworkX. The 20-seed / 5-field
 validation run passed 20 of 20 (`docs/VALIDATION.md`), and GoReleaser plus a tag-triggered release
-workflow are in place. Left: the release tag itself — version and licence to decide. Dates assume learning Go alongside building;
+workflow are in place. Licensed Apache-2.0 (D15). Next: **M2**. Dates assume learning Go alongside building;
 Phase 1 carries two extra weeks for that.
 
 - [x] **M0 — Skeleton** (2–3 weeks). *Done 24 Sept 2026.* Module layout, config, embedded schema, `store` package,
       one command that takes a DOI, fetches from OpenAlex, stores one node.
       *Done when:* `fil add 10.7717/peerj.4375` writes a row and prints the title, and its 54
       references are present as stubs with edges.
-- [ ] **M1 — The graph** (3–4 weeks). Budgeted expansion, dedup, `expand`, `neighbours`, `path`,
+- [x] **M1 — The graph** (3–4 weeks). *Done 25 Sept 2026 — v0.1.* Budgeted expansion, dedup, `expand`, `neighbours`, `path`,
       GraphML export. **First release, with cross-compiled binaries.**
       *Done when:* one seed gives a clean 500-node graph with no duplicates, opens in Gephi.
 - [ ] **M2 — MCP server** (~1 week). Expose M1 as MCP tools. The differentiator.
@@ -279,8 +279,7 @@ write our own.
 
 ## Still open
 
-1. **Licence** — MIT or Apache-2.0 for widest adoption, AGPL to stop a company hosting it as a
-   paid service. Go's ecosystem is overwhelmingly permissive; MIT fits convention.
+1. ~~**Licence**~~ — **decided: Apache-2.0** (D15), 24 Sept 2026.
 2. **Zotero** — read from a user's existing library? Cheapest route to real users. Decide early.
 3. **Embeddings without Ollama** — is a pure-Go ONNX path (`onnx-gomlx`) worth the risk later,
    to restore true one-command setup? Revisit after M4 ships.

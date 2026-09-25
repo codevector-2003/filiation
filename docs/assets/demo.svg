@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="560" viewBox="0 0 880 560" role="img" aria-label="Terminal session: fil add, fil expand, fil path and fil export, with real output">
+  <style>
+    text { font-family: ui-monospace, SFMono-Regular, "Cascadia Mono", Menlo, Consolas, "Liberation Mono", monospace; font-size: 13.5px; white-space: pre; }
+    .p { fill: #7ee787; }
+    .c { fill: #e6edf3; font-weight: 600; }
+    .o { fill: #c9d1d9; }
+    .d { fill: #8b949e; }
+    .k { fill: #79c0ff; }
+    .v { fill: #d2a8ff; }
+    .t { fill: #ffa657; }
+  </style>
+  <rect width="880" height="560" rx="14" fill="#0d1117"/>
+  <rect width="880" height="36" rx="14" fill="#161b22"/>
+  <rect y="22" width="880" height="14" fill="#161b22"/>
+  <circle cx="22" cy="18" r="6" fill="#ff5f57"/>
+  <circle cx="42" cy="18" r="6" fill="#febc2e"/>
+  <circle cx="62" cy="18" r="6" fill="#28c840"/>
+  <text x="440" y="23" text-anchor="middle" class="d">fil — one seed, one expansion (real output)</text>
+
+  <text x="24" y="66" xml:space="preserve"><tspan class="p">$</tspan> <tspan class="c">fil add 10.7717/peerj.4375</tspan></text>
+  <text x="24" y="86" xml:space="preserve"><tspan class="k">Added:</tspan><tspan class="o"> The state of OA: a large-scale analysis of … Open Access articles (2018)</tspan></text>
+  <text x="24" y="106" xml:space="preserve" class="d">       W2741809807 · doi:10.7717/peerj.4375 · PeerJ · gold open access</text>
+  <text x="24" y="126" xml:space="preserve"><tspan class="k">References:</tspan><tspan class="o"> 54 — 54 new to your library, 54 citations recorded.</tspan></text>
+
+  <text x="24" y="162" xml:space="preserve"><tspan class="p">$</tspan> <tspan class="c">fil expand</tspan></text>
+  <text x="24" y="182" xml:space="preserve"><tspan class="k">Fetched:  </tspan><tspan class="o"> 478 works in 21.1s, recording 10,152 new citations.</tspan></text>
+  <text x="24" y="202" xml:space="preserve"><tspan class="k">Coverage: </tspan><tspan class="o"> 321 of 478 had a reference list (67%).</tspan></text>
+  <text x="24" y="222" xml:space="preserve"><tspan class="k">Stopped:  </tspan><tspan class="o"> budget reached. Run fil expand again to continue.</tspan></text>
+  <text x="24" y="242" xml:space="preserve"><tspan class="k">Library:  </tspan><tspan class="o"> 7,677 works (7,152 not fetched yet), 11,802 citations.</tspan></text>
+
+  <text x="24" y="278" xml:space="preserve"><tspan class="p">$</tspan> <tspan class="c">fil path 10.7717/peerj.4375 W4300313809</tspan></text>
+  <text x="24" y="298" xml:space="preserve" class="o">"The state of OA …" descends from "Invisible Colleges …" in 2 steps:</text>
+  <text x="24" y="322" xml:space="preserve"><tspan class="t">  The state of OA: a large-scale analysis …</tspan><tspan class="d">  (2018)</tspan></text>
+  <text x="24" y="342" xml:space="preserve" class="v">      cites</text>
+  <text x="24" y="362" xml:space="preserve"><tspan class="t">  Open access, readership, citations: a randomized controlled trial</tspan><tspan class="d">  (2011)</tspan></text>
+  <text x="24" y="382" xml:space="preserve" class="v">      cites</text>
+  <text x="24" y="402" xml:space="preserve"><tspan class="t">  Invisible Colleges: Diffusion of Knowledge in Scientific Communities</tspan><tspan class="d">  (1973)</tspan></text>
+
+  <text x="24" y="438" xml:space="preserve"><tspan class="p">$</tspan> <tspan class="c">fil stats</tspan></text>
+  <text x="24" y="458" xml:space="preserve"><tspan class="k">Coverage:  </tspan><tspan class="o"> 317 of 472 fetched works have a reference list (67%)</tspan></text>
+  <text x="24" y="478" xml:space="preserve"><tspan class="k">Duplicates:</tspan><tspan class="o"> 18 titles that more than one fetched work shares — fil lists them,</tspan></text>
+  <text x="24" y="498" xml:space="preserve" class="o">             never merges them on its own.</text>
+
+  <text x="24" y="534" xml:space="preserve"><tspan class="p">$</tspan> <tspan class="c">fil export graphml -o library.graphml</tspan><tspan class="d">   # opens in Gephi, NetworkX, Cytoscape</tspan></text>
+</svg>
