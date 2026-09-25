@@ -383,3 +383,32 @@ If that ever becomes a real problem, the lever is the optional server mode, not 
 core. Loosening a licence later is easy for a sole author; tightening one after outside
 contributions is not — which is why the permissive choice is made deliberately, now.
 
+
+---
+
+## D16 — MCP expansion runs inside the call; the job system waits for M3
+
+**Decided:** 25 Sept 2026 · amends `ARCHITECTURE.md` §5 ("anything over ~2 s returns a `JobHandle`")
+
+`expand_graph`, the one M2 tool that takes more than a moment, **runs inside the tool call** rather
+than returning a job handle. It is bounded to **200 works by default and 500 at most** per call,
+reports MCP progress notifications after every committed batch, and honours cancellation. To go
+further, the assistant calls it again: expansion already resumes from the persisted frontier, so
+repeated calls are the continuation mechanism, and nothing new had to be built for it.
+
+**Why.** §5's job table and background worker are real work — a table, a worker goroutine that owns
+the write path, polling, and recovery on restart — and in M2 they would serve exactly one tool whose
+worst case is measured: 500 works took ~21 s live, and 52 took 7 s in the MCP check. That is inside
+any MCP client's timeout, and progress notifications keep the call visibly alive. M3's PDF fetching
+is the first operation that genuinely runs for minutes; the job system is built there, for it, and
+`expand_graph` moves onto it then.
+
+**Rejected:**
+
+- *Build the job system now.* Right design, wrong time: a week of M3-shaped work to serve one tool
+  that does not need it yet.
+- *Unbounded expansion inside the call.* A client timeout would cut the call off mid-run. Nothing
+  would be lost — every batch commits — but the assistant would see a failure, not a result.
+
+**Accepted consequence.** An assistant that wants 2,000 works makes four calls. The tool
+description and every result's `note` say so.
