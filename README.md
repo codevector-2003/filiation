@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="docs/assets/logo.svg" width="112" alt="Filiation logo: a stemma, with one line of descent highlighted">
+  <img src="docs/assets/banner.jpg" width="100%" alt="Filiation: follow the citations back, see where an idea came from">
 </p>
 
-<h1 align="center">Filiation</h1>
+<h1 align="center"><img src="docs/assets/logo.svg" width="36" alt=""> Filiation</h1>
 
 <p align="center">
   <strong>A citation graph you build and keep on your own machine.</strong><br>
@@ -10,9 +10,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/codevector-2003/filiation/releases"><img src="https://img.shields.io/github/v/release/codevector-2003/filiation?include_prereleases&label=release&color=6366f1" alt="Latest release"></a>
+  <a href="https://github.com/codevector-2003/filiation/releases/tag/v0.1.0"><img src="https://img.shields.io/badge/release-v0.1.0-6366f1" alt="Release v0.1.0"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/licence-Apache--2.0-6366f1" alt="Licence: Apache-2.0"></a>
-  <img src="https://img.shields.io/github/go-mod/go-version/codevector-2003/filiation?color=00ADD8" alt="Go version">
+  <img src="https://img.shields.io/badge/go-1.25-00ADD8?logo=go&logoColor=white" alt="Go 1.25">
   <img src="https://img.shields.io/badge/platforms-Windows%20%C2%B7%20macOS%20%C2%B7%20Linux-64748b" alt="Windows, macOS, Linux">
   <img src="https://img.shields.io/badge/cgo-none-22c55e" alt="No cgo">
   <a href="https://openalex.org"><img src="https://img.shields.io/badge/data-OpenAlex-f97316" alt="Data: OpenAlex"></a>
