@@ -266,7 +266,9 @@ func TestCloseIsIdempotent(t *testing.T) {
 // library location on Windows generally has one.
 func TestDSNEscapesSpaces(t *testing.T) {
 	t.Parallel()
-	got := dsn(`C:\Users\a b\library.db`, []string{"busy_timeout(10000)"}, "immediate")
+	// FromSlash gives the backslashed form on Windows, where it matters, and leaves
+	// the path alone elsewhere — a backslash is a filename character on Linux.
+	got := dsn(filepath.FromSlash("C:/Users/a b/library.db"), []string{"busy_timeout(10000)"}, "immediate")
 
 	if strings.Contains(got, " ") {
 		t.Errorf("dsn = %q, want the space escaped", got)
