@@ -1,6 +1,6 @@
 # Project status
 
-**Date:** 25 September 2026 · **Position:** **M1 complete — v0.1 released** · M2 next
+**Date:** 25 September 2026 · **Position:** **M2 complete — v0.2 released** · M3 next
 **Phase 1 target:** v0.1 by 14 November 2026
 
 > **In one line:** M0 is done, and M1's expander works live — `fil expand` grew one seed to 525
@@ -8,6 +8,8 @@
 > (~4%) are reported by `fil stats --duplicates` and never merged on a guess (D14).
 > `fil path`, `fil neighbours` and GraphML export work, and the 20-seed validation run passed
 > 20 of 20. Licensed Apache-2.0 (D15). **v0.1 released 25 Sept 2026** — M1 is complete.
+> **M2 complete, v0.2 released 25 Sept 2026:** `fil mcp` serves the library to AI assistants —
+> five tools, verified live over stdio and from a real client, with authors on every fetched work.
 > The schedule has slack: §10 planned the expander for 13–26 October.
 
 ---
@@ -25,7 +27,7 @@ protected for them.
 | 0 | Spikes, scaffolding, toolchain | **Complete** |
 | 1 | M0 — skeleton, `fil add` writes one node | **Complete** — 24 Sept, verified live |
 | 1 | M1 — budgeted expansion, export, **first release** | **Complete** — 25 Sept, released as v0.1 |
-| 2 | M2 — MCP server | Not started |
+| 2 | M2 — MCP server | **Complete** — 25 Sept, released as v0.2 |
 | 3 | M3 — PDFs, text, citation context, FTS5 | Not started |
 | 4 | M4 — retrieval and answers | Not started |
 | 5 | M5 — web interface | Not started |
@@ -519,6 +521,40 @@ binaries come from a clean runner and the tagged commit only.
 **Both release decisions are made.** *Version:* **v0.1** — §10's name for it, and consistent with
 the locked decision that v1 includes the full retrieval engine. *Licence:* **Apache-2.0** (D15),
 in `LICENSE`, with the copyright line in `NOTICE`; both ship in every archive.
+
+### M2, complete — v0.2, 25 Sept 2026
+
+*Done when:* an assistant can add a paper, grow the graph and answer "what connects these two
+papers" against the user's own library, from a real MCP client.
+
+| Order | Work | State |
+| --- | --- | --- |
+| 1 | `internal/mcpsrv` on `modelcontextprotocol/go-sdk` v1.8.0: five tools — `add_paper`, `expand_graph`, `neighbours`, `find_path`, `library_stats` | **Done** |
+| 2 | `fil mcp`: stdio transport; a first run takes the default library silently, notices on stderr | **Done** — verified live over stdio |
+| 3 | A real client: Claude Code, headless, one researcher's question — all five tools used well; see [`VALIDATION.md`](VALIDATION.md#m2--a-real-mcp-client-25-september-2026) | **Done** |
+| 4 | Authors on returned works: `authorships` stored with the work in one transaction, loaded for any number of works in one query; the MCP tools return the first three names and a count, and `fil add` / `fil neighbours` print a byline | **Done** — verified live |
+| 5 | `cited_by_count` renamed `cited_by_count_global` in MCP output, so an assistant cannot present it as a count within the library | **Done** |
+| 6 | Tag **v0.2** | **Done** — 25 Sept 2026 |
+
+**The surface follows `ARCHITECTURE.md` §6.** Every list is capped and ranked — fetched works
+first, then by global citations — and says how many it left out. Every work carries its OpenAlex
+ID and OA status. Stubs say `stub: true` and carry no title. Ambiguous titles come back to
+`add_paper` as candidates with `status: "choose"`, never as a guess (ADR-005). Errors name the next
+step ("add it with add_paper first"). `find_gaps` waits for co-citation; `search_library` and
+`ask_library` for M3–M4.
+
+**`expand_graph` runs inside the call (D16)**, 200 works by default and 500 at most, with a progress
+notification after each batch. The job system of §5 is built with M3, which needs it.
+
+**The live check** drove the built binary over real stdio against OpenAlex, with an isolated
+profile. stdout carried nothing but JSON-RPC; `add_paper` wrote the M0 seed; a title returned
+candidates and wrote nothing; `expand_graph` fetched 52 works in 7 s with two progress
+notifications; `find_path` returned the lineage chain; an unknown ID came back as a tool error
+pointing at `add_paper`; the server exited 0 when the client closed stdin.
+
+**Found on the way:** OpenAlex returns **`oa_status: "diamond"`** — open access with no author
+fees. The model treated it as unknown, so `IsOpen` reported diamond papers closed. It is now
+`model.OADiamond`, and open.
 
 ### Decided: title-level duplicates are reported, not merged (D14)
 

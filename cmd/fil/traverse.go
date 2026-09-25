@@ -100,6 +100,9 @@ func (a *app) neighbours(ctx context.Context, input string, limit int) error {
 
 	w := a.stdout
 	fmt.Fprintln(w, headline(n.Work))
+	if by := byline(n.Work); by != "" {
+		fmt.Fprintf(w, "       %s\n", by)
+	}
 	fmt.Fprintf(w, "       %s\n\n", identifiers(n.Work))
 
 	fetched := 0

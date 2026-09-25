@@ -112,7 +112,7 @@ func (a *app) rootCommand() *cobra.Command {
 	root.PersistentFlags().BoolVar(&a.noCache, "no-cache", false, "fetch from OpenAlex even if a response is cached")
 
 	root.AddCommand(a.addCommand(), a.expandCommand(), a.neighboursCommand(), a.pathCommand(),
-		a.statsCommand(), a.exportCommand(), a.whereCommand(), a.versionCommand(), a.cacheCommand())
+		a.statsCommand(), a.exportCommand(), a.mcpCommand(), a.whereCommand(), a.versionCommand(), a.cacheCommand())
 	return root
 }
 
@@ -206,6 +206,9 @@ func (a *app) printAdded(res library.Added) {
 		fmt.Fprintf(a.stdout, "Already in your library: %s\n", headline(w))
 	} else {
 		fmt.Fprintf(a.stdout, "Added: %s\n", headline(w))
+	}
+	if by := byline(w); by != "" {
+		fmt.Fprintf(a.stdout, "       %s\n", by)
 	}
 	fmt.Fprintf(a.stdout, "       %s\n", identifiers(w))
 
@@ -402,6 +405,28 @@ func headline(w model.Work) string {
 
 // identifiers is the line under a headline: how to find the work again, and
 // whether a free copy exists.
+// byline names the first three authors and counts the rest, or returns "" when
+// no authors are recorded — a stub, or a work fetched before v0.2.
+func byline(w model.Work) string {
+	const shown = 3
+	if len(w.Authors) == 0 {
+		return ""
+	}
+	names := make([]string, 0, shown)
+	for _, a := range w.Authors[:min(len(w.Authors), shown)] {
+		names = append(names, a.Name)
+	}
+	s := "by " + strings.Join(names, ", ")
+	switch more := len(w.Authors) - len(names); more {
+	case 0:
+	case 1:
+		s += " and 1 other"
+	default:
+		s += fmt.Sprintf(" and %d others", more)
+	}
+	return s
+}
+
 func identifiers(w model.Work) string {
 	parts := []string{w.OpenAlexID}
 	if w.DOI != nil {
