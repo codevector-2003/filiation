@@ -3,6 +3,7 @@ package store
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -154,17 +155,24 @@ func TestMergeInto(t *testing.T) {
 		t.Fatalf("MergeInto: %v", err)
 	}
 
-	if _, err := db.GetWork(ctx, "W5"); err == nil {
-		t.Errorf("W5 survived the merge")
+	// W5 is gone as a row, and survives as a name: looking it up finds the
+	// paper it was folded into (D17).
+	if w, err := db.GetWork(ctx, "W5"); err != nil || w.OpenAlexID != "W6" {
+		t.Errorf("GetWork(W5) after the merge = %+v, %v; want the survivor W6", w, err)
+	}
+	var rows int
+	if err := db.read.QueryRow(`SELECT count(*) FROM work WHERE openalex_id = 'W5';`).Scan(&rows); err != nil || rows != 0 {
+		t.Errorf("W5 still has a row of its own (%d, %v)", rows, err)
 	}
 	citedBy, err := db.CitedBy(ctx, "W6")
 	if err != nil {
 		t.Fatal(err)
 	}
 	var from []string
-	for _, e := range citedBy {
-		from = append(from, e.FromWork)
+	for _, e := range oaEdges(t, db, citedBy) {
+		from = append(from, strings.TrimSuffix(e, ">W6"))
 	}
+	slices.Sort(from)
 	if strings.Join(from, ",") != "W1,W2" {
 		t.Errorf("W6 cited by %v, want W1 and W2 — W2's duplicate edge collapsed", from)
 	}
@@ -193,7 +201,7 @@ func TestMergeIntoMovesReferencesAndKeepsProvenance(t *testing.T) {
 		t.Errorf("survivor seed %v depth %v; want the old record's seed flag and depth 0", w.IsSeed, w.Depth)
 	}
 	refs, _ := db.References(ctx, "W6")
-	if len(refs) != 1 || refs[0].ToWork != "W9" {
+	if got := oaEdges(t, db, refs); len(got) != 1 || got[0] != "W6>W9" {
 		t.Errorf("survivor's references = %+v, want W9 only — W5 -> W6 would be a self-citation", refs)
 	}
 }

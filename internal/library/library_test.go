@@ -482,7 +482,21 @@ func TestFindLooksOnlyInTheLibrary(t *testing.T) {
 	if w, err := l.Find(ctx, "W1503178185"); err != nil || !w.IsStub() {
 		t.Errorf("Find(stub) = %+v, %v", w, err)
 	}
+
+	// Every work, stubs included, can be named by its fil ID, in either case,
+	// and the answer carries the same fil ID back (D17).
+	seed, _ := l.Find(ctx, "W2741809807")
+	for _, input := range []string{seed.FilID, strings.ToLower(seed.FilID)} {
+		if w, err := l.Find(ctx, input); err != nil || w.FilID != seed.FilID || w.OpenAlexID != "W2741809807" {
+			t.Errorf("Find(%q) = %s %s, %v; want the seed", input, w.FilID, w.OpenAlexID, err)
+		}
+	}
+	if n, err := l.Neighbours(ctx, seed.FilID); err != nil || len(n.Cites) != 54 {
+		t.Errorf("Neighbours(fil ID) = %d references, %v; want 54", len(n.Cites), err)
+	}
+
 	for input, want := range map[string]error{
+		"F0000000A":          errs.ErrNotFound,
 		"W9999999999":        errs.ErrNotFound,
 		"10.1000/not-here":   errs.ErrNotFound,
 		"A title nobody has": errs.ErrNotFound,

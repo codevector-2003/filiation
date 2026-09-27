@@ -15,17 +15,28 @@ import (
 // schema_version row seeded by schema.sql.
 //
 // Raise it in the same commit that changes the DDL, and add the upgrade step to
-// Migrate. A schema change without a version bump is invisible to every guard
+// upgrades. A schema change without a version bump is invisible to every guard
 // in this file.
-const SchemaVersion = 1
+//
+//	1  v0.1, v0.2: work keyed on openalex_id
+//	2  M3: work keyed on fil_id (D17), work_alias; pdf_sha256 and pdf_license gone
+const SchemaVersion = 2
+
+// upgrades[v] moves a library from schema v to v+1. Each runs inside
+// Migrate's one transaction, after the ones before it, so a library several
+// versions behind is upgraded all the way or not at all.
+var upgrades = map[int]func(ctx context.Context, db *DB, tx *sql.Tx) error{
+	1: upgradeV1ToV2,
+}
 
 // metaSchemaVersion is the meta key holding the version of the library on disk.
 const metaSchemaVersion = "schema_version"
 
 // Migrate brings the library up to SchemaVersion, or refuses to touch it.
 //
-// It is idempotent: every statement in schema.sql is IF NOT EXISTS or OR
-// IGNORE, so running it against a current library changes nothing.
+// A new library gets schema.sql. An older one is carried forward through
+// upgrades, one step at a time. A current one is left alone, so running this on
+// every open costs one query.
 //
 // The whole thing runs in one transaction on the write handle, so a library is
 // either fully migrated or untouched — a half-applied schema is not a state
@@ -62,11 +73,22 @@ func (db *DB) Migrate(ctx context.Context) error {
 		}
 
 	default:
-		// Unreachable while SchemaVersion is 1. It becomes the upgrade path the
-		// first time the DDL changes, and failing loudly is better than
-		// silently leaving an old library half-understood.
-		return fmt.Errorf("store: library at %s has schema %d, no upgrade path to %d: %w",
-			db.path, found, SchemaVersion, errs.ErrInvalidConfig)
+		for v := found; v < SchemaVersion; v++ {
+			up, ok := upgrades[v]
+			if !ok {
+				// Failing loudly is better than silently leaving an old
+				// library half-understood.
+				return fmt.Errorf("store: library at %s has schema %d, no upgrade path to %d: %w",
+					db.path, found, SchemaVersion, errs.ErrInvalidConfig)
+			}
+			if err := up(ctx, db, tx); err != nil {
+				return fmt.Errorf("store: upgrade library at %s from schema %d to %d: %w",
+					db.path, v, v+1, err)
+			}
+		}
+		if err := checkForeignKeys(ctx, tx); err != nil {
+			return fmt.Errorf("store: upgrade library at %s: %w", db.path, err)
+		}
 	}
 
 	if err := tx.Commit(); err != nil {

@@ -133,7 +133,7 @@ Use the full path to `fil` if it isn't on your `PATH`. Set-up for Cursor, VS Cod
 | `find_path` | The chain of citations between two papers. |
 | `library_stats` | What the library holds, its reference coverage, and possible duplicates. |
 
-Every paper the assistant sees carries its OpenAlex ID and open-access status. Papers known only by ID are marked as such, so the assistant can't talk about a paper as if it had read it.
+Every paper the assistant sees carries its IDs — fil's own, which never changes, and OpenAlex's — and its open-access status. Papers known only by ID are marked as such, so the assistant can't talk about a paper as if it had read it.
 
 📘 **[Full MCP guide](docs/MCP.md)**: set-up for Claude Desktop, Claude Code, Cursor and VS Code; every tool's arguments and results; limits; troubleshooting.
 

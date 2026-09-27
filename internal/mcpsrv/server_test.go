@@ -16,6 +16,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/codevector-2003/filiation/internal/config"
+	"github.com/codevector-2003/filiation/internal/identity"
 	"github.com/codevector-2003/filiation/internal/library"
 )
 
@@ -230,7 +231,10 @@ func TestAddPaper(t *testing.T) {
 		out.References != 54 || out.NewWorks != 54 {
 		t.Fatalf("add_paper = %+v; want W2741809807 added with 54 new references", out)
 	}
-	// Every work carries its ID and OA status (§6, rule 2).
+	// Every work carries its IDs and OA status (§6, rule 2; D17).
+	if !identity.IsFilID(out.Paper.FilID) {
+		t.Errorf("paper fil_id = %q, want a fil ID", out.Paper.FilID)
+	}
 	if out.Paper.OAStatus != "gold" || out.Paper.Stub || !out.Paper.Seed {
 		t.Errorf("paper = %+v; want a fetched gold OA seed", *out.Paper)
 	}
@@ -333,7 +337,7 @@ func TestNeighboursIsCappedAndRanked(t *testing.T) {
 		if len(w.Authors) == 0 {
 			t.Errorf("reference %s has no authors", w.ID)
 		}
-		if w.Stub || w.ID == "" || w.OAStatus == "" {
+		if w.Stub || w.ID == "" || !identity.IsFilID(w.FilID) || w.OAStatus == "" {
 			t.Errorf("reference %d = %+v; want a fetched work with ID and OA status", i, w)
 		}
 		if i > 0 && w.CitedByCount > refs.Works[i-1].CitedByCount {

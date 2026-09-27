@@ -2,6 +2,7 @@ package store
 
 import (
 	"errors"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -61,7 +62,7 @@ func TestMigrateIsIdempotent(t *testing.T) {
 		t.Fatalf("first Migrate: %v", err)
 	}
 	if _, err := db.write.ExecContext(ctx,
-		`INSERT INTO work (openalex_id, is_seed) VALUES ('W1', 1);`); err != nil {
+		`INSERT INTO work (fil_id, openalex_id, is_seed) VALUES ('F0000000A', 'W1', 1);`); err != nil {
 		t.Fatalf("insert: %v", err)
 	}
 
@@ -92,10 +93,11 @@ func TestMigrateRefusesNewerSchema(t *testing.T) {
 	db := openTest(t)
 	ctx := t.Context()
 
-	// A library as a future fil might leave it: a meta table saying 2, and
-	// nothing this build recognises.
+	// A library as a future fil might leave it: a meta table saying one more
+	// than this build knows, and nothing this build recognises.
+	newer := SchemaVersion + 1
 	mustExec(t, db.write, `CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);`)
-	mustExec(t, db.write, `INSERT INTO meta (key, value) VALUES ('schema_version', '2');`)
+	mustExec(t, db.write, `INSERT INTO meta (key, value) VALUES ('schema_version', ?);`, strconv.Itoa(newer))
 
 	err := db.Migrate(ctx)
 	if err == nil {
@@ -105,7 +107,7 @@ func TestMigrateRefusesNewerSchema(t *testing.T) {
 		t.Errorf("Migrate() error = %v, want it to wrap errs.ErrSchemaTooNew", err)
 	}
 	// The message has to be actionable: which library, and which versions.
-	for _, want := range []string{db.Path(), "2", "1"} {
+	for _, want := range []string{db.Path(), strconv.Itoa(newer), strconv.Itoa(SchemaVersion)} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error %q does not mention %q", err, want)
 		}
@@ -114,8 +116,8 @@ func TestMigrateRefusesNewerSchema(t *testing.T) {
 	if tableExists(t, db, "work") {
 		t.Error("Migrate created tables in a library it refused; the refusal must write nothing")
 	}
-	if v, _ := db.Version(ctx); v != 2 {
-		t.Errorf("Version() = %d, want the untouched 2", v)
+	if v, _ := db.Version(ctx); v != newer {
+		t.Errorf("Version() = %d, want the untouched %d", v, newer)
 	}
 }
 
@@ -232,7 +234,7 @@ func TestMigratePersistsAcrossReopen(t *testing.T) {
 	if err := db.Migrate(ctx); err != nil {
 		t.Fatalf("Migrate: %v", err)
 	}
-	mustExec(t, db.write, `INSERT INTO work (openalex_id) VALUES ('W1');`)
+	mustExec(t, db.write, `INSERT INTO work (fil_id, openalex_id) VALUES ('F0000000A', 'W1');`)
 	path := db.Path()
 	if err := db.Close(); err != nil {
 		t.Fatalf("Close: %v", err)
@@ -268,7 +270,7 @@ func TestMigratedSchemaAllowsStubs(t *testing.T) {
 		t.Fatalf("Migrate: %v", err)
 	}
 	if _, err := db.write.ExecContext(ctx,
-		`INSERT INTO work (openalex_id) VALUES ('W2741809807');`); err != nil {
+		`INSERT INTO work (fil_id, openalex_id) VALUES ('F7K2M9QXA', 'W2741809807');`); err != nil {
 		t.Fatalf("insert a stub: %v — schema must allow a work with an ID and nothing else", err)
 	}
 
@@ -279,5 +281,17 @@ func TestMigratedSchemaAllowsStubs(t *testing.T) {
 	}
 	if hydrated != 0 {
 		t.Errorf("hydrated = %d, want 0 by default", hydrated)
+	}
+}
+
+// SQLite lets a non-INTEGER primary key hold NULL unless the column also says
+// NOT NULL — a quirk kept for compatibility. A work without a fil ID would be a
+// row nothing can refer to, so the schema must refuse it.
+func TestSchemaRefusesWorkWithoutFilID(t *testing.T) {
+	t.Parallel()
+	db := migrated(t)
+	if _, err := db.write.ExecContext(t.Context(),
+		`INSERT INTO work (openalex_id) VALUES ('W1');`); err == nil {
+		t.Error("a work with no fil ID was accepted")
 	}
 }

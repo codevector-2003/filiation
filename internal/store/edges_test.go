@@ -3,6 +3,8 @@ package store
 import (
 	"errors"
 	"fmt"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/codevector-2003/filiation/internal/errs"
@@ -83,19 +85,18 @@ func TestRecordEdgesAndStubs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("References: %v", err)
 	}
-	if len(refs) != 3 {
-		t.Fatalf("References(W1) = %d edges, want 3", len(refs))
-	}
-	if refs[0].FromWork != "W1" || refs[0].ToWork != "W2" {
-		t.Errorf("first edge = %s -> %s, want W1 -> W2", refs[0].FromWork, refs[0].ToWork)
+	got := oaEdges(t, db, refs)
+	slices.Sort(got)
+	if strings.Join(got, " ") != "W1>W2 W1>W3 W1>W4" {
+		t.Errorf("References(W1) = %v, want W1>W2, W1>W3, W1>W4", got)
 	}
 
 	citedBy, err := db.CitedBy(ctx, "W2")
 	if err != nil {
 		t.Fatalf("CitedBy: %v", err)
 	}
-	if len(citedBy) != 1 || citedBy[0].FromWork != "W1" {
-		t.Errorf("CitedBy(W2) = %+v, want one edge from W1", citedBy)
+	if got := oaEdges(t, db, citedBy); len(got) != 1 || got[0] != "W1>W2" {
+		t.Errorf("CitedBy(W2) = %v, want one edge from W1", got)
 	}
 }
 
