@@ -189,7 +189,9 @@ mistake. Be deliberate:
 
 ## Data model
 
-See `internal/store/schema.sql` for the DDL, embedded with `//go:embed`. The one non-obvious
+See `internal/store/schema.sql` for the DDL, embedded with `//go:embed`. Every work is keyed by
+its `fil_id` (D17); `openalex_id` is a `UNIQUE` column, empty only for a local document. Schema
+changes are numbered steps in `internal/store/migrate.go`, all-or-nothing. The one non-obvious
 column is `cites.context` — the sentence around the citation marker in the citing paper. Nobody
 provides this for free and it is what makes retrieval better than everyone else's.
 

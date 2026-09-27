@@ -8,12 +8,14 @@ import (
 	"github.com/codevector-2003/filiation/internal/model"
 )
 
-// Work is a paper as an assistant sees it. Two fields are never omitted,
-// whatever else is missing (ARCHITECTURE.md §6): the OpenAlex ID, so that every
-// answer can be followed up with another call, and the open-access status, so
-// that an assistant does not claim it can read a paper it cannot.
+// Work is a paper as an assistant sees it. Two things are never omitted,
+// whatever else is missing (ARCHITECTURE.md §6): an ID, so that every answer can
+// be followed up with another call, and the open-access status, so that an
+// assistant does not claim it can read a paper it cannot. The fil ID is always
+// there (D17); the OpenAlex ID is there for every work OpenAlex knows.
 type Work struct {
-	ID       string `json:"id" jsonschema:"OpenAlex ID; pass it to any other tool"`
+	FilID    string `json:"fil_id" jsonschema:"the library's own ID for this paper, which never changes; pass it to any other tool"`
+	ID       string `json:"id,omitempty" jsonschema:"OpenAlex ID; also accepted by any other tool"`
 	OAStatus string `json:"oa_status" jsonschema:"diamond, gold, green, hybrid or bronze are free to read; closed is not; unknown until fetched"`
 
 	// Stub marks a work known only by its ID: something in the library cites
@@ -40,6 +42,7 @@ type Work struct {
 
 func toWork(w model.Work) Work {
 	out := Work{
+		FilID:        w.FilID,
 		ID:           w.OpenAlexID,
 		OAStatus:     string(w.OAStatus),
 		Stub:         w.IsStub(),

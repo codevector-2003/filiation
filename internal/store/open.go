@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/codevector-2003/filiation/internal/identity"
 )
 
 const (
@@ -43,6 +45,10 @@ type DB struct {
 	read  *sql.DB
 	write *sql.DB
 	path  string
+
+	// newID draws a fil ID. It is identity.NewFilID except in tests, which
+	// replace it to force a clash (D17).
+	newID func() string
 }
 
 // Open opens the library at path, creating its directory if needed.
@@ -87,7 +93,7 @@ func Open(ctx context.Context, path string) (*DB, error) {
 		return nil, fmt.Errorf("store: open %s for reading: %w", path, err)
 	}
 
-	return &DB{read: read, write: write, path: path}, nil
+	return &DB{read: read, write: write, path: path, newID: identity.NewFilID}, nil
 }
 
 // Path is where this library lives on disk. The CLI prints it on first run,

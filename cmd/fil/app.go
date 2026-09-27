@@ -427,8 +427,21 @@ func byline(w model.Work) string {
 	return s
 }
 
+// workIDs names a work by both its IDs, fil ID first: the one that never
+// changes, then the one the rest of the world uses. A local document has only
+// the first (D17).
+func workIDs(w model.Work) string {
+	if w.OpenAlexID == "" {
+		return w.FilID
+	}
+	if w.FilID == "" {
+		return w.OpenAlexID
+	}
+	return w.FilID + " " + w.OpenAlexID
+}
+
 func identifiers(w model.Work) string {
-	parts := []string{w.OpenAlexID}
+	parts := []string{workIDs(w)}
 	if w.DOI != nil {
 		parts = append(parts, "doi:"+*w.DOI)
 	}

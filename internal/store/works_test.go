@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/codevector-2003/filiation/internal/errs"
+	"github.com/codevector-2003/filiation/internal/identity"
 	"github.com/codevector-2003/filiation/internal/model"
 )
 
@@ -53,9 +54,8 @@ func TestUpsertWorkRoundTrip(t *testing.T) {
 		}
 	}
 
-	if got.PDFSHA256 != nil || got.PDFLicense != nil {
-		t.Errorf("PDF columns = %v, %v; want nil — the metadata path knows nothing about them",
-			got.PDFSHA256, got.PDFLicense)
+	if !identity.IsFilID(got.FilID) {
+		t.Errorf("FilID = %q, want a fil ID — every work gets one (D17)", got.FilID)
 	}
 	if got.AddedAt.IsZero() {
 		t.Errorf("AddedAt is zero, want the default datetime('now') parsed back")

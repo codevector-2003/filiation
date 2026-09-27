@@ -93,7 +93,7 @@ func (a *app) stats(ctx context.Context, listDuplicates bool) error {
 				if work.DOI != nil {
 					doi = "doi:" + *work.DOI
 				}
-				fmt.Fprintf(w, "    %-12s %s  %-16s %s\n", work.OpenAlexID, year, work.Type, doi)
+				fmt.Fprintf(w, "    %-22s %s  %-16s %s\n", workIDs(work), year, work.Type, doi)
 			}
 			fmt.Fprintln(w)
 		}

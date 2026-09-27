@@ -38,6 +38,37 @@ func expand(t *testing.T, g *Graph, ctx context.Context, o ExpandOptions) model.
 	return res
 }
 
+// isNode reports whether an OpenAlex ID has a row of its own. GetWork alone
+// cannot say: an ID folded into another record still finds the survivor, by
+// alias (D17).
+func isNode(t *testing.T, db *store.DB, openAlexID string) bool {
+	t.Helper()
+	w, err := db.GetWork(t.Context(), openAlexID)
+	if errors.Is(err, errs.ErrNotFound) {
+		return false
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	return w.OpenAlexID == openAlexID
+}
+
+// refsOf is what a work cites, as sorted OpenAlex IDs — the same in every
+// library, where fil IDs are not.
+func refsOf(t *testing.T, db *store.DB, openAlexID string) []string {
+	t.Helper()
+	works, err := db.WorksCitedBy(t.Context(), openAlexID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ids := make([]string, len(works))
+	for i, w := range works {
+		ids[i] = w.OpenAlexID
+	}
+	sort.Strings(ids)
+	return ids
+}
+
 // state is everything the graph holds that a user could see: every work with
 // its hydration state and depth, and every edge. Two libraries with the same
 // state are the same graph.
@@ -46,22 +77,14 @@ func state(t *testing.T, db *store.DB, universeSize int) string {
 	var lines []string
 	for i := 1; i <= universeSize; i++ {
 		wid := fmt.Sprintf("W%d", i)
-		w, err := db.GetWork(t.Context(), wid)
-		if errors.Is(err, errs.ErrNotFound) {
+		if !isNode(t, db, wid) {
 			continue
 		}
+		w, err := db.GetWork(t.Context(), wid)
 		if err != nil {
 			t.Fatal(err)
 		}
-		refs, err := db.References(t.Context(), wid)
-		if err != nil {
-			t.Fatal(err)
-		}
-		to := make([]string, len(refs))
-		for j, e := range refs {
-			to[j] = e.ToWork
-		}
-		sort.Strings(to)
+		to := refsOf(t, db, wid)
 		lines = append(lines, fmt.Sprintf("%s h=%v u=%v d=%v -> %s",
 			wid, w.Hydrated, w.Unresolved, model.Deref(w.Depth, -1), strings.Join(to, " ")))
 	}
@@ -344,15 +367,15 @@ func TestExpandFoldsMergedRecords(t *testing.T) {
 	if res.Hydrated != 1 {
 		t.Fatalf("hydrated %d, want 1", res.Hydrated)
 	}
-	if _, err := db.GetWork(t.Context(), "W5"); !errors.Is(err, errs.ErrNotFound) {
+	if isNode(t, db, "W5") {
 		t.Errorf("the merged-away W5 is still in the library")
 	}
 	w6, err := db.GetWork(t.Context(), "W6")
 	if err != nil || w6.IsStub() || model.Deref(w6.Depth, -1) != 1 {
 		t.Fatalf("W6 = %+v, %v; want hydrated at W5's depth, 1", w6, err)
 	}
-	if refs, _ := db.References(t.Context(), "W1"); len(refs) != 1 || refs[0].ToWork != "W6" {
-		t.Errorf("W1's references = %+v, want the edge moved to W6", refs)
+	if refs := refsOf(t, db, "W1"); strings.Join(refs, ",") != "W6" {
+		t.Errorf("W1's references = %v, want the edge moved to W6", refs)
 	}
 	if w7, err := db.GetWork(t.Context(), "W7"); err != nil || model.Deref(w7.Depth, -1) != 2 {
 		t.Errorf("W7 = %+v, %v; want a stub at depth 2", w7, err)
@@ -491,13 +514,13 @@ func TestExpandFoldsDuplicateDOIsInOneBatch(t *testing.T) {
 	if res.Hydrated != 1 || res.Merged != 1 {
 		t.Errorf("result = %+v, want 1 hydrated and 1 merged", res)
 	}
-	if _, err := db.GetWork(t.Context(), "W3"); !errors.Is(err, errs.ErrNotFound) {
+	if isNode(t, db, "W3") {
 		t.Errorf("the duplicate W3 is still a node")
 	}
 	// The seed's two edges collapse to one, and the duplicate's references
 	// are kept as the holder's: both records are accounts of one paper.
-	if refs, _ := db.References(t.Context(), "W1"); len(refs) != 1 || refs[0].ToWork != "W2" {
-		t.Errorf("W1's references = %+v, want W2 only", refs)
+	if refs := refsOf(t, db, "W1"); strings.Join(refs, ",") != "W2" {
+		t.Errorf("W1's references = %v, want W2 only", refs)
 	}
 	refs, _ := db.References(t.Context(), "W2")
 	if len(refs) != 2 {

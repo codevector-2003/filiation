@@ -34,8 +34,9 @@ const (
 )
 
 const instructions = `Filiation is the user's own citation graph: papers they added, and the papers
-those cite, stored on their machine. Every work is identified by its OpenAlex ID
-(W followed by digits); pass that ID between tools.
+those cite, stored on their machine. Every work has a fil_id (F followed by eight
+letters and digits), the library's own ID, which never changes; works OpenAlex knows
+also have an id (W followed by digits). Pass either between tools.
 
 Start with library_stats to see what is there. add_paper adds a paper by DOI, arXiv
 ID, PMID, OpenAlex ID, link or title. expand_graph follows references outward,
@@ -239,7 +240,7 @@ func (t tools) expandGraph(ctx context.Context, req *mcp.CallToolRequest, in exp
 // ---- neighbours ----
 
 type neighboursIn struct {
-	Identifier string `json:"identifier" jsonschema:"the paper: an OpenAlex ID, DOI, arXiv ID, PMID or title, already in the library"`
+	Identifier string `json:"identifier" jsonschema:"the paper: a fil ID, OpenAlex ID, DOI, arXiv ID, PMID or title, already in the library"`
 	Direction  string `json:"direction,omitempty" jsonschema:"cites (its references), cited_by (what in the library cites it), or both (default)"`
 	Limit      int    `json:"limit,omitempty" jsonschema:"how many works to list each way (default 20, at most 100)"`
 }
@@ -441,7 +442,8 @@ func toolError(err error) error {
 	case errors.Is(err, errs.ErrNotFound):
 		return fmt.Errorf("%v. Only papers already in the library can be looked up; add it with add_paper first", err)
 	case errors.Is(err, errs.ErrInvalidInput):
-		return fmt.Errorf("%v. Give a DOI, arXiv ID, PMID, OpenAlex ID (W followed by digits), a link, or a title", err)
+		return fmt.Errorf("%v. Give a DOI, arXiv ID, PMID, OpenAlex ID (W followed by digits), a link, or a title; "+
+			"a fil ID (F followed by eight characters) names a paper already in the library", err)
 	case errors.Is(err, errs.ErrUnresolved):
 		return fmt.Errorf("%v. Check the identifier; OpenAlex has no such work", err)
 	case errors.Is(err, errs.ErrTransient):

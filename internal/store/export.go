@@ -7,8 +7,8 @@ import (
 	"github.com/codevector-2003/filiation/internal/model"
 )
 
-// EachWork calls fn for every work in the library, in ID order, one row at a
-// time — a large library is never held in memory whole. With includeStubs
+// EachWork calls fn for every work in the library, in OpenAlex ID order (then
+// fil ID, for works OpenAlex does not know), one row at a time — a large library is never held in memory whole. With includeStubs
 // false only fetched works are visited: a stub has an ID and nothing else, and
 // in a library grown by expansion stubs outnumber fetched works ten to one.
 //
@@ -18,7 +18,7 @@ func (db *DB) EachWork(ctx context.Context, includeStubs bool, fn func(w *model.
 	if !includeStubs {
 		q += ` WHERE hydrated = 1`
 	}
-	rows, err := db.read.QueryContext(ctx, q+` ORDER BY openalex_id;`)
+	rows, err := db.read.QueryContext(ctx, q+` ORDER BY openalex_id IS NULL, openalex_id, fil_id;`)
 	if err != nil {
 		return fmt.Errorf("store: walk works: %w", err)
 	}
@@ -35,7 +35,8 @@ func (db *DB) EachWork(ctx context.Context, includeStubs bool, fn func(w *model.
 	return rows.Err()
 }
 
-// EachEdge calls fn for every citation, ordered by citing then cited work. With
+// EachEdge calls fn for every citation, as a pair of fil IDs, ordered by citing
+// then cited work. With
 // includeStubs false only edges between two fetched works are visited, so an
 // export never refers to a node it did not write. The citing side is always
 // fetched — only a fetched work has a known reference list — so the test is on
@@ -43,7 +44,7 @@ func (db *DB) EachWork(ctx context.Context, includeStubs bool, fn func(w *model.
 func (db *DB) EachEdge(ctx context.Context, includeStubs bool, fn func(from, to string) error) error {
 	q := `SELECT c.from_work, c.to_work FROM cites c`
 	if !includeStubs {
-		q += ` JOIN work w ON w.openalex_id = c.to_work AND w.hydrated = 1`
+		q += ` JOIN work w ON w.fil_id = c.to_work AND w.hydrated = 1`
 	}
 	rows, err := db.read.QueryContext(ctx, q+` ORDER BY c.from_work, c.to_work;`)
 	if err != nil {

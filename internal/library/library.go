@@ -235,8 +235,8 @@ func (l *Library) withAuthors(ctx context.Context, lists ...[]model.Work) error 
 	var ids []string
 	for _, ws := range lists {
 		for _, w := range ws {
-			if !w.IsStub() {
-				ids = append(ids, w.OpenAlexID)
+			if !w.IsStub() && w.FilID != "" {
+				ids = append(ids, w.FilID)
 			}
 		}
 	}
@@ -249,7 +249,7 @@ func (l *Library) withAuthors(ctx context.Context, lists ...[]model.Work) error 
 	}
 	for _, ws := range lists {
 		for i := range ws {
-			if as, ok := byWork[ws[i].OpenAlexID]; ok {
+			if as, ok := byWork[ws[i].FilID]; ok {
 				ws[i].Authors = as
 			}
 		}
@@ -359,6 +359,7 @@ func (l *Library) Find(ctx context.Context, input string) (model.Work, error) {
 	}
 
 	by := map[identity.Kind]store.Lookup{
+		identity.KindFil:      store.ByFilID,
 		identity.KindOpenAlex: store.ByOpenAlexID,
 		identity.KindDOI:      store.ByDOI,
 		identity.KindArXiv:    store.ByArXivID,
@@ -402,7 +403,7 @@ func (l *Library) Find(ctx context.Context, input string) (model.Work, error) {
 	case 0:
 		return model.Work{}, fmt.Errorf("no work titled %q in your library: %w", id.Value, errs.ErrNotFound)
 	case 1:
-		return l.getWork(ctx, matches[0].OpenAlexID)
+		return l.getWork(ctx, matches[0].FilID)
 	}
 	candidates := make([]Candidate, len(matches))
 	for i, w := range matches {
@@ -429,11 +430,11 @@ func (l *Library) Neighbours(ctx context.Context, input string) (Neighbourhood, 
 	if err != nil {
 		return Neighbourhood{}, err
 	}
-	cites, err := l.db.WorksCitedBy(ctx, w.OpenAlexID)
+	cites, err := l.db.WorksCitedBy(ctx, w.FilID)
 	if err != nil {
 		return Neighbourhood{}, err
 	}
-	citedBy, err := l.db.WorksCiting(ctx, w.OpenAlexID)
+	citedBy, err := l.db.WorksCiting(ctx, w.FilID)
 	if err != nil {
 		return Neighbourhood{}, err
 	}
@@ -497,11 +498,11 @@ func (l *Library) PathBetween(ctx context.Context, from, to string, opts PathOpt
 
 	var p store.Path
 	if opts.AnyDirection {
-		p, err = l.db.ShortestPath(ctx, a.OpenAlexID, b.OpenAlexID, hops, store.Either)
+		p, err = l.db.ShortestPath(ctx, a.FilID, b.FilID, hops, store.Either)
 	} else {
-		p, err = l.db.ShortestPath(ctx, a.OpenAlexID, b.OpenAlexID, hops, store.Backward)
+		p, err = l.db.ShortestPath(ctx, a.FilID, b.FilID, hops, store.Backward)
 		if errors.Is(err, errs.ErrNotFound) {
-			p, err = l.db.ShortestPath(ctx, b.OpenAlexID, a.OpenAlexID, hops, store.Backward)
+			p, err = l.db.ShortestPath(ctx, b.FilID, a.FilID, hops, store.Backward)
 			if err == nil {
 				p = reversePath(p)
 			}

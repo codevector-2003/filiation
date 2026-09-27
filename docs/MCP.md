@@ -121,7 +121,7 @@ A sample session, with the calls the assistant made and what came back, is in
 
 1. **No unbounded lists.** Every list is capped and ranked, and says how many it left out. An
    assistant handed five thousand works spends its context on them and loses the thread.
-2. **Every paper carries its OpenAlex ID and open-access status.** The ID lets the assistant ask a
+2. **Every paper carries its IDs and open-access status.** The IDs let the assistant ask a
    follow-up about any paper it was shown. The status stops it from claiming it can read a paper it
    can't.
 3. **Stubs are labelled.** A *stub* is a work the library knows only by ID: something cites it, but
@@ -139,7 +139,8 @@ structured results. Arguments not given take the default shown.
 
 | Field | Always there | Meaning |
 | --- | --- | --- |
-| `id` | yes | OpenAlex ID, `W` followed by digits. Pass it to any other tool |
+| `fil_id` | yes | The library's own ID, `F` followed by eight letters and digits (`F7K2M9QXA`). It never changes. Pass it to any other tool |
+| `id` | for every paper OpenAlex knows | OpenAlex ID, `W` followed by digits. Also accepted by any other tool |
 | `oa_status` | yes | `diamond`, `gold`, `green`, `hybrid` or `bronze` are free to read; `closed` is not; `unknown` until the paper is fetched |
 | `stub` | yes | `true` when only the ID is known |
 | `title`, `year`, `type`, `venue`, `doi` | when known | Bibliographic details |
@@ -157,7 +158,7 @@ nothing.
 
 | Argument | Default | |
 | --- | --- | --- |
-| `identifier` | required | A DOI, arXiv ID, PMID, OpenAlex ID, a link to any of those, or a title |
+| `identifier` | required | A DOI, arXiv ID, PMID, OpenAlex ID, a link to any of those, or a title. A fil ID names a paper already in the library, so `add_paper` refuses one |
 | `candidates` | 10 | For a title, how many possible matches to offer (at most 100) |
 
 Returns a `status`:

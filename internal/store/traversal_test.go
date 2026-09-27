@@ -37,6 +37,7 @@ func shortest(t *testing.T, db *DB, from, to string, maxHops int, dir Direction)
 	if len(p.Cites) != len(p.IDs)-1 {
 		t.Fatalf("path %v has %d direction flags", p.IDs, len(p.Cites))
 	}
+	p.IDs = oa(t, db, p.IDs...)
 	return chain(p), nil
 }
 

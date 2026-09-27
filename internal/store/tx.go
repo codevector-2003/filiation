@@ -21,7 +21,8 @@ import (
 // work claiming fetched_refs it never wrote. §4 sizes that unit at one batch —
 // Ctrl-C loses at most one batch of progress and never a half-written graph.
 type Tx struct {
-	tx *sql.Tx
+	tx    *sql.Tx
+	newID func() string // draws fil IDs for rows this transaction creates
 }
 
 // Tx runs fn inside one write transaction, committing if it returns nil and
@@ -43,7 +44,7 @@ func (db *DB) Tx(ctx context.Context, fn func(*Tx) error) error {
 	// this is safe on every exit.
 	defer tx.Rollback() //nolint:errcheck // no-op after commit
 
-	if err := fn(&Tx{tx: tx}); err != nil {
+	if err := fn(&Tx{tx: tx, newID: db.newID}); err != nil {
 		return err
 	}
 

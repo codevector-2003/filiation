@@ -569,8 +569,8 @@ reworded), D18 (the library is a folder the user chooses; `papers/` with readabl
 
 | Step | Work | State |
 | --- | --- | --- |
-| 1 | `identity`: fil IDs | Next |
-| 2 | Schema v2 and the first migration; fil IDs through every layer | Not started |
+| 1 | `identity`: fil IDs | **Done** — 27 Sept |
+| 2 | Schema v2 and the first migration; fil IDs through every layer | **Done** — 27 Sept |
 | 3 | The library folder and `papers/`: config, names, atomic writes, rescan, `fil library move` | Not started |
 | 4 | Spikes 9 (PDF availability), 10 (extractor bake-off), 11 (reference matching) | Not started — **needs network**, see below |
 | 5 | Legal PDF links: OpenAlex locations, Unpaywall if spike 9 justifies it | Not started |
@@ -580,6 +580,44 @@ reworded), D18 (the library is a folder the user chooses; `papers/` with readabl
 | 9 | Citation context | Not started |
 | 10 | `fil list`, `fil show`, full text in `fil stats`; MCP `search_library` and a fetch tool | Not started |
 | 11 | Validation run, docs, tag **v0.3** | Not started |
+
+**Steps 1–2 — fil IDs, and the first migration.** Every work now has a fil ID
+(`F7K2M9QXA`): generated in `internal/identity` from `crypto/rand`, with at least one digit so
+that a nine-letter word beginning with F is never read as an ID, and no lookalike substitution
+for the same reason. `fil add` refuses a fil ID without a request — it names a work already in
+the library.
+
+`work.fil_id` is the primary key and every table that refers to a work refers to it;
+`openalex_id` is `UNIQUE`. The write path still takes OpenAlex IDs, because that is what OpenAlex
+sends, and looks up or creates the fil ID inside the single writer; reads take any ID a work has
+or had. `fil neighbours`, `fil path` and the MCP tools accept fil IDs, and every result shows both.
+GraphML nodes are now keyed by fil ID, with `openalex_id` as an attribute.
+
+- **The first real migration.** A v1 library is upgraded in one transaction: the v1 tables are
+  renamed aside, the v2 tables created, rows copied through a map from OpenAlex ID to new fil
+  ID, row counts compared table by table, `foreign_key_check` run, and only then the v1 tables
+  dropped. **The rowid order of `cites` is preserved** — the frontier ranks references by it.
+  Foreign keys stay on throughout, which SQLite's generic twelve-step recipe does not manage:
+  renaming a table rewrites the references to it, and dropping the v1 children before `v1_work`
+  means the parent's drop cascades into nothing. Tested against a real v1 library built from the
+  v0.2 schema, and against one that would lose a row, which is refused and left untouched.
+- **Found on the way:** `fil_id TEXT PRIMARY KEY` accepted NULL. SQLite lets a non-INTEGER primary
+  key hold NULL unless the column also says `NOT NULL` — a compatibility quirk. It now does, and a
+  test pins it.
+- **Folds keep names and user data.** When two records fold into one, the survivor keeps its fil
+  ID; the other's fil ID and OpenAlex ID become aliases, and its notes, collections and text move
+  to the survivor rather than being deleted by the cascade. An alias is never reused as a new
+  fil ID.
+- **Tie-breaking is unchanged.** Path finding and neighbour lists still break ties by OpenAlex
+  ID, which orders the same way in every library; fil IDs are random and would not.
+- A clashing fil ID is drawn again inside the single writer (tested with a forced clash), and a
+  generator that only ever returns taken IDs fails after 16 draws rather than looping.
+- **Measured, not assumed:** recording 200 works citing 80 overlapping references each (16,000
+  edges) takes 0.95 s on v1 and 1.35 s on v2. The difference is mostly the second unique index
+  `work` now keeps. A first draft that checked each new ID in a query of its own took 1.43 s, and
+  one that tried the insert first took 2.1 s — a refused insert costs more than a lookup, and in a
+  dense graph most references point at works already present. On a live 500-work expansion,
+  which is network-bound at ~20 s, the difference is about a second.
 
 **Found while planning.** OpenAlex's `oa_url` for the M0 seed, a gold OA paper, is a DOI landing
 page and its `pdf_url` is null — what v0.2 stores is usually not a PDF, so M3 reads OA locations

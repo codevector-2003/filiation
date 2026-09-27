@@ -1,8 +1,12 @@
 -- Filiation storage schema (SQLite)
 --
 -- Design notes:
---   * openalex_id is the canonical key. It kills duplicate preprint/conference/journal
---     versions of the same work, because OpenAlex already merges most of them.
+--   * fil_id is the primary key: "F" and eight Crockford base32 characters, created
+--     once and never changed (D17). Every table that refers to a work refers to it.
+--   * openalex_id is the deduplication key. It kills duplicate preprint/conference/
+--     journal versions of the same work, because OpenAlex already merges most of
+--     them. It is UNIQUE, so the database refuses a second row for one OpenAlex
+--     work, and NULL for a work OpenAlex does not know (a local document).
 --   * cites.context holds the sentence around the citation marker in the citing paper.
 --     Nobody provides this for free. It is what makes retrieval better than plain search.
 --   * PDFs live on the filesystem, named by their SHA-256. Only the hash is stored here.
@@ -18,6 +22,11 @@ PRAGMA foreign_keys = ON;
 
 -- ---------------------------------------------------------------- works
 
+-- Schema history: v1 keyed work on openalex_id (v0.1, v0.2). v2 added fil_id as
+-- the key and work_alias, and dropped the unused pdf_sha256 and pdf_license, whose
+-- replacement arrives with the papers/ folder (ARCHITECTURE_PHASE3.md §5). The
+-- upgrade is in migrate.go.
+--
 -- A work row exists in one of two states (see ADR-003):
 --   stub     hydrated = 0 — the OpenAlex ID is known and nothing else. Created the
 --                           moment another paper is seen to reference it, which is
@@ -25,7 +34,9 @@ PRAGMA foreign_keys = ON;
 --   hydrated hydrated = 1 — metadata fetched.
 -- Because of this, title is NULLABLE. Every read path must tolerate a stub.
 CREATE TABLE IF NOT EXISTS work (
-    openalex_id   TEXT PRIMARY KEY,
+    -- NOT NULL is not redundant: SQLite lets a non-INTEGER primary key hold NULL.
+    fil_id        TEXT PRIMARY KEY NOT NULL,  -- F7K2M9QXA; never changes (D17)
+    openalex_id   TEXT UNIQUE,       -- NULL for a work OpenAlex does not know
     doi           TEXT UNIQUE,
     arxiv_id      TEXT,
     pmid          TEXT,
@@ -37,8 +48,6 @@ CREATE TABLE IF NOT EXISTS work (
     cited_by_count INTEGER DEFAULT 0,
     oa_status     TEXT,              -- gold | green | hybrid | bronze | closed
     oa_url        TEXT,              -- legal full-text location, if any
-    pdf_sha256    TEXT,              -- NULL until the PDF is fetched
-    pdf_license   TEXT,              -- record it: needed to know what may be redistributed
     hydrated      INTEGER DEFAULT 0, -- 0 = stub, 1 = metadata fetched
     fetched_refs  INTEGER DEFAULT 0, -- 0 = its own references not yet recorded
     unresolved    INTEGER DEFAULT 0, -- OpenAlex has no record of it; stop retrying
@@ -57,6 +66,17 @@ CREATE INDEX IF NOT EXISTS idx_work_refs   ON work(fetched_refs);
 CREATE INDEX IF NOT EXISTS idx_work_frontier
     ON work(hydrated, depth) WHERE hydrated = 0;
 
+-- IDs a work used to have. When two records fold into one (a merged OpenAlex
+-- record, a shared DOI), the survivor keeps its fil ID and the other's fil ID and
+-- OpenAlex ID land here, so a folder name, a note or a script that used them
+-- still finds the paper. An alias is never reused as a new fil ID.
+CREATE TABLE IF NOT EXISTS work_alias (
+    alias  TEXT PRIMARY KEY,
+    fil_id TEXT NOT NULL REFERENCES work(fil_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_work_alias_fil ON work_alias(fil_id);
+
 -- ---------------------------------------------------------------- people
 
 CREATE TABLE IF NOT EXISTS author (
@@ -66,7 +86,7 @@ CREATE TABLE IF NOT EXISTS author (
 );
 
 CREATE TABLE IF NOT EXISTS authorship (
-    work_id   TEXT NOT NULL REFERENCES work(openalex_id) ON DELETE CASCADE,
+    work_id   TEXT NOT NULL REFERENCES work(fil_id) ON DELETE CASCADE,
     author_id TEXT NOT NULL REFERENCES author(openalex_id) ON DELETE CASCADE,
     position  INTEGER,
     PRIMARY KEY (work_id, author_id)
@@ -75,8 +95,8 @@ CREATE TABLE IF NOT EXISTS authorship (
 -- ---------------------------------------------------------------- the graph
 
 CREATE TABLE IF NOT EXISTS cites (
-    from_work  TEXT NOT NULL REFERENCES work(openalex_id) ON DELETE CASCADE,
-    to_work    TEXT NOT NULL REFERENCES work(openalex_id) ON DELETE CASCADE,
+    from_work  TEXT NOT NULL REFERENCES work(fil_id) ON DELETE CASCADE,
+    to_work    TEXT NOT NULL REFERENCES work(fil_id) ON DELETE CASCADE,
     intent     TEXT,     -- background | method | comparison | contradiction | uncategorised
     context    TEXT,     -- the sentence around the citation marker
     section    TEXT,     -- intro | methods | results | discussion | related-work
@@ -92,7 +112,7 @@ CREATE INDEX IF NOT EXISTS idx_cites_intent ON cites(intent);
 
 CREATE TABLE IF NOT EXISTS chunk (
     id       INTEGER PRIMARY KEY,
-    work_id  TEXT NOT NULL REFERENCES work(openalex_id) ON DELETE CASCADE,
+    work_id  TEXT NOT NULL REFERENCES work(fil_id) ON DELETE CASCADE,
     section  TEXT,
     page     INTEGER,
     ordinal  INTEGER,   -- position within the work, for stitching neighbours back together
@@ -134,7 +154,7 @@ END;
 
 CREATE TABLE IF NOT EXISTS note (
     id         INTEGER PRIMARY KEY,
-    work_id    TEXT NOT NULL REFERENCES work(openalex_id) ON DELETE CASCADE,
+    work_id    TEXT NOT NULL REFERENCES work(fil_id) ON DELETE CASCADE,
     body       TEXT NOT NULL,
     created_at TEXT DEFAULT (datetime('now'))
 );
@@ -146,7 +166,7 @@ CREATE TABLE IF NOT EXISTS collection (
 
 CREATE TABLE IF NOT EXISTS collection_work (
     collection_id INTEGER NOT NULL REFERENCES collection(id) ON DELETE CASCADE,
-    work_id       TEXT NOT NULL REFERENCES work(openalex_id) ON DELETE CASCADE,
+    work_id       TEXT NOT NULL REFERENCES work(fil_id) ON DELETE CASCADE,
     PRIMARY KEY (collection_id, work_id)
 );
 
@@ -157,4 +177,4 @@ CREATE TABLE IF NOT EXISTS meta (
     value TEXT
 );
 
-INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '1');
+INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '2');
