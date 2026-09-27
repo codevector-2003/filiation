@@ -12,7 +12,7 @@ tool does for papers: it reconstructs where a claim came from by following the c
 - Language: **Go** (see D8 in `docs/DECISIONS.md`)
 - Module: `github.com/codevector-2003/filiation`
 - Binary / CLI command: `fil`
-- Status: **M0 complete** (24 Sept 2026). **M1 complete — v0.1 released** (25 Sept 2026). Every command works and the 20-seed validation run passed 20 of 20 (`docs/VALIDATION.md`). Licensed Apache-2.0 (D15). **M2 complete — v0.2 released** (25 Sept 2026): `fil mcp` serves five tools to AI assistants (`docs/MCP.md`). **M3 next.** See `docs/STATUS.md`.
+- Status: **M0 complete** (24 Sept 2026). **M1 complete — v0.1 released** (25 Sept 2026). Every command works and the 20-seed validation run passed 20 of 20 (`docs/VALIDATION.md`). Licensed Apache-2.0 (D15). **M2 complete — v0.2 released** (25 Sept 2026): `fil mcp` serves five tools to AI assistants (`docs/MCP.md`). **M3 in progress** (from 27 Sept 2026) — design in `docs/ARCHITECTURE_PHASE3.md`, decisions D17–D19. See `docs/STATUS.md`.
 
 ---
 
@@ -51,11 +51,14 @@ than plain search.
 5. **One writer goroutine.** SQLite allows a single writer. Go makes it trivially easy to
    violate this by accident — see "Concurrency" below. This is the most likely source of
    `database is locked` bugs in this codebase.
-6. **Deduplicate on `openalex_id`.** The same work exists as preprint, conference paper and
-   journal article with different DOIs. OpenAlex already merges most of these. Use its ID as the
-   primary key or the graph will quietly rot. Merged records and shared DOIs are folded on the
-   way in (`graph.hydrate`). **A shared title is reported, never merged** — a book review carries
-   its book's title (D14).
+6. **Every work has a fil ID; deduplicate on `openalex_id`.** Every work has a fil ID
+   (`F` + 8 Crockford base32 characters, e.g. `F7K2M9QXA`), created once and never changed — it is
+   the primary key (D17). The same work exists as preprint, conference paper and journal article
+   with different DOIs; OpenAlex already merges most of these, so **no two works may share an
+   `openalex_id`** — the database enforces it with a `UNIQUE` index, or the graph will quietly rot.
+   Merged records and shared DOIs are folded on the way in (`graph.hydrate`), and the folded
+   work's IDs are kept as aliases. **A shared title is reported, never merged** — a book review
+   carries its book's title (D14).
 
 ---
 
@@ -104,7 +107,7 @@ filiation/
 ├── internal/
 │   ├── library/               ★ THE CORE. add, expand, search, ask, path
 │   ├── store/                 ★ ALL SQL. schema.sql embedded here. The swap seam
-│   ├── blobs/                 content-addressed PDF storage
+│   ├── blobs/                 the papers/ folder: readable names, hashes in the DB (D18)
 │   ├── graph/                 expand, traverse, identity resolution
 │   ├── export/                GraphML, JSON, BibTeX — no lock-in, M1
 │   ├── text/                  pdf extraction, chunking, citation context
@@ -115,7 +118,7 @@ filiation/
 │   ├── llm/                   ollama or user API key
 │   ├── httpx/                 rate limiting, retry, response cache
 │   ├── config/                library path, contact email, budgets    ┐ leaves —
-│   ├── identity/              DOI, arXiv, OpenAlex ID, PMID, title    │ these import
+│   ├── identity/              fil ID, DOI, arXiv, OpenAlex ID, PMID, title │ these import
 │   ├── model/                 Work, Edge, FrontierItem                │ nothing else
 │   ├── errs/                  sentinel errors, compared with errors.Is┘ in internal/
 │   ├── mcpsrv/                MCP tool definitions, M2
@@ -179,6 +182,7 @@ mistake. Be deliberate:
 - `docs/STATUS.md` — where the project actually is, what is done, what is next. **Start here.**
 - `docs/ARCHITECTURE.md` — whole-system design.
 - `docs/ARCHITECTURE_PHASE1.md` — detailed design for the core graph, with ADRs.
+- `docs/ARCHITECTURE_PHASE3.md` — detailed design for M3: fil IDs, the library folder, PDFs, text, import, citation context.
 - `docs/SPIKES.md` — measured answers. **Trust these over any documentation, including this file.**
 - `docs/VALIDATION.md` — live validation runs: M1 (20 seeds, 5 fields) and M2 (a real MCP client).
 - `docs/MCP.md` — the MCP server: client set-up, every tool, limits, troubleshooting.
@@ -215,9 +219,10 @@ Phase 1 carries two extra weeks for that.
       *Done when:* one seed gives a clean 500-node graph with no duplicates, opens in Gephi.
 - [x] **M2 — MCP server** (~1 week). Expose M1 as MCP tools. The differentiator.
       *Done 25 Sept 2026 — v0.2.*
-- [ ] **M3 — Papers on disk** (3–4 weeks). OA PDF fetch, content-addressed storage, text
-      extraction, chunking, FTS5. **Capture citation context sentences here.** Longer than the
-      Python plan because the ingestion layer is now ours to write.
+- [ ] **M3 — Papers on disk** (3–4 weeks). *In progress from 27 Sept 2026.* fil IDs, the library
+      as a folder the user chooses, OA PDF fetch into readable `papers/` folders, importing PDFs the
+      user already has, text extraction, chunking, FTS5. **Capture citation context sentences
+      here.** Design and build order: `docs/ARCHITECTURE_PHASE3.md`.
 - [ ] **M4 — Retrieval and answers** (3–4 weeks). Ollama embeddings, `vec1`, hybrid
       retrieval, answers with citations. **Pre-filtering by graph and FTS5 is load-bearing, not an
       optimisation** — the vector stage is a brute-force scan, so it must never see the whole
@@ -284,7 +289,8 @@ write our own.
 ## Still open
 
 1. ~~**Licence**~~ — **decided: Apache-2.0** (D15), 24 Sept 2026.
-2. **Zotero** — read from a user's existing library? Cheapest route to real users. Decide early.
+2. **Zotero** — not in M3 (D19). The cheapest later route is importing a BibTeX or CSL-JSON
+   export rather than reading Zotero's database file.
 3. **Embeddings without Ollama** — is a pure-Go ONNX path (`onnx-gomlx`) worth the risk later,
    to restore true one-command setup? Revisit after M4 ships.
 4. **Who maintains it after the degree?**
