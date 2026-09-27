@@ -135,8 +135,21 @@ type Added struct {
 // typo is refused before anything is created — including, on a first run, the
 // library itself.
 func Validate(input string) error {
-	_, err := identity.Parse(input)
-	return err
+	id, err := identity.Parse(input)
+	if err != nil {
+		return err
+	}
+	return addable(id)
+}
+
+// addable refuses a fil ID for Add. A fil ID names a work already in this
+// library (D17); OpenAlex has never heard of it, so there is nothing to fetch.
+func addable(id identity.ID) error {
+	if id.Kind == identity.KindFil {
+		return fmt.Errorf("%s is a fil ID, which names a work already in your library — "+
+			"fil add takes a DOI, arXiv ID, PMID, OpenAlex ID or title: %w", id.Value, errs.ErrInvalidInput)
+	}
+	return nil
 }
 
 // Add adds a paper to the library as a seed: the work, a stub for everything it
@@ -155,6 +168,9 @@ func Validate(input string) error {
 func (l *Library) Add(ctx context.Context, input string, opts AddOptions) (Added, error) {
 	id, err := identity.Parse(input)
 	if err != nil {
+		return Added{}, err
+	}
+	if err := addable(id); err != nil {
 		return Added{}, err
 	}
 
