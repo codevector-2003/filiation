@@ -193,6 +193,7 @@ func TestDeterministic(t *testing.T) {
 		"10.1145/3292500.3330701":   true,
 		"1706.03762":                true,
 		"PMID:29051481":             true,
+		"F7K2M9QXA":                 true,
 		"Attention Is All You Need": false,
 	} {
 		id, err := Parse(input)
@@ -293,6 +294,7 @@ func TestKindString(t *testing.T) {
 		KindArXiv:    "arXiv ID",
 		KindPMID:     "PMID",
 		KindTitle:    "title",
+		KindFil:      "fil ID",
 	} {
 		if got := k.String(); got != want {
 			t.Errorf("Kind(%d).String() = %q, want %q", int(k), got, want)

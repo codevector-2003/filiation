@@ -20,6 +20,10 @@ const (
 	KindArXiv
 	KindPMID
 	KindTitle
+
+	// KindFil is a fil ID (D17). It names a work already in this library and
+	// nothing outside it: OpenAlex has never heard of one.
+	KindFil
 )
 
 // String names the kind the way a user would, for messages like
@@ -36,6 +40,8 @@ func (k Kind) String() string {
 		return "PMID"
 	case KindTitle:
 		return "title"
+	case KindFil:
+		return "fil ID"
 	default:
 		return "unknown identifier"
 	}
@@ -173,6 +179,12 @@ func Parse(input string) (ID, error) {
 
 	// 2. Bare identifiers.
 	switch {
+	case IsFilID(s):
+		// Before everything else bare: a fil ID begins with F and is never a
+		// DOI, a number or an arXiv ID, and one that fails the digit rule
+		// falls through to the title it probably is.
+		return ID{Kind: KindFil, Value: strings.ToUpper(s), Raw: input}, nil
+
 	case openAlexLike.MatchString(s):
 		v, err := NormaliseOpenAlexID(s)
 		if err != nil {

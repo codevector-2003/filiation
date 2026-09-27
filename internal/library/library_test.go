@@ -300,6 +300,16 @@ func TestAddProceedingsVolumeIsADeadEnd(t *testing.T) {
 	}
 }
 
+func TestValidateRefusesFilID(t *testing.T) {
+	t.Parallel()
+	if err := Validate("f7k2m9qxa"); !errors.Is(err, errs.ErrInvalidInput) {
+		t.Errorf("Validate(fil ID) = %v, want ErrInvalidInput", err)
+	}
+	if err := Validate("10.7717/peerj.4375"); err != nil {
+		t.Errorf("Validate(DOI) = %v, want nil", err)
+	}
+}
+
 func TestAddErrors(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -309,6 +319,9 @@ func TestAddErrors(t *testing.T) {
 		want   error
 	}{
 		{"not an identifier", "2017", nil, errs.ErrInvalidInput},
+		// A fil ID names a work already in the library; there is nothing to
+		// ask OpenAlex, and no route is recorded, so a request would fail.
+		{"a fil ID", "F7K2M9QXA", nil, errs.ErrInvalidInput},
 		{"not in OpenAlex", "W99999999999", map[string]string{"/works/W99999999999": "404"}, errs.ErrUnresolved},
 		{"no title candidates", "zzqx", map[string]string{
 			"/works?filter=title.search:zzqx": `{"meta":{"count":0},"results":[]}`,
