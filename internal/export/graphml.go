@@ -21,6 +21,10 @@ import (
 //
 // Edges point from the citing work to the cited one: an arrow means "cites",
 // which is also the direction fil path calls lineage.
+//
+// Nodes are identified by fil ID (D17): every work has one, including a local
+// document OpenAlex does not know, and it never changes, so two exports of one
+// library line up. The OpenAlex ID is a node attribute like the DOI.
 type GraphML struct {
 	w      *bufio.Writer
 	err    error
@@ -33,6 +37,7 @@ type GraphML struct {
 // shows on the canvas; the rest are there to size, colour and filter by.
 var nodeKeys = []struct{ id, typ string }{
 	{"label", "string"},
+	{"openalex_id", "string"},
 	{"title", "string"},
 	{"year", "int"},
 	{"type", "string"},
@@ -66,8 +71,11 @@ func NewGraphML(w io.Writer) *GraphML {
 // zero or empty: a stub has no year, and "year 0" would put it at the start of
 // every timeline.
 func (g *GraphML) WriteNode(w *model.Work) {
-	g.printf(`    <node id="%s">`+"\n", attr(w.OpenAlexID))
+	g.printf(`    <node id="%s">`+"\n", attr(w.FilID))
 	g.data("label", w.DisplayTitle())
+	if w.OpenAlexID != "" {
+		g.data("openalex_id", w.OpenAlexID)
+	}
 	if w.Title != nil {
 		g.data("title", *w.Title)
 	}
@@ -99,7 +107,7 @@ func (g *GraphML) WriteNode(w *model.Work) {
 	g.nodes++
 }
 
-// WriteEdge writes one citation: from cites to.
+// WriteEdge writes one citation: from cites to. Both are fil IDs.
 func (g *GraphML) WriteEdge(from, to string) {
 	g.printf(`    <edge source="%s" target="%s"/>`+"\n", attr(from), attr(to))
 	g.edges++

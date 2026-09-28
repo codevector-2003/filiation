@@ -199,9 +199,9 @@ One SQLite file plus a directory of PDFs. Rationale in `DECISIONS.md` D3 and D4.
 | Chunk text | `library.db` | Small; must be searchable and joinable |
 | Keyword index | `library.db` (FTS5) | Built in, no dependency |
 | Embeddings | `library.db` (sqlite-vec) | Same file. Pre-1.0: pin the version |
-| PDFs | `blobs/ab/<sha256>.pdf` | Content-addressed, sharded two chars deep |
+| PDFs | `papers/<Author-Year-Title--filID>/published.pdf` in the library folder | **Changed by D18:** readable names, one folder per work, SHA-256 in the database. See `ARCHITECTURE_PHASE3.md` ADR-012 |
 | HTTP cache | `http/` under the OS cache directory | **Separate from the library** — deletable without touching user data. A directory of files, not `cache.db`; see ADR-004's implementation note |
-| Config | `config.toml` | Alongside the library |
+| Config | `filiation.toml` | In the library folder (D18); the global config lists libraries |
 | Web UI assets | inside the binary | `//go:embed` — nothing to ship separately |
 
 Everything derived — text, chunks, embeddings, citation contexts — is regenerable from the blobs

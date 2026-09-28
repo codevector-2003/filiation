@@ -137,7 +137,7 @@ func listWorks(w io.Writer, works []model.Work, limit int) {
 		shown = works[:limit]
 	}
 	for _, work := range shown {
-		fmt.Fprintf(w, "  • %s  %s\n", headline(work), work.OpenAlexID)
+		fmt.Fprintf(w, "  • %s  %s\n", headline(work), workIDs(work))
 	}
 	if len(shown) < len(works) {
 		fmt.Fprintf(w, "  … and %s more — pass --limit 0 to list all.\n", thousands(len(works)-len(shown)))
@@ -192,7 +192,7 @@ func (a *app) path(ctx context.Context, from, to string, maxHops int, anyDirecti
 	}
 	fmt.Fprintln(w)
 	for i, work := range p.Works {
-		fmt.Fprintf(w, "  %s  %s\n", headline(work), work.OpenAlexID)
+		fmt.Fprintf(w, "  %s  %s\n", headline(work), workIDs(work))
 		if i < steps {
 			if p.Cites[i] {
 				fmt.Fprintln(w, "      cites")
@@ -211,9 +211,9 @@ func (a *app) explainFind(err error) error {
 	if errors.As(err, &amb) {
 		fmt.Fprintf(a.stderr, "%q matches %d works in your library:\n\n", amb.Title, len(amb.Candidates))
 		for _, c := range amb.Candidates {
-			fmt.Fprintf(a.stderr, "  • %s  %s\n", headline(c.Work), c.Work.OpenAlexID)
+			fmt.Fprintf(a.stderr, "  • %s  %s\n", headline(c.Work), workIDs(c.Work))
 		}
-		fmt.Fprintln(a.stderr, "\nName it by its OpenAlex ID or DOI instead.")
+		fmt.Fprintln(a.stderr, "\nName it by its fil ID, OpenAlex ID or DOI instead.")
 		return exitCode(exitAmbiguous)
 	}
 	if errors.Is(err, errs.ErrNotFound) {

@@ -34,7 +34,7 @@ SELECT count(*),
        (SELECT count(*) FROM cites),
        (SELECT count(*) FROM work w
          WHERE w.hydrated = 1 AND w.fetched_refs = 1
-           AND NOT EXISTS (SELECT 1 FROM cites c WHERE c.from_work = w.openalex_id))
+           AND NOT EXISTS (SELECT 1 FROM cites c WHERE c.from_work = w.fil_id))
 FROM work;`).Scan(&s.Works, &s.Hydrated, &s.Stubs, &s.Unresolved, &s.Seeds, &s.Edges, &s.DeadEnds)
 	if err != nil {
 		return Summary{}, fmt.Errorf("store: summarise library: %w", err)
@@ -43,16 +43,16 @@ FROM work;`).Scan(&s.Works, &s.Hydrated, &s.Stubs, &s.Unresolved, &s.Seeds, &s.E
 }
 
 // TitledWorks returns every hydrated work that has a title, with only the
-// columns needed to tell one record from another: ID, title, year, type, DOI.
+// columns needed to tell one record from another: IDs, title, year, type, DOI.
 //
 // It exists for duplicate detection, which is policy and so lives in
 // internal/graph (D14). This package only fetches the rows.
 func (db *DB) TitledWorks(ctx context.Context) ([]model.Work, error) {
 	rows, err := db.read.QueryContext(ctx, `
-SELECT openalex_id, title, year, type, doi
+SELECT fil_id, ifnull(openalex_id, ''), title, year, type, doi
 FROM work
 WHERE hydrated = 1 AND title IS NOT NULL
-ORDER BY openalex_id;`)
+ORDER BY openalex_id IS NULL, openalex_id, fil_id;`)
 	if err != nil {
 		return nil, fmt.Errorf("store: list titled works: %w", err)
 	}
@@ -64,7 +64,7 @@ ORDER BY openalex_id;`)
 			w        model.Work
 			workType *string
 		)
-		if err := rows.Scan(&w.OpenAlexID, &w.Title, &w.Year, &workType, &w.DOI); err != nil {
+		if err := rows.Scan(&w.FilID, &w.OpenAlexID, &w.Title, &w.Year, &workType, &w.DOI); err != nil {
 			return nil, fmt.Errorf("store: scan titled work: %w", err)
 		}
 		if workType != nil {

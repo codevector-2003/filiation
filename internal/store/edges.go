@@ -60,17 +60,20 @@ func (tx *Tx) RecordEdgesAndStubs(ctx context.Context, h *model.HydratedWork) (R
 	if h == nil {
 		return rec, errors.New("store: record edges: nil work")
 	}
-	if err := checkWorkID(h.OpenAlexID); err != nil {
+	if err := checkOpenAlexID(h.OpenAlexID); err != nil {
 		return rec, err
 	}
 
 	// First, because it is also the existence check — and RETURNING hands back
 	// the depth actually stored, rather than trusting whatever the in-flight
-	// copy of the work happens to carry.
-	var depth *int
+	// copy of the work happens to carry, and the fil ID the edges are keyed on.
+	var (
+		citing string
+		depth  *int
+	)
 	err := tx.tx.QueryRowContext(ctx,
-		`UPDATE work SET fetched_refs = 1 WHERE openalex_id = ? RETURNING depth;`,
-		h.OpenAlexID).Scan(&depth)
+		`UPDATE work SET fetched_refs = 1 WHERE openalex_id = ? RETURNING fil_id, depth;`,
+		h.OpenAlexID).Scan(&citing, &depth)
 	if errors.Is(err, sql.ErrNoRows) {
 		return rec, fmt.Errorf("store: record edges for %s: upsert the work first: %w",
 			h.OpenAlexID, errs.ErrNotFound)
@@ -100,7 +103,7 @@ func (tx *Tx) RecordEdgesAndStubs(ctx context.Context, h *model.HydratedWork) (R
 		seen[ref] = struct{}{}
 		rec.Refs++
 
-		created, err := upsertStub(ctx, tx.tx, ref, childDepth, model.SourceExpansion)
+		cited, created, err := upsertStub(ctx, tx.tx, tx.newID, ref, childDepth, model.SourceExpansion)
 		if err != nil {
 			return rec, fmt.Errorf("store: record edges for %s: %w", h.OpenAlexID, err)
 		}
@@ -108,7 +111,7 @@ func (tx *Tx) RecordEdgesAndStubs(ctx context.Context, h *model.HydratedWork) (R
 			rec.Stubs++
 		}
 
-		n, err := insertEdge(ctx, tx.tx, h.OpenAlexID, ref)
+		n, err := insertEdge(ctx, tx.tx, citing, cited)
 		if err != nil {
 			return rec, fmt.Errorf("store: record edges for %s: %w", h.OpenAlexID, err)
 		}
@@ -117,9 +120,9 @@ func (tx *Tx) RecordEdgesAndStubs(ctx context.Context, h *model.HydratedWork) (R
 	return rec, nil
 }
 
-// insertEdge writes a bare citation edge and reports whether it was new. The
-// columns that make this project worth building — context, intent, section —
-// stay NULL until there is a PDF to read them out of.
+// insertEdge writes a bare citation edge between two fil IDs and reports
+// whether it was new. The columns that make this project worth building —
+// context, intent, section — stay NULL until there is a PDF to read them out of.
 func insertEdge(ctx context.Context, e execer, from, to string) (int, error) {
 	res, err := e.ExecContext(ctx,
 		`INSERT OR IGNORE INTO cites (from_work, to_work) VALUES (?, ?);`, from, to)
@@ -143,16 +146,20 @@ func insertEdge(ctx context.Context, e execer, from, to string) (int, error) {
 // everything else alone — a call carrying only a context sentence must not erase
 // an intent something else took the trouble to classify.
 //
-// Both works must already exist. Edges point at real nodes because the stub
-// exists the moment the edge does (§4), and the foreign keys are enforced on
-// every connection (spike 5) to keep that true.
+// Both works must already exist, and may be named by any of their IDs; the
+// edge is stored between their fil IDs. Edges point at real nodes because the
+// stub exists the moment the edge does (§4), and the foreign keys are enforced
+// on every connection (spike 5) to keep that true.
 func (tx *Tx) UpsertEdge(ctx context.Context, e model.Edge) error {
-	if err := checkWorkID(e.FromWork); err != nil {
+	from, err := resolveRef(ctx, tx.tx, e.FromWork)
+	if err != nil {
 		return err
 	}
-	if err := checkWorkID(e.ToWork); err != nil {
+	to, err := resolveRef(ctx, tx.tx, e.ToWork)
+	if err != nil {
 		return err
 	}
+	e.FromWork, e.ToWork = from, to
 	if e.FromWork == e.ToWork {
 		return fmt.Errorf("store: upsert edge: %s cites itself: %w",
 			e.FromWork, errs.ErrInvalidInput)
@@ -167,7 +174,7 @@ ON CONFLICT(from_work, to_work) DO UPDATE SET
 	section    = ifnull(excluded.section,    cites.section),
 	confidence = ifnull(excluded.confidence, cites.confidence);`
 
-	_, err := tx.tx.ExecContext(ctx, q, e.FromWork, e.ToWork,
+	_, err = tx.tx.ExecContext(ctx, q, e.FromWork, e.ToWork,
 		nullString(string(e.Intent)), nullString(e.Context),
 		nullString(string(e.Section)), e.Confidence)
 	if err != nil {
@@ -176,9 +183,10 @@ ON CONFLICT(from_work, to_work) DO UPDATE SET
 	return nil
 }
 
-// References lists the works this one cites, nearest thing first in ID order so
-// the result is stable between runs. It returns the edges, not the works: the
-// targets are mostly stubs, and a caller that wants them can ask.
+// References lists the works this one cites, in fil ID order so the result is
+// stable between runs. It returns the edges, not the works: the targets are
+// mostly stubs, and a caller that wants them can ask. The work may be named by
+// any of its IDs; the edges carry fil IDs.
 func (db *DB) References(ctx context.Context, id string) ([]model.Edge, error) {
 	return edgesBy(ctx, db.read, id,
 		`SELECT from_work, to_work, intent, context, section, confidence
@@ -196,8 +204,14 @@ func (db *DB) CitedBy(ctx context.Context, id string) ([]model.Edge, error) {
 		 FROM cites WHERE to_work = ? ORDER BY from_work;`)
 }
 
-func edgesBy(ctx context.Context, q queryer, id, query string) ([]model.Edge, error) {
-	if err := checkWorkID(id); err != nil {
+func edgesBy(ctx context.Context, q queryer, ref, query string) ([]model.Edge, error) {
+	id, err := resolveRef(ctx, q, ref)
+	if errors.Is(err, errs.ErrNotFound) {
+		// A work nothing has cited and nothing has added is not an error to
+		// ask about; it simply has no edges.
+		return []model.Edge{}, nil
+	}
+	if err != nil {
 		return nil, err
 	}
 	rows, err := q.QueryContext(ctx, query, id)

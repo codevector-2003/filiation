@@ -30,11 +30,18 @@ import (
 // can misread it — Abstract, Venue — a plain string is used and stored as NULL by
 // the store layer.
 type Work struct {
-	// OpenAlexID is the primary key and the deduplication key (hard rule 6).
-	// Bare form, "W2741809807" — not the https://openalex.org/... URL OpenAlex
-	// returns. Normalising that is internal/identity's job, and the store should
-	// reject anything else rather than silently create a second node for the same
-	// paper under a different spelling.
+	// FilID is the primary key: "F" and eight Crockford base32 characters,
+	// created once when the work first enters the library and never changed
+	// (D17). Every table that refers to a work refers to this. Empty only on a
+	// work in flight from OpenAlex that the store has not yet written.
+	FilID string
+
+	// OpenAlexID is the deduplication key (hard rule 6): no two works may share
+	// one. Bare form, "W2741809807" — not the https://openalex.org/... URL
+	// OpenAlex returns. Normalising that is internal/identity's job, and the
+	// store should reject anything else rather than silently create a second
+	// node for the same paper under a different spelling. Empty for a work
+	// OpenAlex does not know — a local document the user imported.
 	OpenAlexID string
 
 	// External identifiers. All absent on a stub, and often absent afterwards:
@@ -59,10 +66,6 @@ type Work struct {
 	// Open access. OAURL is the only sanctioned route to a full text (hard rule 1).
 	OAStatus OAStatus
 	OAURL    *string
-
-	// Full text on disk. Both nil until M3.
-	PDFSHA256  *string
-	PDFLicense *string
 
 	// State flags, all persisted so that expansion resumes from the frontier
 	// rather than starting over.
@@ -103,6 +106,9 @@ func (w *Work) DisplayTitle() string {
 	}
 	if w.Unresolved {
 		return fmt.Sprintf("[not in OpenAlex: %s]", w.OpenAlexID)
+	}
+	if w.OpenAlexID == "" {
+		return fmt.Sprintf("[untitled: %s]", w.FilID)
 	}
 	return fmt.Sprintf("[not fetched: %s]", w.OpenAlexID)
 }
