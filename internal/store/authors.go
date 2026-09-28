@@ -8,7 +8,7 @@ import (
 	"github.com/codevector-2003/filiation/internal/model"
 )
 
-// writeAuthors replaces a work's authorship rows with authors, in the caller's
+// writeAuthors replaces a work's authorship rows — workID is its fil ID — with authors, in the caller's
 // transaction, so a work and its byline are written or rolled back together.
 //
 // Replacing rather than merging is deliberate: the fetched list is the whole
@@ -43,34 +43,48 @@ ON CONFLICT(work_id, author_id) DO NOTHING;`,
 }
 
 // AuthorsOf returns the authors of each of the given works, in byline order, in
-// one query however many works are asked about. A work with no authorship rows
-// is absent from the map: either it has none, or it was fetched before authors
-// were stored (v0.1), and only the caller knows which question it is asking.
+// one query however many works are asked about. A work may be named by its fil
+// ID or its OpenAlex ID, and the map is keyed by the ID the caller gave.
+//
+// A work with no authorship rows is absent from the map: either it has none, or
+// it was fetched before authors were stored (v0.1), and only the caller knows
+// which question it is asking.
 func (db *DB) AuthorsOf(ctx context.Context, workIDs []string) (map[string][]model.Author, error) {
 	out := make(map[string][]model.Author)
 	if len(workIDs) == 0 {
 		return out, nil
+	}
+	asked := make(map[string]bool, len(workIDs))
+	for _, id := range workIDs {
+		asked[id] = true
 	}
 	ids, err := json.Marshal(workIDs)
 	if err != nil {
 		return nil, err
 	}
 	rows, err := db.read.QueryContext(ctx, `
-SELECT s.work_id, a.openalex_id, a.name, a.orcid, ifnull(s.position, 0)
-FROM authorship s JOIN author a ON a.openalex_id = s.author_id
-WHERE s.work_id IN (SELECT value FROM json_each(?1))
-ORDER BY s.work_id, s.position, a.openalex_id;`, string(ids))
+SELECT w.fil_id, ifnull(w.openalex_id, ''), a.openalex_id, a.name, a.orcid, ifnull(s.position, 0)
+FROM authorship s
+JOIN work w ON w.fil_id = s.work_id
+JOIN author a ON a.openalex_id = s.author_id
+WHERE w.fil_id IN (SELECT value FROM json_each(?1))
+   OR w.openalex_id IN (SELECT value FROM json_each(?1))
+ORDER BY w.fil_id, s.position, a.openalex_id;`, string(ids))
 	if err != nil {
 		return nil, fmt.Errorf("store: authors of %d works: %w", len(workIDs), err)
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var work string
+		var fil, openalex string
 		var a model.Author
-		if err := rows.Scan(&work, &a.OpenAlexID, &a.Name, &a.ORCID, &a.Position); err != nil {
+		if err := rows.Scan(&fil, &openalex, &a.OpenAlexID, &a.Name, &a.ORCID, &a.Position); err != nil {
 			return nil, fmt.Errorf("store: scan author: %w", err)
 		}
-		out[work] = append(out[work], a)
+		for _, key := range []string{fil, openalex} {
+			if key != "" && asked[key] {
+				out[key] = append(out[key], a)
+			}
+		}
 	}
 	return out, rows.Err()
 }

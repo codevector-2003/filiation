@@ -62,14 +62,14 @@ func TestGraphML(t *testing.T) {
 	var buf bytes.Buffer
 	g := NewGraphML(&buf)
 	g.WriteNode(&model.Work{
-		OpenAlexID: "W2741809807", Title: model.Ptr("The state of OA"), Year: model.Ptr(2018),
+		FilID: "F7K2M9QXA", OpenAlexID: "W2741809807", Title: model.Ptr("The state of OA"), Year: model.Ptr(2018),
 		Type: model.TypeArticle, Venue: "PeerJ", DOI: model.Ptr("10.7717/peerj.4375"),
 		OAStatus: model.OAGold, CitedByCount: 1259, Depth: model.Ptr(0), IsSeed: true, Hydrated: true,
 	})
 	// A stub: an ID and a depth, nothing else. It must not crash the export
 	// or be given values it does not have (export/doc.go).
-	g.WriteNode(&model.Work{OpenAlexID: "W1503178185", Depth: model.Ptr(2)})
-	g.WriteEdge("W2741809807", "W1503178185")
+	g.WriteNode(&model.Work{FilID: "F3QD8WN2T", OpenAlexID: "W1503178185", Depth: model.Ptr(2)})
+	g.WriteEdge("F7K2M9QXA", "F3QD8WN2T")
 	if err := g.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -85,9 +85,10 @@ func TestGraphML(t *testing.T) {
 		t.Errorf("keys = %d, want %d", len(p.Keys), len(nodeKeys))
 	}
 
-	seed := nodeData(p, "W2741809807")
+	// Nodes are named by fil ID; the OpenAlex ID is an attribute (D17).
+	seed := nodeData(p, "F7K2M9QXA")
 	for k, want := range map[string]string{
-		"label": "The state of OA", "year": "2018", "type": "article", "venue": "PeerJ",
+		"label": "The state of OA", "openalex_id": "W2741809807", "year": "2018", "type": "article", "venue": "PeerJ",
 		"doi": "10.7717/peerj.4375", "oa_status": "gold", "cited_by_count": "1259",
 		"depth": "0", "seed": "true", "fetched": "true", "unresolved": "false",
 	} {
@@ -96,7 +97,7 @@ func TestGraphML(t *testing.T) {
 		}
 	}
 
-	stub := nodeData(p, "W1503178185")
+	stub := nodeData(p, "F3QD8WN2T")
 	if stub["label"] != "[not fetched: W1503178185]" || stub["fetched"] != "false" || stub["depth"] != "2" {
 		t.Errorf("stub = %v", stub)
 	}
@@ -106,7 +107,7 @@ func TestGraphML(t *testing.T) {
 		}
 	}
 
-	if e := p.Graph.Edges[0]; e.Source != "W2741809807" || e.Target != "W1503178185" {
+	if e := p.Graph.Edges[0]; e.Source != "F7K2M9QXA" || e.Target != "F3QD8WN2T" {
 		t.Errorf("edge = %+v, want citing -> cited", e)
 	}
 }
@@ -118,11 +119,11 @@ func TestGraphMLEscapesTitles(t *testing.T) {
 	// Real titles carry markup characters, quotes, non-Latin letters and,
 	// occasionally, control characters XML cannot represent at all.
 	title := "Cats & dogs: <b>\"bold\"</b> — naïve 猫\x01\x0b end"
-	g.WriteNode(&model.Work{OpenAlexID: "W1", Title: model.Ptr(title), Hydrated: true})
+	g.WriteNode(&model.Work{FilID: "F0000000A", OpenAlexID: "W1", Title: model.Ptr(title), Hydrated: true})
 	if err := g.Close(); err != nil {
 		t.Fatal(err)
 	}
-	got := nodeData(parse(t, buf.Bytes()), "W1")["title"]
+	got := nodeData(parse(t, buf.Bytes()), "F0000000A")["title"]
 	if !strings.HasPrefix(got, `Cats & dogs: <b>"bold"</b> — naïve 猫`) || !strings.HasSuffix(got, " end") {
 		t.Errorf("title round-tripped as %q", got)
 	}
@@ -151,5 +152,24 @@ func TestGraphMLReportsWriteErrors(t *testing.T) {
 	}
 	if err := g.Close(); err == nil {
 		t.Error("Close reported success writing to a full disk")
+	}
+}
+
+// A local document has a fil ID and no OpenAlex ID. It is a node like any
+// other, with the attribute left out rather than written empty.
+func TestGraphMLLocalDocument(t *testing.T) {
+	t.Parallel()
+	var buf bytes.Buffer
+	g := NewGraphML(&buf)
+	g.WriteNode(&model.Work{FilID: "F9M4K7B2R", Title: model.Ptr("My thesis"), Hydrated: true})
+	if err := g.Close(); err != nil {
+		t.Fatal(err)
+	}
+	node := nodeData(parse(t, buf.Bytes()), "F9M4K7B2R")
+	if node == nil || node["title"] != "My thesis" {
+		t.Fatalf("local document node = %v", node)
+	}
+	if _, ok := node["openalex_id"]; ok {
+		t.Errorf("openalex_id = %q on a work OpenAlex does not know; want it left out", node["openalex_id"])
 	}
 }

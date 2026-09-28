@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -549,11 +550,15 @@ func TestNeighboursCommand(t *testing.T) {
 		"Cites 54 works — 46 fetched, 8 known only by ID:",
 		"… and 39 more — pass --limit 0 to list all.",
 		"Cited by 1 work in your library:",
-		"Sci-Hub provides access to nearly all scholarly literature (2018, article)  W2785823074",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("neighbours lacks %q:\n%s", want, out)
 		}
+	}
+	// Every work is named by its fil ID and then its OpenAlex ID (D17).
+	both := regexp.MustCompile(`Sci-Hub provides access to nearly all scholarly literature \(2018, article\)  F[0-9A-Z]{8} W2785823074`)
+	if !both.MatchString(out) {
+		t.Errorf("neighbours does not name Sci-Hub by fil ID and OpenAlex ID:\n%s", out)
 	}
 
 	// A title, unquoted, and a stub.

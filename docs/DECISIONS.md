@@ -412,3 +412,80 @@ is the first operation that genuinely runs for minutes; the job system is built 
 
 **Accepted consequence.** An assistant that wants 2,000 works makes four calls. The tool
 description and every result's `note` say so.
+
+---
+
+## D17 — Every work has a fil ID; hard rule 6 is reworded
+
+**Decided:** 27 Sept 2026 · amends D2 · detail in `ARCHITECTURE_PHASE3.md` ADR-010
+
+Every work gets a **fil ID** — `F` and 8 characters of Crockford base32, at least one a digit
+(`F7K2M9QXA`) — generated once on the user's machine and never changed. It is the primary key of
+`work`. `openalex_id` stays, as a nullable `UNIQUE` column, and stays the deduplication key for
+every work OpenAlex knows.
+
+**Why.** Three things the OpenAlex ID cannot carry: a PDF the user owns that OpenAlex does not
+know has no row to live in; folder names and notes tied to an OpenAlex ID break when OpenAlex
+merges records; and the library should survive OpenAlex changing its terms again (D11).
+
+**Hard rule 6, reworded:** *Every work has a fil ID, created once and never changed. No two works
+may share an `openalex_id` — the database enforces it. Merged records and shared DOIs are folded
+on the way in (`graph.hydrate`). A shared title is reported, never merged (D14).*
+
+**Rejected:** a random UUID (36 characters — too long for folder names and for typing);
+an ID derived from the OpenAlex ID (it would change when OpenAlex merges records, the case this
+exists for); an auto-increment integer (not unique across two libraries, which lab sharing will
+need).
+
+**Accepted consequence.** The first migration rebuilds every table that referred to
+`openalex_id`. Done at v0.2, while there are few libraries to upgrade.
+
+---
+
+## D18 — The library is a folder the user chooses, and its PDFs have readable names
+
+**Decided:** 27 Sept 2026 · amends ADR-006 and D4 · detail in `ARCHITECTURE_PHASE3.md`
+ADR-011 and ADR-012
+
+A library is a folder, `Documents/Filiation/<name>` by default, holding `filiation.db`,
+`filiation.toml`, `papers/`, `Inbox/` and `exports/`. PDFs live in `papers/`, one folder per work,
+named `{Author}-{Year}-{ShortTitle}--{filID}`; the SHA-256 moves from the file name into the
+database. The researcher owns the folder tree — subfolders, moves, renames — and fil only renames
+what it named. New downloads land directly in `papers/`. Folders become collections, on by
+default, with a switch to turn it off.
+
+**Why.** Researchers need to see, open, back up and organise their PDFs. A folder of SHA-256
+names serves the program and nobody else.
+
+**Taken as defaults on 27 Sept, open to change:** a project is a collection inside one library,
+and a second library is allowed for anyone who wants separate worlds; inside a cloud sync folder
+the database is kept in the per-user application directory, because sync tools corrupt SQLite in
+WAL mode; v0.2 libraries move only when the user runs `fil library move`; an imported file keeps
+its original name.
+
+**Rejected:** a hidden hash-named store plus a readable view made of copies (doubles the disk),
+symbolic links (need admin or Developer Mode on Windows) or hard links (fail on FAT32 and exFAT,
+and some sync tools turn them into copies). None behaves the same on all three systems.
+
+---
+
+## D19 — What M3 includes
+
+**Decided:** 27 Sept 2026 · detail in `ARCHITECTURE_PHASE3.md`
+
+- **In:** fil IDs and the library folder; legal PDFs found and downloaded (OpenAlex locations,
+  Unpaywall if spike 9 shows it adds anything); importing PDFs the user already has, verified
+  before trusting (ADR-014); local documents — works with a fil ID and no OpenAlex record,
+  searchable, without citation edges; text, chunks and FTS5 search; citation context attached to
+  existing edges (ADR-015).
+- **Out, for now:** Zotero. M3 is already the largest milestone; the cheapest later route is a
+  BibTeX or CSL-JSON export, not Zotero's database file.
+- **Measured, not built:** citation edges parsed from a local document's reference list. Rule 2
+  allows parsing "only for works with no DOI and no index entry, and only later". Spike 11
+  measures matching against OpenAlex's own reference lists; the feature follows M3 if the numbers
+  are good, one hop only, with every parsed edge marked `source = pdf` and a confidence.
+- **Decided by measurement:** whether the job system (D16) is built in M3 or with M4's embedding,
+  once spike 9 has timed real downloads; the PDF extractor (ADR-009), by spike 10.
+- **Checked in mid-October:** `PRODUCT_PLAN.md` gates Phase 3 on someone outside the maintainer
+  using v0.2 twice within three weeks — a window closing around 16 Oct. M3 starts ahead of the
+  planned 6 Dec, so that check still happens, and can still change course.

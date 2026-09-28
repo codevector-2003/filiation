@@ -21,6 +21,36 @@ func migrated(t *testing.T) *DB {
 	return db
 }
 
+// oa maps fil IDs back to the OpenAlex IDs the fixtures are written in, so an
+// assertion reads "W1 -> W2" rather than two random fil IDs. An ID with no
+// OpenAlex ID is returned as it is.
+func oa(t *testing.T, db *DB, ids ...string) []string {
+	t.Helper()
+	out := make([]string, len(ids))
+	for i, id := range ids {
+		w, err := db.GetWork(t.Context(), id)
+		if err != nil {
+			t.Fatalf("oa(%s): %v", id, err)
+		}
+		out[i] = w.OpenAlexID
+		if out[i] == "" {
+			out[i] = w.FilID
+		}
+	}
+	return out
+}
+
+// oaEdges is oa for edges: each becomes "W1>W2".
+func oaEdges(t *testing.T, db *DB, edges []model.Edge) []string {
+	t.Helper()
+	out := make([]string, len(edges))
+	for i, e := range edges {
+		ids := oa(t, db, e.FromWork, e.ToWork)
+		out[i] = ids[0] + ">" + ids[1]
+	}
+	return out
+}
+
 // seedWork is a fully populated work, so a round-trip test has something to say
 // about every column rather than only the ones a stub carries.
 func seedWork(id string) *model.Work {

@@ -1,6 +1,6 @@
 # Project status
 
-**Date:** 25 September 2026 · **Position:** **M2 complete — v0.2 released** · M3 next
+**Date:** 27 September 2026 · **Position:** **M2 complete — v0.2 released** · **M3 in progress**
 **Phase 1 target:** v0.1 by 14 November 2026
 
 > **In one line:** M0 is done, and M1's expander works live — `fil expand` grew one seed to 525
@@ -28,7 +28,7 @@ protected for them.
 | 1 | M0 — skeleton, `fil add` writes one node | **Complete** — 24 Sept, verified live |
 | 1 | M1 — budgeted expansion, export, **first release** | **Complete** — 25 Sept, released as v0.1 |
 | 2 | M2 — MCP server | **Complete** — 25 Sept, released as v0.2 |
-| 3 | M3 — PDFs, text, citation context, FTS5 | Not started |
+| 3 | M3 — fil IDs, library folder, PDFs, text, citation context, FTS5 | **In progress** — design agreed 27 Sept ([`ARCHITECTURE_PHASE3.md`](ARCHITECTURE_PHASE3.md)) |
 | 4 | M4 — retrieval and answers | Not started |
 | 5 | M5 — web interface | Not started |
 | 6 | M6 — claim genealogy | Not started |
@@ -556,6 +556,84 @@ pointing at `add_paper`; the server exited 0 when the client closed stdin.
 fees. The model treated it as unknown, so `IsOpen` reported diamond papers closed. It is now
 `model.OADiamond`, and open.
 
+### M3, in progress — from 27 Sept 2026
+
+*Done when:* `fil fetch` downloads the PDF of `10.7717/peerj.4375` into the library folder,
+`fil search` finds a passage in it with its page, some of its citations carry their sentence,
+`fil stats` says why each paper without text has none, a second fetch downloads nothing, and a
+PDF dropped into `Inbox/` is identified, verified and filed.
+
+The plan was agreed in conversation on 27 Sept and recorded as D17 (fil IDs, hard rule 6
+reworded), D18 (the library is a folder the user chooses; `papers/` with readable names) and D19
+(what M3 includes). Full design and ADRs 010–015: [`ARCHITECTURE_PHASE3.md`](ARCHITECTURE_PHASE3.md).
+
+| Step | Work | State |
+| --- | --- | --- |
+| 1 | `identity`: fil IDs | **Done** — 27 Sept |
+| 2 | Schema v2 and the first migration; fil IDs through every layer | **Done** — 27 Sept |
+| 3 | The library folder and `papers/`: config, names, atomic writes, rescan, `fil library move` | Not started |
+| 4 | Spikes 9 (PDF availability), 10 (extractor bake-off), 11 (reference matching) | Not started — **needs network**, see below |
+| 5 | Legal PDF links: OpenAlex locations, Unpaywall if spike 9 justifies it | Not started |
+| 6 | Downloading, `fil fetch` | Not started |
+| 7 | `internal/text`, FTS5, `fil search` | Not started — waits for spike 10 |
+| 8 | Import, `Inbox/`, local documents | Not started |
+| 9 | Citation context | Not started |
+| 10 | `fil list`, `fil show`, full text in `fil stats`; MCP `search_library` and a fetch tool | Not started |
+| 11 | Validation run, docs, tag **v0.3** | Not started |
+
+**Steps 1–2 — fil IDs, and the first migration.** Every work now has a fil ID
+(`F7K2M9QXA`): generated in `internal/identity` from `crypto/rand`, with at least one digit so
+that a nine-letter word beginning with F is never read as an ID, and no lookalike substitution
+for the same reason. `fil add` refuses a fil ID without a request — it names a work already in
+the library.
+
+`work.fil_id` is the primary key and every table that refers to a work refers to it;
+`openalex_id` is `UNIQUE`. The write path still takes OpenAlex IDs, because that is what OpenAlex
+sends, and looks up or creates the fil ID inside the single writer; reads take any ID a work has
+or had. `fil neighbours`, `fil path` and the MCP tools accept fil IDs, and every result shows both.
+GraphML nodes are now keyed by fil ID, with `openalex_id` as an attribute.
+
+- **The first real migration.** A v1 library is upgraded in one transaction: the v1 tables are
+  renamed aside, the v2 tables created, rows copied through a map from OpenAlex ID to new fil
+  ID, row counts compared table by table, `foreign_key_check` run, and only then the v1 tables
+  dropped. **The rowid order of `cites` is preserved** — the frontier ranks references by it.
+  Foreign keys stay on throughout, which SQLite's generic twelve-step recipe does not manage:
+  renaming a table rewrites the references to it, and dropping the v1 children before `v1_work`
+  means the parent's drop cascades into nothing. Tested against a real v1 library built from the
+  v0.2 schema, and against one that would lose a row, which is refused and left untouched.
+- **Found on the way:** `fil_id TEXT PRIMARY KEY` accepted NULL. SQLite lets a non-INTEGER primary
+  key hold NULL unless the column also says `NOT NULL` — a compatibility quirk. It now does, and a
+  test pins it.
+- **Folds keep names and user data.** When two records fold into one, the survivor keeps its fil
+  ID; the other's fil ID and OpenAlex ID become aliases, and its notes, collections and text move
+  to the survivor rather than being deleted by the cascade. An alias is never reused as a new
+  fil ID.
+- **Tie-breaking is unchanged.** Path finding and neighbour lists still break ties by OpenAlex
+  ID, which orders the same way in every library; fil IDs are random and would not.
+- A clashing fil ID is drawn again inside the single writer (tested with a forced clash), and a
+  generator that only ever returns taken IDs fails after 16 draws rather than looping.
+- **Measured, not assumed:** recording 200 works citing 80 overlapping references each (16,000
+  edges) takes 0.95 s on v1 and 1.35 s on v2. The difference is mostly the second unique index
+  `work` now keeps. A first draft that checked each new ID in a query of its own took 1.43 s, and
+  one that tried the insert first took 2.1 s — a refused insert costs more than a lookup, and in a
+  dense graph most references point at works already present. On a live 500-work expansion,
+  which is network-bound at ~20 s, the difference is about a second.
+
+**Found while planning.** OpenAlex's `oa_url` for the M0 seed, a gold OA paper, is a DOI landing
+page and its `pdf_url` is null — what v0.2 stores is usually not a PDF, so M3 reads OA locations
+(ADR-013). Unpaywall requires an email, and ours is optional. The migration code has never
+upgraded a library: v2 is its first real use. `httpx` reads whole bodies into memory and caches
+them, which is right for JSON and wrong for PDFs.
+
+**Network.** The cloud environment used for development blocks `api.openalex.org`,
+`api.unpaywall.org` and PDF hosts. Unit tests need none of them (recorded fixtures), but spikes
+9–11 and the live validation run on the maintainer's machine unless the environment's network
+access is widened.
+
+**Taken as defaults, open to change** (D18): a project is a collection inside one library; the
+database stays out of cloud sync folders; v0.2 libraries move only on `fil library move`;
+imported files keep their original names.
+
 ### Decided: title-level duplicates are reported, not merged (D14)
 
 After ID and DOI dedup, ~4% of fetched works still share a title with another — OpenAlex records
@@ -590,8 +668,8 @@ unfolded, and every probable title duplicate reported.
 | | Question | Blocking? |
 | --- | --- | --- |
 | 1 | ~~**Licence**~~ — **decided: Apache-2.0** (D15) | Closed |
-| 2 | **Zotero** — read from an existing library? Cheapest route to real users | Not yet, but decide before M3 |
-| 3 | **PDF text extraction** (ADR-009) — pure Go, bundled `pdftotext`, or external | No. Deliberately deferred to a Phase 3 bake-off |
+| 2 | ~~**Zotero**~~ — **decided: not in M3** (D19); later via a BibTeX or CSL-JSON export | Closed for M3 |
+| 3 | **PDF text extraction** (ADR-009) — pure Go, PDFium as WebAssembly, or external | **Yes, for M3 step 7.** Spike 10 decides |
 | 4 | **`sqlite-vec` revisit** (D13) — only if a pre-filtered query misses target, and only after checking whether it is a real ANN index or just a faster scan | No. Not before M4 |
 | 5 | **Who maintains this after the degree?** | No, but it changes how much to invest in docs and tests now |
 

@@ -21,18 +21,24 @@ const (
 	ByDOI
 	ByArXivID
 	ByPMID
+	ByFilID
 )
 
 // FindWork returns the work in this library whose column matches value, or
 // errs.ErrNotFound. It looks only at the library — never at OpenAlex — which is
 // what read-only commands like neighbours and path want: a paper not added yet
 // has no neighbours to show.
+//
+// A fil ID or OpenAlex ID also finds a work by an alias it left behind when it
+// was folded into another (D17).
 func (db *DB) FindWork(ctx context.Context, by Lookup, value string) (*model.Work, error) {
+	if by == ByFilID || by == ByOpenAlexID {
+		return db.GetWork(ctx, value)
+	}
 	column := map[Lookup]string{
-		ByOpenAlexID: "openalex_id",
-		ByDOI:        "doi",
-		ByArXivID:    "arxiv_id",
-		ByPMID:       "pmid",
+		ByDOI:     "doi",
+		ByArXivID: "arxiv_id",
+		ByPMID:    "pmid",
 	}[by]
 	if column == "" {
 		return nil, fmt.Errorf("store: find work: unknown lookup %d", by)
@@ -64,7 +70,7 @@ var qualifiedWorkColumns = func() string {
 // newest first within that. WorksCiting is the reverse — the works in this
 // library that cite id.
 func (db *DB) WorksCitedBy(ctx context.Context, id string) ([]model.Work, error) {
-	return db.neighbours(ctx, id, `JOIN cites c ON c.to_work = w.openalex_id WHERE c.from_work = ?`)
+	return db.neighbours(ctx, id, `JOIN cites c ON c.to_work = w.fil_id WHERE c.from_work = ?`)
 }
 
 // WorksCiting returns the works in this library that cite id. It can only see
@@ -72,15 +78,22 @@ func (db *DB) WorksCitedBy(ctx context.Context, id string) ([]model.Work, error)
 // reference list is unknown, so "cited by 3" means "by 3 papers in your
 // library", never "by 3 papers in the world".
 func (db *DB) WorksCiting(ctx context.Context, id string) ([]model.Work, error) {
-	return db.neighbours(ctx, id, `JOIN cites c ON c.from_work = w.openalex_id WHERE c.to_work = ?`)
+	return db.neighbours(ctx, id, `JOIN cites c ON c.from_work = w.fil_id WHERE c.to_work = ?`)
 }
 
-func (db *DB) neighbours(ctx context.Context, id, join string) ([]model.Work, error) {
-	if err := checkWorkID(id); err != nil {
+// neighbours lists the works joined to ref. Order is fetched works first,
+// newest first, then by OpenAlex ID, then fil ID — OpenAlex IDs first because
+// they order the same way in every library, and fil IDs do not.
+func (db *DB) neighbours(ctx context.Context, ref, join string) ([]model.Work, error) {
+	id, err := resolveRef(ctx, db.read, ref)
+	if errors.Is(err, errs.ErrNotFound) {
+		return []model.Work{}, nil
+	}
+	if err != nil {
 		return nil, err
 	}
 	rows, err := db.read.QueryContext(ctx, `SELECT `+qualifiedWorkColumns+` FROM work w `+join+
-		` ORDER BY w.hydrated DESC, w.year DESC, w.openalex_id;`, id)
+		` ORDER BY w.hydrated DESC, w.year DESC, w.openalex_id IS NULL, w.openalex_id, w.fil_id;`, id)
 	if err != nil {
 		return nil, fmt.Errorf("store: neighbours of %s: %w", id, err)
 	}
@@ -117,7 +130,7 @@ const (
 
 // Path is a chain of works connected by citations.
 type Path struct {
-	IDs []string
+	IDs []string // fil IDs
 
 	// Cites[i] reports that IDs[i] cites IDs[i+1]; false means IDs[i+1] cites
 	// IDs[i]. It has one entry fewer than IDs.
@@ -140,13 +153,17 @@ type Path struct {
 // Each query here is plain SQL; the ID list travels as one JSON array
 // parameter, which Postgres handles with jsonb_array_elements_text or ANY.
 //
-// Ties between equally short paths are broken by ID order, so the same library
-// always gives the same answer.
+// Ties between equally short paths are broken by OpenAlex ID order, which is
+// the same in every library, so the same graph always gives the same answer.
+//
+// from and to may be any IDs the two works have; the path is of fil IDs.
 func (db *DB) ShortestPath(ctx context.Context, from, to string, maxHops int, dir Direction) (Path, error) {
-	if err := checkWorkID(from); err != nil {
+	from, err := resolveRef(ctx, db.read, from)
+	if err != nil {
 		return Path{}, err
 	}
-	if err := checkWorkID(to); err != nil {
+	to, err = resolveRef(ctx, db.read, to)
+	if err != nil {
 		return Path{}, err
 	}
 	if from == to {
@@ -209,19 +226,27 @@ func (db *DB) edgesAround(ctx context.Context, frontier []string, dir Direction)
 	var q string
 	switch dir {
 	case Backward:
-		q = `SELECT from_work, to_work, 1 FROM cites
+		q = `SELECT from_work AS a, to_work AS b, 1 AS c FROM cites
 		     WHERE from_work IN (SELECT value FROM json_each(?1))`
 	case Forward:
-		q = `SELECT to_work, from_work, 0 FROM cites
+		q = `SELECT to_work AS a, from_work AS b, 0 AS c FROM cites
 		     WHERE to_work IN (SELECT value FROM json_each(?1))`
 	default:
-		q = `SELECT from_work, to_work, 1 FROM cites
+		q = `SELECT from_work AS a, to_work AS b, 1 AS c FROM cites
 		     WHERE from_work IN (SELECT value FROM json_each(?1))
 		     UNION ALL
-		     SELECT to_work, from_work, 0 FROM cites
+		     SELECT to_work AS a, from_work AS b, 0 AS c FROM cites
 		     WHERE to_work IN (SELECT value FROM json_each(?1))`
 	}
-	rows, err := db.read.QueryContext(ctx, `SELECT * FROM (`+q+`) ORDER BY 1, 2;`, string(ids))
+	// Ordered by the works' OpenAlex IDs where they have them, which is what
+	// makes tie-breaking the same in every library; a local document with none
+	// sorts by its fil ID, after them.
+	rows, err := db.read.QueryContext(ctx, `
+SELECT e.a, e.b, e.c FROM (`+q+`) AS e
+JOIN work wa ON wa.fil_id = e.a
+JOIN work wb ON wb.fil_id = e.b
+ORDER BY wa.openalex_id IS NULL, wa.openalex_id, wa.fil_id,
+         wb.openalex_id IS NULL, wb.openalex_id, wb.fil_id;`, string(ids))
 	if err != nil {
 		return nil, fmt.Errorf("store: edges around %d works: %w", len(frontier), err)
 	}

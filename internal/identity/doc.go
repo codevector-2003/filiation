@@ -13,7 +13,12 @@
 // to a title search: that would ask the user to pick a candidate for something
 // that was never a title.
 //
-// Pure functions over strings. A leaf package: no I/O, and one internal import,
+// It also owns fil IDs (D17): Filiation's own name for a work, "F" and eight
+// Crockford base32 characters, generated here and parsed here like every other
+// identifier. A fil ID names a work already in the library; OpenAlex has never
+// heard of one.
+//
+// Pure functions over strings, except NewFilID, which reads crypto/rand. A leaf package: no I/O, and one internal import,
 // errs, so that a refusal reaches the CLI as a sentinel it can branch on. errs
 // imports nothing, so no cycle is possible — the same exception config takes.
 package identity
