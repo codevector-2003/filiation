@@ -9,7 +9,8 @@
 --     work, and NULL for a work OpenAlex does not know (a local document).
 --   * cites.context holds the sentence around the citation marker in the citing paper.
 --     Nobody provides this for free. It is what makes retrieval better than plain search.
---   * PDFs live on the filesystem, named by their SHA-256. Only the hash is stored here.
+--   * PDFs live on the filesystem, in the library folder's papers/, one folder per work
+--     with a readable name (D18). Only paths and hashes are stored here.
 
 -- NOTE: these two PRAGMAs are a statement of intent, not the mechanism.
 -- internal/store strips every PRAGMA from this file before applying it, because
@@ -170,6 +171,52 @@ CREATE TABLE IF NOT EXISTS collection_work (
     PRIMARY KEY (collection_id, work_id)
 );
 
+-- A collection that mirrors a folder in papers/ (ADR-012): papers/Chapter 2/Key
+-- studies appears as the collection "Chapter 2/Key studies". Rescans keep its
+-- members in step with the work folders directly inside it. A collection with no
+-- row here is the user's own and no scan touches it.
+CREATE TABLE IF NOT EXISTS folder_collection (
+    collection_id INTEGER PRIMARY KEY REFERENCES collection(id) ON DELETE CASCADE,
+    folder        TEXT NOT NULL UNIQUE  -- relative to the library folder
+);
+
+-- ---------------------------------------------------------------- papers on disk
+
+-- Schema v3 (ARCHITECTURE_PHASE3.md §5). Paths are relative to the library
+-- folder, with '/', in Unicode NFC, so one library reads the same on every OS.
+-- The researcher owns the folder tree: these tables record where things are, and
+-- a scan updates them when a person moves something (ADR-012).
+
+-- A folder named for one work. Usually one per work; a person may make more.
+CREATE TABLE IF NOT EXISTS work_folder (
+    path       TEXT PRIMARY KEY NOT NULL,
+    fil_id     TEXT NOT NULL REFERENCES work(fil_id) ON DELETE CASCADE,
+    given_name TEXT,     -- the name fil gave it. fil renames the folder only while
+                         -- it still has this name; NULL means a person named it
+    missing    INTEGER NOT NULL DEFAULT 0,  -- gone from disk at the last scan
+    added_at   TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_work_folder_work ON work_folder(fil_id);
+
+-- A file that belongs to a work. The hash both deduplicates (look it up before
+-- saving) and verifies (re-hash and compare); it replaced the hash-named files of
+-- D4. A missing file keeps its row, so fil knows not to download it again unasked.
+CREATE TABLE IF NOT EXISTS work_file (
+    path     TEXT PRIMARY KEY NOT NULL,
+    fil_id   TEXT NOT NULL REFERENCES work(fil_id) ON DELETE CASCADE,
+    sha256   TEXT NOT NULL,
+    size     INTEGER NOT NULL,
+    mtime    INTEGER,           -- Unix seconds when hashed; a change means re-hash
+    version  TEXT,              -- published | accepted | preprint; NULL if not known
+    origin   TEXT NOT NULL,     -- download | import | found
+    missing  INTEGER NOT NULL DEFAULT 0,
+    added_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_work_file_work   ON work_file(fil_id);
+CREATE INDEX IF NOT EXISTS idx_work_file_sha256 ON work_file(sha256);
+
 -- ---------------------------------------------------------------- bookkeeping
 
 CREATE TABLE IF NOT EXISTS meta (
@@ -177,4 +224,4 @@ CREATE TABLE IF NOT EXISTS meta (
     value TEXT
 );
 
-INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '2');
+INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '3');

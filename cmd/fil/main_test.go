@@ -65,11 +65,12 @@ func (r *replay) RoundTrip(req *http.Request) (*http.Response, error) {
 // harness is one user's machine: a config directory, a cache, and a terminal
 // that is or is not interactive.
 type harness struct {
-	t         *testing.T
-	configDir string
-	cacheDir  string
-	routes    map[string]string
-	replay    *replay
+	t            *testing.T
+	configDir    string
+	cacheDir     string
+	documentsDir string
+	routes       map[string]string
+	replay       *replay
 }
 
 func newHarness(t *testing.T, routes map[string]string) *harness {
@@ -80,8 +81,10 @@ func newHarness(t *testing.T, routes map[string]string) *harness {
 		t:         t,
 		configDir: filepath.Join(dir, "config"),
 		cacheDir:  filepath.Join(dir, "cache"),
-		routes:    routes,
-		replay:    &replay{t: t, routes: routes},
+		// Never the real Documents folder: a first run makes a library there.
+		documentsDir: filepath.Join(dir, "Documents"),
+		routes:       routes,
+		replay:       &replay{t: t, routes: routes},
 	}
 }
 
@@ -91,13 +94,14 @@ func (h *harness) run(interactive bool, stdin string, args ...string) (int, stri
 	h.t.Helper()
 	var out, errOut bytes.Buffer
 	a := &app{
-		stdin:       strings.NewReader(stdin),
-		stdout:      &out,
-		stderr:      &errOut,
-		interactive: interactive,
-		configDir:   h.configDir,
-		cacheDir:    h.cacheDir,
-		transport:   h.replay,
+		stdin:        strings.NewReader(stdin),
+		stdout:       &out,
+		stderr:       &errOut,
+		interactive:  interactive,
+		configDir:    h.configDir,
+		cacheDir:     h.cacheDir,
+		documentsDir: h.documentsDir,
+		transport:    h.replay,
 	}
 	code := a.run(h.t.Context(), args)
 	return code, out.String(), errOut.String()
@@ -161,14 +165,15 @@ func TestAddFirstRunChoosesLocation(t *testing.T) {
 	if !strings.Contains(out, "Press Enter to accept, or type another folder") {
 		t.Errorf("no location prompt:\n%s", out)
 	}
-	want := filepath.Join(chosen, config.DBName)
-	if _, err := os.Stat(want); err != nil {
-		t.Errorf("library not created at the chosen folder: %v", err)
+	for _, want := range []string{config.LibraryDBName, config.FileName, "papers", "Inbox", "exports"} {
+		if _, err := os.Stat(filepath.Join(chosen, want)); err != nil {
+			t.Errorf("%s not created in the chosen folder: %v", want, err)
+		}
 	}
 
 	// And it is remembered: where reports it, with no first-run note.
 	_, out, _ = h.run(false, "", "where")
-	if !strings.Contains(out, "Library: "+want) || strings.Contains(out, "not created yet") {
+	if !strings.Contains(out, "Library:  "+chosen) || strings.Contains(out, "not created yet") {
 		t.Errorf("where after first run:\n%s", out)
 	}
 }
@@ -304,7 +309,10 @@ func TestWhereBeforeFirstRun(t *testing.T) {
 	if code != exitOK {
 		t.Fatalf("exit %d", code)
 	}
-	for _, want := range []string{"Library: ", "not created yet", "Config:  ", "Cache:   " + h.cacheDir} {
+	for _, want := range []string{
+		"Library:  " + filepath.Join(h.documentsDir, "Filiation", "My Library"), "not created yet",
+		"Settings: ", "Cache:    " + h.cacheDir,
+	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("where lacks %q:\n%s", want, out)
 		}

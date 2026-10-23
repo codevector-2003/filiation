@@ -85,11 +85,13 @@ Anything that can launch a stdio MCP server works: command `fil`, arguments `["m
 
 The same one as the CLI: the location `fil where` prints. If you have never used fil, the first
 start creates the library in the default location without asking, because there is no terminal to
-ask in. To use a different library, add `--db`:
+ask in. To use a different library, add `--library` with its name or folder:
 
 ```json
-{ "command": "fil", "args": ["mcp", "--db", "/path/to/library.db"] }
+{ "command": "fil", "args": ["mcp", "--library", "Thesis"] }
 ```
+
+`--db /path/to/library.db` still opens a database on its own, with no library folder.
 
 You can keep using the CLI while an assistant is connected. Both work on the same file safely.
 
@@ -292,7 +294,7 @@ reserved for the protocol, so fil never prints anything else there.
 
 **The assistant can't find a paper I added from the CLI.** Both must use the same library. Compare
 the path in the server's start-up line (`fil … serving <path> over MCP`) with `fil where`, and check
-the client's config for a `--db` argument.
+the client's config for a `--library` or `--db` argument.
 
 **`expand_graph` stops early.** Read `stopped_because`. `frontier-empty` with few works usually
 means the papers have no reference lists, which is common in the humanities (see

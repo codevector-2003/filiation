@@ -85,7 +85,11 @@ fil path 10.7717/peerj.4375 W4300313809     # how one paper descends from anothe
 fil export graphml -o library.graphml       # open it in Gephi
 ```
 
-On the first run fil asks where to keep your library. `fil where` shows it at any time.
+On the first run fil asks where to keep your library: a folder you can see, `Documents/Filiation/My
+Library` unless you choose another. Papers go in its `papers/` folder, one folder per paper with a
+readable name such as `Piwowar-2018-The-state-of-OA--F7K2M9QXA`. Move, rename and group those
+folders however you like; fil finds them again, and each folder you make becomes a collection.
+`fil where` shows where everything is.
 
 ## Commands
 
@@ -98,6 +102,7 @@ On the first run fil asks where to keep your library. `fil where` shows it at an
 | `fil stats` | The library at a glance, including reference coverage. `--duplicates` lists works that share a title. |
 | `fil export graphml` | The graph as GraphML for Gephi, Cytoscape, yEd, NetworkX or igraph. `--include-stubs` adds works known so far only by ID. |
 | `fil mcp` | Serve your library to an AI assistant over MCP. Your MCP client runs it. See the [MCP guide](docs/MCP.md). |
+| `fil library` | Your library folder and what is in `papers/`. `library folder <paper>` prints a paper's folder, making it if needed; `library scan` finds papers you moved, renamed or deleted; `library new` and `library move` make another library or move this one. `--library <name>` picks a library for any command. |
 | `fil where` | Where your library, settings and cache live. |
 | `fil cache clear` | Empty the cache of OpenAlex responses. Your library isn't touched. |
 

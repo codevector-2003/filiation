@@ -55,7 +55,11 @@ func (a *app) stats(ctx context.Context, listDuplicates bool) error {
 	}
 
 	w := a.stdout
-	fmt.Fprintf(w, "Library:    %s\n", lib.Path())
+	if dir := lib.Folder(); dir != "" {
+		fmt.Fprintf(w, "Library:    %s\n", dir)
+	} else {
+		fmt.Fprintf(w, "Library:    %s\n", lib.Path())
+	}
 	fmt.Fprintf(w, "Seeds:      %s you added\n", thousands(s.Seeds))
 	fmt.Fprintf(w, "Works:      %s — %s fetched, %s still to fetch",
 		thousands(s.Works), thousands(s.Fetched), thousands(s.Stubs-s.Unresolved))

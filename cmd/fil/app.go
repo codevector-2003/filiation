@@ -33,14 +33,18 @@ type app struct {
 	configDir string
 	// cacheDir overrides the per-user cache directory; empty in production.
 	cacheDir string
+	// documentsDir overrides the user's Documents folder, under which a first
+	// library is proposed; empty in production.
+	documentsDir string
 	// transport replaces the network; nil in production.
 	transport http.RoundTripper
 
 	lines *bufio.Reader
 
 	// flags shared by every command
-	dbFlag  string
-	noCache bool
+	dbFlag      string
+	libraryFlag string
+	noCache     bool
 
 	// configPath is the file to name when the fix is to edit it. Set as soon
 	// as config has been located, so an error after that point can point at it.
@@ -108,11 +112,13 @@ func (a *app) rootCommand() *cobra.Command {
 	root.SetFlagErrorFunc(func(cmd *cobra.Command, err error) error {
 		return usageError{cmd: cmd, err: err}
 	})
-	root.PersistentFlags().StringVar(&a.dbFlag, "db", "", "use the library at this path instead of the default")
+	root.PersistentFlags().StringVar(&a.libraryFlag, "library", "", "use this library, by name or folder, instead of the default")
+	root.PersistentFlags().StringVar(&a.dbFlag, "db", "", "use the database at this path, with no library folder")
 	root.PersistentFlags().BoolVar(&a.noCache, "no-cache", false, "fetch from OpenAlex even if a response is cached")
 
 	root.AddCommand(a.addCommand(), a.expandCommand(), a.neighboursCommand(), a.pathCommand(),
-		a.statsCommand(), a.exportCommand(), a.mcpCommand(), a.whereCommand(), a.versionCommand(), a.cacheCommand())
+		a.statsCommand(), a.exportCommand(), a.libraryCommand(), a.mcpCommand(), a.whereCommand(),
+		a.versionCommand(), a.cacheCommand())
 	return root
 }
 
@@ -268,7 +274,7 @@ func (a *app) printCandidates(w io.Writer, amb *library.AmbiguousError) {
 func (a *app) whereCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "where",
-		Short: "Print where your library, config and cache live",
+		Short: "Print where your library, settings and cache live",
 		Long: "Print where fil keeps things. The default differs on every operating system,\n" +
 			"so this is how to find your own data.",
 		Args: noArgs,
@@ -281,10 +287,14 @@ func (a *app) whereCommand() *cobra.Command {
 			if cfg.FirstRun {
 				note = "  (not created yet — fil add creates it)"
 			}
-			fmt.Fprintf(a.stdout, "Library: %s%s\n", cfg.DBPath, note)
-			fmt.Fprintf(a.stdout, "Config:  %s\n", cfg.ConfigPath)
+			if cfg.Folder != "" {
+				fmt.Fprintf(a.stdout, "Library:  %s%s\n", cfg.Folder, note)
+				note = ""
+			}
+			fmt.Fprintf(a.stdout, "Database: %s%s\n", cfg.DBPath, note)
+			fmt.Fprintf(a.stdout, "Settings: %s\n", cfg.ConfigPath)
 			if dir, err := a.resolvedCacheDir(); err == nil {
-				fmt.Fprintf(a.stdout, "Cache:   %s\n", dir)
+				fmt.Fprintf(a.stdout, "Cache:    %s\n", dir)
 			}
 			return nil
 		},
@@ -326,7 +336,12 @@ func (a *app) cacheCommand() *cobra.Command {
 }
 
 func (a *app) loadConfig() (*config.Config, error) {
-	cfg, err := config.Load(config.Options{DBFlag: a.dbFlag, Dir: a.configDir})
+	cfg, err := config.Load(config.Options{
+		DBFlag:       a.dbFlag,
+		LibraryFlag:  a.libraryFlag,
+		Dir:          a.configDir,
+		DocumentsDir: a.documentsDir,
+	})
 	if cfg != nil {
 		a.configPath = cfg.ConfigPath
 	} else if errors.Is(err, errs.ErrInvalidConfig) {
@@ -340,30 +355,34 @@ func (a *app) loadConfig() (*config.Config, error) {
 	return cfg, err
 }
 
-// firstRun offers a choice of library location and records it (ADR-006). The
+// firstRun offers a choice of library folder and records it (ADR-011). The
 // config package never prompts, because it also serves an MCP server and a web
 // handler; asking is the front door's job.
 func (a *app) firstRun(cfg *config.Config) error {
 	if a.interactive && a.dbFlag == "" {
-		fmt.Fprintf(a.stdout, "Welcome to fil. Your library will be kept at:\n\n  %s\n\n", cfg.DBPath)
+		fmt.Fprintf(a.stdout, "Welcome to fil. Your library will be a folder at:\n\n  %s\n\n"+
+			"Your papers go in its papers/ folder, where you can see and organise them.\n\n", cfg.Folder)
 		fmt.Fprint(a.stdout, "Press Enter to accept, or type another folder: ")
 		line, _ := a.readLine()
 		if line != "" {
-			path, err := filepath.Abs(line)
-			if err != nil {
+			if err := cfg.UseFolder(line); err != nil {
 				return fmt.Errorf("library location %q: %w", line, err)
 			}
-			if filepath.Ext(path) != ".db" {
-				path = filepath.Join(path, config.DBName)
-			}
-			cfg.DBPath = path
 		}
 		fmt.Fprintln(a.stdout)
 	}
 	if err := cfg.Save(); err != nil {
 		return err
 	}
-	fmt.Fprintf(a.stderr, "Created your library at %s\nSettings are in %s\n", cfg.DBPath, cfg.ConfigPath)
+	where := cfg.DBPath
+	if cfg.Folder != "" {
+		where = cfg.Folder
+	}
+	fmt.Fprintf(a.stderr, "Created your library at %s\nSettings are in %s\n", where, cfg.ConfigPath)
+	if cfg.Cloud != "" {
+		fmt.Fprintf(a.stderr, "%s syncs that folder, so the database is kept at %s instead:\n"+
+			"sync tools corrupt live databases. Your papers sync as usual.\n", cfg.Cloud, cfg.DBPath)
+	}
 	for _, w := range cfg.Warnings() {
 		fmt.Fprintf(a.stderr, "note: %s\n", w)
 	}
