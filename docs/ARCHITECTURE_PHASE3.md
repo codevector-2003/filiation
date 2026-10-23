@@ -310,9 +310,12 @@ a graph.
 
 No match, no context. Never a guess. Precision is checked by hand on a sample before release.
 
-### ADR-009, still open: PDF text extraction
+### ADR-009, decided: PDF text extraction
 
-Decided by spike 10, before `internal/text` is written. Recorded as a decision when it is.
+**PDFium, compiled to WebAssembly and run by wazero** (`go-pdfium/webassembly`) — no cgo. Decided
+24 Oct 2026 by spike 10 and recorded as D20: 0.985 median word F1 against `pdftotext`, no failures
+on 19 real PDFs, about 10 MB on the binary, and Go 1.26 for `go.mod`. Text extraction also needs a
+gibberish check: a text layer can be nonsense.
 
 ---
 

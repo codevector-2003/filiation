@@ -489,3 +489,67 @@ and some sync tools turn them into copies). None behaves the same on all three s
 - **Checked in mid-October:** `PRODUCT_PLAN.md` gates Phase 3 on someone outside the maintainer
   using v0.2 twice within three weeks — a window closing around 16 Oct. M3 starts ahead of the
   planned 6 Dec, so that check still happens, and can still change course.
+
+---
+
+## D20 — PDF text comes from PDFium, run as WebAssembly (closes ADR-009)
+
+**Decided:** 24 Oct 2026, by spike 10 · detail in `SPIKES.md`
+
+`internal/text` extracts with `github.com/klippa-app/go-pdfium/webassembly`: PDFium compiled to
+WebAssembly and run by wazero, so there is still no cgo (hard rule 4). It is handed bytes, never a
+path, and runs under a time limit with a recover, one file failing one paper.
+
+**Why.** Against `pdftotext` on 19 real PDFs from five fields: 0.985 median word F1, no failures,
+no ligatures left, no words run together, every page count right, and as fast as `pdftotext`. The
+pure-Go `ledongthuc/pdf` scored 0.24 — its text loses the spaces between words — and failed on two
+files.
+
+**Costs, accepted:** about **10 MB** more per binary (fil is 16–18 MB today, so ~26–28 MB);
+`go.mod` moves to **Go 1.26** and `x/text` v0.42 when `internal/text` lands. Licences are MIT,
+Apache-2.0 and BSD-3; `go-plugin` (MPL-2.0) is not linked.
+
+**Rejected:** `ledongthuc/pdf` — small and fast, but its output cannot be searched. Shelling out to
+`pdftotext` — a second program for every user to install, which is what the single binary exists
+to avoid. Native PDFium through cgo — breaks hard rule 4.
+
+**Follow-on, for step 7:** a gibberish check. One file in 19 had a text layer that was nonsense (a
+scanned page stored upside down); a text layer is not the same as text, and such a paper must be
+recorded as "no usable text", not indexed.
+
+---
+
+## D21 — What fil can promise about PDFs, and how fetching runs
+
+**Decided:** 24 Oct 2026, by spike 9 · the Unpaywall half is still to be measured · detail in
+`SPIKES.md`
+
+- **The promise is "about one paper in eight", and it depends on the field.** OpenAlex offers a PDF
+  link for 25% of fetched works and a download succeeds for about half of those: roughly 46% of
+  physics, 14% of computer science, 9% of social sciences, 8% of medicine and under 1% of the
+  humanities. The README and `fil stats` say so per field, and every paper without a PDF says why —
+  as D12 already does for references.
+- **The host decides, not the paper.** arXiv served 56 of 56; publishers answered 403 to almost
+  every request, and PubMed Central sent HTML. fil does not work around either.
+- **`fil fetch` runs inside the command**, with a budget and progress, like `fil expand`. A median
+  download is 0.8 s (90th percentile 4 s) at one request per second per host, so a few hundred PDFs
+  take minutes, not hours. **The job system (D16) is not needed for downloads; it moves to M4**,
+  where embedding a library is the first truly long job. Open to change if `fil fetch` on a real
+  library shows otherwise.
+- **Unpaywall:** decided once spike 9 has asked it, with a separate address the maintainer
+  supplies.
+- **Europe PMC** publishes PubMed Central's open-access articles through a documented API. It is
+  the most promising next source for medicine, and is noted here rather than built.
+
+---
+
+## D22 — No reference parsing in M3; revisit with section-finding first
+
+**Decided:** 24 Oct 2026, by spike 11 · detail in `SPIKES.md`
+
+Matching a PDF's reference entries to real works is **precise** — 97% of matches confirmed by year
+or surname — but **recall is 44%**, because the reference list is often not found (no heading in
+physics layouts) or not split (author-year and some numbered styles). Parsed citation edges for
+local documents stay out of M3, as D19 planned. If built later, the work is in finding and
+splitting the list, not in matching; the edges stay one hop, marked `source = pdf`, with a
+confidence. Hard rule 2 is unchanged: a work OpenAlex knows always uses OpenAlex's list.
