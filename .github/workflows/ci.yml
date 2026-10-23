@@ -1,0 +1,46 @@
+# Runs the tests on every pull request and every push to main. main is
+# protected: a pull request merges only when all three of these pass.
+#
+# Three systems, because fil ships to three and the differences are real:
+# Windows paths and known folders, macOS's case-insensitive file system,
+# Linux's case-sensitive one. The job names are the required checks in the
+# branch protection rule — rename one there if you rename it here.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test ./...
+
+      # Hard rule 4: one static binary per platform, no cgo.
+      - name: Build without cgo
+        shell: bash
+        run: CGO_ENABLED=0 go build -o fil-ci ./cmd/fil
