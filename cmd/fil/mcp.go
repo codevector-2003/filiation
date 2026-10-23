@@ -43,7 +43,11 @@ func (a *app) serveMCP(ctx context.Context) error {
 		if err := cfg.Save(); err != nil {
 			return err
 		}
-		fmt.Fprintf(a.stderr, "fil: created your library at %s\n", cfg.DBPath)
+		where := cfg.DBPath
+		if cfg.Folder != "" {
+			where = cfg.Folder
+		}
+		fmt.Fprintf(a.stderr, "fil: created your library at %s\n", where)
 	}
 
 	lib, err := library.Open(ctx, cfg, library.Options{CacheDir: a.cacheDir, NoCache: a.noCache, Transport: a.transport})

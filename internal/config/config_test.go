@@ -37,7 +37,7 @@ func TestLoadPrecedence(t *testing.T) {
 	}{
 		{
 			name: "default when nothing is set",
-			want: "...library.db",
+			want: "...Filiation/My Library/filiation.db",
 		},
 		{
 			name:     "file beats default",
@@ -82,7 +82,7 @@ func TestLoadPrecedence(t *testing.T) {
 			}
 			t.Setenv(EnvDB, tt.env)
 
-			cfg, err := Load(Options{DBFlag: tt.flag, Dir: dir})
+			cfg, err := Load(Options{DocumentsDir: t.TempDir(), DBFlag: tt.flag, Dir: dir})
 			if err != nil {
 				t.Fatalf("Load() error = %v", err)
 			}
@@ -103,7 +103,7 @@ func TestLoadPrecedenceIsPerField(t *testing.T) {
 	dir := write(t, "db_path = \"/from/file.db\"\nmax_nodes = 42\n")
 	t.Setenv(EnvDB, "")
 
-	cfg, err := Load(Options{DBFlag: "/from/flag.db", Dir: dir})
+	cfg, err := Load(Options{DocumentsDir: t.TempDir(), DBFlag: "/from/flag.db", Dir: dir})
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
@@ -121,7 +121,7 @@ func TestLoadFileOmissionsKeepDefaults(t *testing.T) {
 	dir := write(t, "max_nodes = 42\n")
 	t.Setenv(EnvDB, "")
 
-	cfg, err := Load(Options{Dir: dir})
+	cfg, err := Load(Options{DocumentsDir: t.TempDir(), Dir: dir})
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
@@ -142,7 +142,7 @@ func TestLoadFirstRun(t *testing.T) {
 	t.Setenv(EnvDB, "")
 
 	dir := t.TempDir()
-	cfg, err := Load(Options{Dir: dir})
+	cfg, err := Load(Options{DocumentsDir: t.TempDir(), Dir: dir})
 	if err != nil {
 		t.Fatalf("Load() with no config file error = %v, want nil", err)
 	}
@@ -156,7 +156,7 @@ func TestLoadFirstRun(t *testing.T) {
 	if err := cfg.Save(); err != nil {
 		t.Fatalf("Save() error = %v", err)
 	}
-	again, err := Load(Options{Dir: dir})
+	again, err := Load(Options{DocumentsDir: t.TempDir(), Dir: dir})
 	if err != nil {
 		t.Fatalf("Load() after Save error = %v", err)
 	}
@@ -187,7 +187,7 @@ func TestLoadRejectsInvalidConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv(EnvDB, "")
-			_, err := Load(Options{Dir: write(t, tt.body)})
+			_, err := Load(Options{DocumentsDir: t.TempDir(), Dir: write(t, tt.body)})
 			if err == nil {
 				t.Fatal("Load() error = nil, want an error")
 			}
@@ -201,7 +201,7 @@ func TestLoadRejectsInvalidConfig(t *testing.T) {
 // A valid address must survive, or the check above is too eager.
 func TestLoadAcceptsContactEmail(t *testing.T) {
 	t.Setenv(EnvDB, "")
-	cfg, err := Load(Options{Dir: write(t, "contact_email = \"user@example.com\"\n")})
+	cfg, err := Load(Options{DocumentsDir: t.TempDir(), Dir: write(t, "contact_email = \"user@example.com\"\n")})
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
@@ -217,7 +217,7 @@ func TestLoadAcceptsContactEmail(t *testing.T) {
 // measurable benefit (D11), so blocking on it would punish politeness.
 func TestWarningsOnMissingContactEmail(t *testing.T) {
 	t.Setenv(EnvDB, "")
-	cfg, err := Load(Options{Dir: t.TempDir()})
+	cfg, err := Load(Options{DocumentsDir: t.TempDir(), Dir: t.TempDir()})
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
@@ -239,7 +239,7 @@ func TestLoadExpandsTilde(t *testing.T) {
 	}
 	t.Setenv(EnvDB, "")
 
-	cfg, err := Load(Options{Dir: write(t, "db_path = \"~/filiation-test.db\"\n")})
+	cfg, err := Load(Options{DocumentsDir: t.TempDir(), Dir: write(t, "db_path = \"~/filiation-test.db\"\n")})
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
@@ -255,10 +255,13 @@ func TestSaveLoadRoundTrip(t *testing.T) {
 	t.Setenv(EnvDB, "")
 	dir := t.TempDir()
 
-	cfg, err := Load(Options{Dir: dir})
+	cfg, err := Load(Options{DocumentsDir: t.TempDir(), Dir: dir})
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
+	// A library that is only a database, as v0.2 made: db_path and the
+	// budgets go in the global file.
+	cfg.Folder = ""
 	cfg.DBPath = filepath.Join(t.TempDir(), "chosen.db")
 	cfg.ContactEmail = "user@example.com"
 	cfg.MaxNodes = 250
@@ -266,7 +269,7 @@ func TestSaveLoadRoundTrip(t *testing.T) {
 		t.Fatalf("Save() error = %v", err)
 	}
 
-	got, err := Load(Options{Dir: dir})
+	got, err := Load(Options{DocumentsDir: t.TempDir(), Dir: dir})
 	if err != nil {
 		t.Fatalf("Load() after Save error = %v", err)
 	}
@@ -287,7 +290,7 @@ func TestSaveCreatesDirectory(t *testing.T) {
 	t.Setenv(EnvDB, "")
 	dir := filepath.Join(t.TempDir(), "nested", "filiation")
 
-	cfg, err := Load(Options{Dir: dir})
+	cfg, err := Load(Options{DocumentsDir: t.TempDir(), Dir: dir})
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
@@ -326,5 +329,162 @@ func TestDefaultCacheDir(t *testing.T) {
 	// directory, or clearing one could take the other.
 	if dir, err := DefaultDir(); err == nil && (cache == dir || filepath.Dir(cache) == dir) {
 		t.Errorf("DefaultCacheDir() = %q sits in the library directory %q", cache, dir)
+	}
+}
+
+// ADR-011: a first run proposes a library folder under Documents, with the
+// database inside it, and Save lists it as the default and writes its own
+// settings file.
+func TestFirstRunProposesALibraryFolder(t *testing.T) {
+	t.Setenv(EnvDB, "")
+	dir, documents := t.TempDir(), t.TempDir()
+	cfg, err := Load(Options{Dir: dir, DocumentsDir: documents})
+	if err != nil {
+		t.Fatal(err)
+	}
+	folder := filepath.Join(documents, "Filiation", "My Library")
+	if !cfg.FirstRun || cfg.Folder != folder || cfg.Name != "My Library" ||
+		cfg.DBPath != filepath.Join(folder, LibraryDBName) || cfg.Cloud != "" {
+		t.Fatalf("first run = %+v", cfg)
+	}
+	if !cfg.FolderCollections {
+		t.Error("folder collections are on by default")
+	}
+	if err := cfg.Save(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(folder, FileName)); err != nil {
+		t.Errorf("library settings not written: %v", err)
+	}
+
+	again, err := Load(Options{Dir: dir, DocumentsDir: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if again.FirstRun || again.Folder != folder || again.DBPath != cfg.DBPath || len(again.Libraries) != 1 {
+		t.Errorf("after Save = %+v", again)
+	}
+}
+
+// A library folder inside a sync service keeps its database in the per-user
+// directory, and the place chosen is recorded rather than worked out again.
+func TestCloudFolderKeepsTheDatabaseOutside(t *testing.T) {
+	t.Setenv(EnvDB, "")
+	dir := t.TempDir()
+	documents := filepath.Join(t.TempDir(), "Dropbox", "Documents")
+	cfg, err := Load(Options{Dir: dir, DocumentsDir: documents})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Cloud != "Dropbox" {
+		t.Fatalf("Cloud = %q, want Dropbox", cfg.Cloud)
+	}
+	if !strings.HasPrefix(cfg.DBPath, filepath.Join(dir, "libraries", "My-Library-")) ||
+		filepath.Base(cfg.DBPath) != LibraryDBName {
+		t.Errorf("DBPath = %q, want it under %s", cfg.DBPath, dir)
+	}
+	if err := cfg.Save(); err != nil {
+		t.Fatal(err)
+	}
+	again, err := Load(Options{Dir: dir})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if again.DBPath != cfg.DBPath || again.Libraries[0].Database != cfg.DBPath {
+		t.Errorf("recorded database = %q (%+v), want %q", again.DBPath, again.Libraries, cfg.DBPath)
+	}
+}
+
+func TestCloudService(t *testing.T) {
+	env := map[string]string{"OneDrive": filepath.FromSlash("/Users/a/Personal Cloud")}
+	getenv := func(k string) string { return env[k] }
+	for path, want := range map[string]string{
+		"/Users/a/Personal Cloud/Documents/Filiation":           "OneDrive",
+		"/Users/a/OneDrive/Documents":                           "OneDrive",
+		"/Users/a/OneDrive - University of Leeds/Documents":     "OneDrive",
+		"/Users/a/Dropbox (Personal)/Papers":                    "Dropbox",
+		"/Users/a/Google Drive/My Drive":                        "Google Drive",
+		"/Users/a/iCloudDrive/Documents":                        "iCloud Drive",
+		"/Users/a/Library/Mobile Documents/com~apple~CloudDocs": "iCloud Drive",
+		"/Users/a/Library/CloudStorage/OneDrive-Personal/x":     "OneDrive",
+		"/Users/a/Library/CloudStorage/GoogleDrive-a@b.org/x":   "Google Drive",
+		"/Users/a/Documents/Filiation":                          "",
+		"/Users/a/Personal Cloudy/Documents":                    "",
+		"/srv/dropboxes/x":                                      "",
+	} {
+		if got := cloudService(filepath.FromSlash(path), getenv); got != want {
+			t.Errorf("cloudService(%q) = %q, want %q", path, got, want)
+		}
+	}
+}
+
+// A library's own settings beat the global ones, field by field.
+func TestLibrarySettingsBeatGlobalOnes(t *testing.T) {
+	t.Setenv(EnvDB, "")
+	folder := t.TempDir()
+	if err := os.WriteFile(filepath.Join(folder, FileName),
+		[]byte("name = \"Thesis\"\nmax_nodes = 7\nfolder_collections = false\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	dir := write(t, "max_nodes = 42\nmax_depth = 2\n[[library]]\nname = \"Thesis\"\nfolder = '"+folder+"'\n")
+	cfg, err := Load(Options{Dir: dir, DocumentsDir: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Folder != folder || cfg.Name != "Thesis" || cfg.MaxNodes != 7 || cfg.MaxDepth != 2 || cfg.FolderCollections {
+		t.Errorf("cfg = %+v", cfg)
+	}
+
+	if err := os.WriteFile(filepath.Join(folder, FileName), []byte("max_node = 7\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Load(Options{Dir: dir, DocumentsDir: t.TempDir()}); !errors.Is(err, errs.ErrInvalidConfig) {
+		t.Errorf("a typo in the library's settings = %v, want ErrInvalidConfig", err)
+	}
+}
+
+func TestLibraryFlag(t *testing.T) {
+	t.Setenv(EnvDB, "")
+	a, b := t.TempDir(), t.TempDir()
+	if err := os.WriteFile(filepath.Join(b, FileName), []byte("name = \"Side project\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	dir := write(t, "default_library = \"Thesis\"\n[[library]]\nname = \"Thesis\"\nfolder = '"+a+"'\n")
+
+	for flag, want := range map[string]string{"": a, "thesis": a, a: a, b: b} {
+		cfg, err := Load(Options{Dir: dir, LibraryFlag: flag, DocumentsDir: t.TempDir()})
+		if err != nil {
+			t.Fatalf("--library %q: %v", flag, err)
+		}
+		if cfg.Folder != want || cfg.FirstRun {
+			t.Errorf("--library %q opened %q, want %q", flag, cfg.Folder, want)
+		}
+	}
+	_, err := Load(Options{Dir: dir, LibraryFlag: "Nope", DocumentsDir: t.TempDir()})
+	if !errors.Is(err, errs.ErrInvalidConfig) || !strings.Contains(err.Error(), "Thesis") {
+		t.Errorf("unknown library = %v, want ErrInvalidConfig naming the ones there are", err)
+	}
+}
+
+// A v0.2 settings file names a database and no folder. It keeps working
+// exactly as it did; nothing moves until fil library move.
+func TestV02SettingsStillOpen(t *testing.T) {
+	t.Setenv(EnvDB, "")
+	db := filepath.Join(t.TempDir(), "library.db")
+	dir := write(t, "db_path = '"+db+"'\nmax_nodes = 500\nmax_depth = 3\nmax_refs_per_work = 100\n")
+	cfg, err := Load(Options{Dir: dir, DocumentsDir: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.DBPath != db || cfg.Folder != "" || cfg.FirstRun {
+		t.Errorf("cfg = %+v", cfg)
+	}
+}
+
+func TestDefaultLibraryMustBeListed(t *testing.T) {
+	t.Setenv(EnvDB, "")
+	_, err := Load(Options{Dir: write(t, "default_library = \"Gone\"\n"), DocumentsDir: t.TempDir()})
+	if !errors.Is(err, errs.ErrInvalidConfig) {
+		t.Errorf("err = %v", err)
 	}
 }

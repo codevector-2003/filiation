@@ -1,6 +1,6 @@
 # Project status
 
-**Date:** 27 September 2026 · **Position:** **M2 complete — v0.2 released** · **M3 in progress**
+**Date:** 23 October 2026 · **Position:** **M2 complete — v0.2 released** · **M3 in progress** (steps 1–3 done)
 **Phase 1 target:** v0.1 by 14 November 2026
 
 > **In one line:** M0 is done, and M1's expander works live — `fil expand` grew one seed to 525
@@ -571,7 +571,7 @@ reworded), D18 (the library is a folder the user chooses; `papers/` with readabl
 | --- | --- | --- |
 | 1 | `identity`: fil IDs | **Done** — 27 Sept |
 | 2 | Schema v2 and the first migration; fil IDs through every layer | **Done** — 27 Sept |
-| 3 | The library folder and `papers/`: config, names, atomic writes, rescan, `fil library move` | Not started |
+| 3 | The library folder and `papers/`: config, names, atomic writes, rescan, `fil library move` | **Done** — 23 Oct |
 | 4 | Spikes 9 (PDF availability), 10 (extractor bake-off), 11 (reference matching) | Not started — **needs network**, see below |
 | 5 | Legal PDF links: OpenAlex locations, Unpaywall if spike 9 justifies it | Not started |
 | 6 | Downloading, `fil fetch` | Not started |
@@ -618,6 +618,58 @@ GraphML nodes are now keyed by fil ID, with `openalex_id` as an attribute.
   one that tried the insert first took 2.1 s — a refused insert costs more than a lookup, and in a
   dense graph most references point at works already present. On a live 500-work expansion,
   which is network-bound at ~20 s, the difference is about a second.
+
+**Step 3 — the library folder and `papers/` (ADR-011, ADR-012).** A library is now a folder:
+`filiation.toml`, `filiation.db`, `papers/`, `Inbox/`, `exports/` and `.filiation/tmp/`. A first
+run proposes `Documents/Filiation/My Library`; on Windows the Documents folder comes from the
+shell's known-folder API, because it is often redirected into OneDrive. *Done when* — a work
+folder can be created, moved by hand and found again — is met in tests and was run live.
+
+- **Settings are in two places.** The global `filiation.toml` lists the libraries
+  (`[[library]]` with name and folder) and `default_library`; each library folder has its own
+  `filiation.toml` for its name, budgets and `folder_collections`, so they travel with the folder.
+  Budgets apply defaults < global < library, per field. `--library <name or folder>` picks one
+  for any command; `--db` still opens a bare database.
+- **Cloud sync folders.** A folder inside OneDrive, Dropbox, Google Drive or iCloud Drive keeps
+  its database in the per-user directory (`libraries/<name>-<hash>/filiation.db`), and where it
+  went is recorded in the global settings rather than worked out again. Detection reads the path
+  and OneDrive's environment variables. **This applies to the maintainer's own machine**:
+  Documents is in OneDrive.
+- **v0.2 libraries keep working** unchanged: a `db_path` setting opens a database with no folder.
+  `fil library move <folder>` gives one a folder — copies the database with `VACUUM INTO`,
+  checks the copy (integrity check, and the counts of works, citations, files and notes), switches
+  the settings and leaves the original for the person to delete. A library with a folder is moved
+  as a whole by a rename, same drive only. Run live against a library made by the v0.2.0 binary:
+  it upgraded from schema 1 to 3 and moved with every row.
+- **Schema v3:** `work_folder` (path, work, the name fil gave it, missing), `work_file` (path,
+  work, SHA-256, size, mtime, version, origin, missing) and `folder_collection`. All three are new
+  tables, so the upgrade is schema.sql's `CREATE … IF NOT EXISTS`. A fold moves folders and files
+  to the survivor, like notes.
+- **Names** are `{Surname}-{Year}-{ShortTitle}--{filID}`, folded to ASCII with `x/text`
+  (BSD, pure Go — the one new dependency) plus a table for letters that do not decompose (ß, ø,
+  Ł). The title stops at a word boundary within 60 characters. Stored paths are relative, `/`,
+  NFC. fil warns about paths past 240 characters.
+- **Scans** run when a command needs them. A folder is found by the fil ID in its name (any case;
+  aliases left by folds resolve); one whose ID was removed is found by the hashes of its files,
+  hashing only files of the same size; a deleted one is marked missing and the paper stays. New
+  files in a work folder are hashed once and recorded; unchanged ones (same size and mtime) are
+  not re-read. Hashing happens before the write transaction opens. A PDF dropped loose in
+  `papers/` is reported and left alone for import (step 8).
+- **fil renames only what it named.** `fil library folder <paper>` renames a folder when the name
+  would now differ — a stub has since been fetched — but only while the folder still has the
+  name fil gave it.
+- **Folders become collections** (on by default): each folder holding work folders is a
+  collection of them, by its path under `papers/`. Collections a person makes are never touched.
+- **Writes are atomic** (`blobs.Write`, for step 6): a temporary file in `.filiation/tmp/`, synced,
+  checked (`%PDF-` in the first 1024 bytes, size limit, optional hash), then renamed. It never
+  overwrites. Temporary files older than a day are cleared on open; younger ones may be another
+  process's download.
+- **Commands:** `fil library` (where it is, what `papers/` holds, collections, other libraries),
+  `library folder <paper>`, `library scan`, `library new <folder> [--default]`, `library move`.
+  `fil where` names the folder and the database separately.
+- **Found on the way:** the CLI test harness had no Documents override, so one test run created an
+  empty library folder under the real Documents. It was removed at once; the harness now passes
+  its own, and every test that loads settings does too.
 
 **Found while planning.** OpenAlex's `oa_url` for the M0 seed, a gold OA paper, is a DOI landing
 page and its `pdf_url` is null — what v0.2 stores is usually not a PDF, so M3 reads OA locations

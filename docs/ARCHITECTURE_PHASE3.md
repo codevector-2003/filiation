@@ -329,7 +329,10 @@ file table. SQLite cannot change a primary key in place, so this follows its twe
 rebuild, with foreign keys off for the rebuild and `foreign_key_check` before commit. **The
 rowid order of `cites` is preserved**, because the frontier ranks references by it.
 
-**Later steps, each landing with the code that uses it:** work files and folders (ADR-012),
+**v3 — papers on disk (ADR-012), done with build step 3.** `work_folder`, `work_file` and
+`folder_collection`, all new tables. Paths are relative to the library folder, `/`, NFC.
+
+**Later steps, each landing with the code that uses it:**
 download attempts and full-text state (ADR-013), chunk offsets and extractor version (text),
 mentions (ADR-015), import state (ADR-014).
 

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/codevector-2003/filiation/internal/blobs"
 	"github.com/codevector-2003/filiation/internal/config"
 	"github.com/codevector-2003/filiation/internal/errs"
 	"github.com/codevector-2003/filiation/internal/export"
@@ -41,13 +42,24 @@ type Options struct {
 // job, so the two stay swappable independently.
 type Library struct {
 	db    *store.DB
+	files *blobs.Folder // nil for a library that is only a database
 	graph *graph.Graph
 	http  *httpx.Client
 	cfg   config.Config
 }
 
 // Open opens the library cfg names, creating and migrating it on first use.
+// A library folder gets its papers/, Inbox/ and exports/ folders if they are
+// missing.
 func Open(ctx context.Context, cfg *config.Config, opts Options) (*Library, error) {
+	var files *blobs.Folder
+	if cfg.Folder != "" {
+		f, err := blobs.Open(cfg.Folder)
+		if err != nil {
+			return nil, err
+		}
+		files = f
+	}
 	db, err := store.Open(ctx, cfg.DBPath)
 	if err != nil {
 		return nil, err
@@ -84,6 +96,7 @@ func Open(ctx context.Context, cfg *config.Config, opts Options) (*Library, erro
 
 	return &Library{
 		db:    db,
+		files: files,
 		graph: graph.New(db, openalex.New(h)),
 		http:  h,
 		cfg:   *cfg,

@@ -20,13 +20,27 @@ import (
 //
 //	1  v0.1, v0.2: work keyed on openalex_id
 //	2  M3: work keyed on fil_id (D17), work_alias; pdf_sha256 and pdf_license gone
-const SchemaVersion = 2
+//	3  M3: work_folder, work_file and folder_collection — the papers/ folder (D18)
+const SchemaVersion = 3
 
 // upgrades[v] moves a library from schema v to v+1. Each runs inside
 // Migrate's one transaction, after the ones before it, so a library several
 // versions behind is upgraded all the way or not at all.
 var upgrades = map[int]func(ctx context.Context, db *DB, tx *sql.Tx) error{
 	1: upgradeV1ToV2,
+	2: upgradeV2ToV3,
+}
+
+// upgradeV2ToV3 adds the tables for the papers/ folder. Every one is new, so
+// schema.sql's CREATE ... IF NOT EXISTS adds them and passes over the rest.
+func upgradeV2ToV3(ctx context.Context, _ *DB, tx *sql.Tx) error {
+	if err := applySchema(ctx, tx, Schema); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE meta SET value = '3' WHERE key = 'schema_version';`); err != nil {
+		return fmt.Errorf("record schema 3: %w", err)
+	}
+	return nil
 }
 
 // metaSchemaVersion is the meta key holding the version of the library on disk.

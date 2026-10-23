@@ -168,7 +168,7 @@ func (tx *Tx) MarkSeed(ctx context.Context, id string) error {
 //     survivor. An edge that would already exist, or would become a
 //     self-citation, is dropped;
 //   - moves what the user attached to the old record — notes, collections,
-//     text — so a fold never deletes a person's work;
+//     text, folders and files — so a fold never deletes a person's work;
 //   - records the old record's fil ID and OpenAlex ID as aliases of the
 //     survivor (D17), and repoints any aliases the old record already had, so
 //     everything that named the old record still finds the paper;
@@ -227,6 +227,11 @@ func (tx *Tx) MergeInto(ctx context.Context, oldID, newID string) error {
 		`INSERT OR IGNORE INTO collection_work (collection_id, work_id)
 		 SELECT collection_id, ?1 FROM collection_work WHERE work_id = ?2;`,
 		`UPDATE chunk SET work_id = ?1 WHERE work_id = ?2;`,
+		// Its folders and files on disk are the survivor's; their paths do not
+		// change, and the next scan finds the old fil ID in a folder name as an
+		// alias.
+		`UPDATE work_folder SET fil_id = ?1 WHERE fil_id = ?2;`,
+		`UPDATE work_file SET fil_id = ?1 WHERE fil_id = ?2;`,
 		// Names the old record already answered to now answer for the
 		// survivor, and so do its own two.
 		`UPDATE work_alias SET fil_id = ?1 WHERE fil_id = ?2;`,
