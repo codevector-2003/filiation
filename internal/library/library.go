@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/codevector-2003/filiation/internal/blobs"
@@ -50,9 +51,11 @@ type Library struct {
 	db    *store.DB
 	files *blobs.Folder // nil for a library that is only a database
 	pdfs  *pdfs.Client
-	graph *graph.Graph
-	http  *httpx.Client
-	cfg   config.Config
+
+	keepMu sync.Mutex // see keep: a downloaded file's hash check and its record are one step
+	graph  *graph.Graph
+	http   *httpx.Client
+	cfg    config.Config
 }
 
 // Open opens the library cfg names, creating and migrating it on first use.

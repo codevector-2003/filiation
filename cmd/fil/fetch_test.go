@@ -96,6 +96,15 @@ func TestFetchOnePaper(t *testing.T) {
 	if !strings.Contains(out, "1 paper has its PDF on disk in papers/") {
 		t.Errorf("stats:\n%s", out)
 	}
+
+	// Deleted by hand: stats looks at the disk, not the last scan.
+	if err := os.RemoveAll(filepath.Dir(path)); err != nil {
+		t.Fatal(err)
+	}
+	_, out, _ = h.run(false, "", "stats")
+	if !strings.Contains(out, "0 papers have their PDF on disk in papers/") {
+		t.Errorf("stats after deleting the PDF:\n%s", out)
+	}
 }
 
 func TestFetchOnAnEmptyLibrary(t *testing.T) {

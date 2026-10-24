@@ -4,8 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -197,7 +200,7 @@ func (l *Library) fetchWork(ctx context.Context, w model.Work, links []model.Loc
 		}
 		a, staged, err := l.download(ctx, link)
 		if err != nil {
-			return out, err // cancelled
+			return out, err // cancelled, or the library folder cannot be written
 		}
 		if staged != nil {
 			saved, dup, err := l.keep(ctx, w, link, staged, &a)
@@ -235,7 +238,8 @@ func (l *Library) download(ctx context.Context, link model.Location) (store.Atte
 		a.Outcome, a.Status, a.Millis = string(f.Outcome), f.Status, time.Since(start).Milliseconds()
 		return a, nil, nil
 	}
-	staged, err := l.files.Stage(d.Body, blobs.WriteOptions{PDF: true, MaxSize: MaxPDFSize})
+	body := &readErr{r: d.Body}
+	staged, err := l.files.Stage(body, blobs.WriteOptions{PDF: true, MaxSize: MaxPDFSize})
 	d.Body.Close()
 	a.Millis = time.Since(start).Milliseconds()
 	switch {
@@ -246,14 +250,34 @@ func (l *Library) download(ctx context.Context, link model.Location) (store.Atte
 		a.Outcome = string(pdfs.TooLarge)
 	case errors.Is(err, blobs.ErrNotPDF):
 		a.Outcome = string(pdfs.NotPDF)
-	default:
-		f := pdfs.Classify(ctx, err)
+	case body.err != nil:
+		f := pdfs.Classify(ctx, body.err)
 		if f.Outcome == pdfs.Cancelled {
 			return a, nil, ctx.Err()
 		}
 		a.Outcome = string(f.Outcome)
+	default:
+		// Not the link's fault: the library folder could not be written —
+		// full, or not writable. Recording the link as failed would leave it
+		// alone for a month after the disk was fixed, so stop instead.
+		return a, nil, fmt.Errorf("save a download in %s: %w", l.files.Root(), err)
 	}
 	return a, nil, nil
+}
+
+// readErr remembers the error reading a download, so a failed save can be
+// told apart: the network's fault, or the disk's.
+type readErr struct {
+	r   io.Reader
+	err error
+}
+
+func (e *readErr) Read(p []byte) (int, error) {
+	n, err := e.r.Read(p)
+	if err != nil && !errors.Is(err, io.EOF) {
+		e.err = err
+	}
+	return n, err
 }
 
 // keep puts a downloaded PDF in the paper's folder and records it — unless
@@ -261,6 +285,13 @@ func (l *Library) download(ctx context.Context, link model.Location) (store.Atte
 // the link as serving something else (a publisher's notice, typically) and
 // the attempt as a duplicate.
 func (l *Library) keep(ctx context.Context, w model.Work, link model.Location, s *blobs.Staged, a *store.Attempt) (string, bool, error) {
+	// Checking the hash and recording the file are one step. Downloads run
+	// four at a time, and two of them can bring the same bytes: without the
+	// lock both would look before either had recorded, and both would keep a
+	// copy.
+	l.keepMu.Lock()
+	defer l.keepMu.Unlock()
+
 	same, err := l.db.FilesWithHash(ctx, s.SHA256)
 	if err != nil {
 		return "", false, err
@@ -317,9 +348,7 @@ func fileBase(version string) string {
 	return version
 }
 
-func isPDFPath(p string) bool {
-	return len(p) > 4 && (p[len(p)-4:] == ".pdf" || p[len(p)-4:] == ".PDF")
-}
+func isPDFPath(p string) bool { return strings.EqualFold(filepath.Ext(p), ".pdf") }
 
 func (f *Fetched) add(p FetchedPaper) {
 	f.Tried++

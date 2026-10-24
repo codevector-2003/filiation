@@ -87,6 +87,11 @@ func (a *app) stats(ctx context.Context, listDuplicates bool) error {
 			fmt.Fprintln(w, " — fil fetch --dry-run says why the rest have none")
 		}
 		if dir := lib.Folder(); dir != "" {
+			// What is on disk now, not at the last scan: a person may have
+			// moved or deleted PDFs since.
+			if _, err := lib.Scan(ctx); err != nil {
+				return err
+			}
 			if n, err := lib.FetchedOnDisk(ctx); err == nil {
 				fmt.Fprintf(w, "            %s on disk in papers/ — fil fetch downloads more\n", plural(n, "paper has its PDF", "papers have their PDF"))
 			}

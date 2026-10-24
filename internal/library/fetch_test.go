@@ -8,10 +8,12 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
 
+	"github.com/codevector-2003/filiation/internal/blobs"
 	"github.com/codevector-2003/filiation/internal/config"
 	"github.com/codevector-2003/filiation/internal/model"
 	"github.com/codevector-2003/filiation/internal/store"
@@ -148,15 +150,29 @@ func TestFetchDownloadsAndASecondRunDownloadsNothing(t *testing.T) {
 	for _, p := range res.Papers {
 		byID[p.Work.FilID] = p
 	}
-	seed := byID[works["seed"].FilID]
-	if filepath.Base(seed.File) != "published.pdf" || !strings.Contains(seed.File, "Piwowar-2018-The-state-of-OA") {
-		t.Errorf("seed saved at %q", seed.File)
-	}
 	if a := byID[works["A"].FilID]; filepath.Base(a.File) != "preprint.pdf" || len(a.Attempts) != 2 {
 		t.Errorf("A = %+v; want the preprint after the publisher refused", a)
 	}
-	if c := byID[works["C"].FilID]; c.File != "" {
-		t.Errorf("C kept a copy of the seed's bytes at %q", c.File)
+	// The seed and C are served the same bytes, downloading at the same time.
+	// Whichever is recorded first keeps them; the other is a duplicate. Never
+	// both — two workers must not each find the bytes new.
+	seed, c := byID[works["seed"].FilID], byID[works["C"].FilID]
+	switch {
+	case seed.File != "" && c.File != "":
+		t.Errorf("both kept the same bytes: %q and %q", seed.File, c.File)
+	case seed.File != "":
+		if filepath.Base(seed.File) != "published.pdf" || !strings.Contains(seed.File, "Piwowar-2018-The-state-of-OA") {
+			t.Errorf("seed saved at %q", seed.File)
+		}
+		if c.Attempts[0].Outcome != "duplicate" {
+			t.Errorf("C = %+v; want a duplicate", c.Attempts)
+		}
+	case c.File != "":
+		if seed.Attempts[0].Outcome != "duplicate" {
+			t.Errorf("seed = %+v; want a duplicate", seed.Attempts)
+		}
+	default:
+		t.Error("neither the seed nor C kept the PDF")
 	}
 	if n, _ := l.FetchedOnDisk(ctx); n != 2 {
 		t.Errorf("PDFs on disk = %d", n)
@@ -235,5 +251,96 @@ func TestFetchNeedsAFolder(t *testing.T) {
 	l, _ := openTest(t, peerj, Options{})
 	if _, err := l.Fetch(t.Context(), FetchOptions{}); !errors.Is(err, ErrNoFolder) {
 		t.Errorf("Fetch = %v, want ErrNoFolder", err)
+	}
+}
+
+// Two downloads bringing the same bytes for different papers, saved at the
+// same moment: exactly one keeps them. Forced 25 times over, because a
+// timing that lets one finish first hides the race (it passed locally and
+// failed in CI on #6 before the lock).
+func TestKeepIsOneStepUnderRace(t *testing.T) {
+	t.Parallel()
+	l, _, _ := openFetchTest(t)
+	ctx := t.Context()
+	n, err := l.Neighbours(ctx, "10.7717/peerj.4375")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A fresh pair of papers each round: a paper gets one PDF, not thirty.
+	for i := range 25 {
+		pair := [2]model.Work{}
+		for j := range pair {
+			if pair[j], err = l.workWithAuthors(ctx, n.Cites[2*i+j].FilID); err != nil {
+				t.Fatal(err)
+			}
+		}
+		body := "%PDF-1.7\nrace " + strconv.Itoa(i) + "\n%%EOF\n"
+		var staged [2]*blobs.Staged
+		for j := range staged {
+			if staged[j], err = l.files.Stage(strings.NewReader(body), blobs.WriteOptions{PDF: true}); err != nil {
+				t.Fatal(err)
+			}
+		}
+		start := make(chan struct{})
+		var kept [2]bool
+		var wg sync.WaitGroup
+		for j, w := range pair {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				<-start
+				var a store.Attempt
+				_, dup, err := l.keep(ctx, w, link("x.test", "/"+strconv.Itoa(i), "published"), staged[j], &a)
+				staged[j].Discard()
+				if err != nil {
+					t.Error(err)
+				}
+				kept[j] = !dup
+			}()
+		}
+		close(start)
+		wg.Wait()
+		if kept[0] == kept[1] {
+			t.Fatalf("round %d: kept by the first %v, by the second %v; want exactly one", i, kept[0], kept[1])
+		}
+	}
+}
+
+// A library folder that cannot be written is the disk's fault, not the
+// link's: fetch stops, and the link is not left alone for a month.
+func TestFetchLocalFailureIsNotTheLinksFault(t *testing.T) {
+	t.Parallel()
+	l, _, works := openFetchTest(t)
+	ctx := t.Context()
+	tmp := filepath.Join(l.Folder(), ".filiation", "tmp")
+	if err := os.RemoveAll(tmp); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(tmp, []byte("not a directory"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := l.Fetch(ctx, FetchOptions{Max: 1}); err == nil {
+		t.Fatal("Fetch succeeded with nowhere to save")
+	}
+	if a, _ := l.Attempts(ctx, works["seed"].FilID); len(a) != 0 {
+		t.Errorf("attempts recorded against the link: %+v", a)
+	}
+
+	os.Remove(tmp)
+	if err := os.MkdirAll(tmp, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	res, err := l.Fetch(ctx, FetchOptions{Max: 1})
+	if err != nil || res.Downloaded != 1 {
+		t.Errorf("after the disk was fixed: %+v, %v; want the seed downloaded", res, err)
+	}
+}
+
+func TestIsPDFPath(t *testing.T) {
+	t.Parallel()
+	for p, want := range map[string]bool{"a/published.pdf": true, "a/x.PDF": true, "a/x.PdF": true, "a/notes.txt": false, "a/pdf": false} {
+		if got := isPDFPath(p); got != want {
+			t.Errorf("isPDFPath(%q) = %v", p, got)
+		}
 	}
 }
