@@ -248,3 +248,49 @@ func TestWalk(t *testing.T) {
 		t.Errorf("folders = %v", l.Folders)
 	}
 }
+
+// Stage leaves the bytes in the temporary directory with their hash known;
+// Discard removes them, Commit places them, and a size limit is its own error.
+func TestStageCommitDiscard(t *testing.T) {
+	t.Parallel()
+	f, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpCount := func() int {
+		left, _ := os.ReadDir(f.Abs(tmpDir))
+		return len(left)
+	}
+
+	s, err := f.Stage(strings.NewReader(pdf), WriteOptions{PDF: true})
+	if err != nil || len(s.SHA256) != 64 || s.Size != int64(len(pdf)) || tmpCount() != 1 {
+		t.Fatalf("Stage = %+v, %v; %d temporary files", s, err, tmpCount())
+	}
+	s.Discard()
+	if tmpCount() != 0 {
+		t.Error("Discard left the temporary file")
+	}
+
+	s, _ = f.Stage(strings.NewReader(pdf), WriteOptions{PDF: true})
+	got, err := s.Commit("papers/x--F7K2M9QXA/published.pdf")
+	if err != nil || got.SHA256 != s.SHA256 || tmpCount() != 0 {
+		t.Fatalf("Commit = %+v, %v", got, err)
+	}
+	s.Discard() // after Commit: nothing to do, and the placed file stays
+	if _, err := os.Stat(f.Abs(got.Path)); err != nil {
+		t.Errorf("committed file gone: %v", err)
+	}
+
+	again, _ := f.Stage(strings.NewReader(pdf), WriteOptions{PDF: true})
+	if _, err := again.Commit(got.Path); !errors.Is(err, fs.ErrExist) {
+		t.Errorf("Commit over a file = %v, want fs.ErrExist", err)
+	}
+	again.Discard()
+
+	if _, err := f.Stage(strings.NewReader(pdf), WriteOptions{MaxSize: 5}); !errors.Is(err, ErrTooLarge) {
+		t.Errorf("over the limit = %v, want ErrTooLarge", err)
+	}
+	if tmpCount() != 0 {
+		t.Error("a failed Stage left a temporary file")
+	}
+}

@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
+	"sort"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -17,30 +20,35 @@ func (a *app) fetchCommand() *cobra.Command {
 	var max int
 	cmd := &cobra.Command{
 		Use:   "fetch [paper]",
-		Short: "Find legal open-access PDFs for your papers",
-		Long: "Find where your papers can be downloaded legally: the open-access copies\n" +
-			"OpenAlex knows of — the published version, the accepted manuscript or a\n" +
-			"preprint. fil never downloads from behind a paywall or a login.\n\n" +
-			"With --dry-run, fil looks up the links and reports what it would download,\n" +
-			"and why each paper without a PDF has none. Your own papers come first, then\n" +
-			"the ones your library cites most. Downloading itself is not built yet.\n\n" +
-			"Name a paper to see its links.",
-		Example: "  fil fetch --dry-run\n  fil fetch --dry-run 10.7717/peerj.4375",
+		Short: "Download the legal open-access PDFs of your papers",
+		Long: "Download your papers' PDFs into papers/, from the open-access copies OpenAlex\n" +
+			"knows of — the published version first, then the accepted manuscript, then a\n" +
+			"preprint. fil never downloads from behind a paywall or a login, and a link\n" +
+			"that fails is left alone for a month.\n\n" +
+			"Your own papers come first, then the ones your library cites most. Each run\n" +
+			"downloads at most --max PDFs; run it again to continue. A PDF you deleted is\n" +
+			"not downloaded again — name the paper to ask for it.\n\n" +
+			"With --dry-run, fil only looks up the links and reports what it would\n" +
+			"download, and why each paper without a PDF has none.",
+		Example: "  fil fetch\n  fil fetch --max 200\n  fil fetch 10.7717/peerj.4375\n  fil fetch --dry-run",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if !dryRun {
-				return usageError{cmd: cmd, err: errors.New("downloading is not built yet — pass --dry-run to see what fil would download")}
-			}
 			if max < 0 {
 				return usageError{cmd: cmd, err: errors.New("--max must not be negative")}
 			}
-			if len(args) > 0 {
+			switch {
+			case dryRun && len(args) > 0:
 				return a.pdfLinks(cmd.Context(), strings.Join(args, " "))
+			case dryRun:
+				return a.locate(cmd.Context(), max)
+			case len(args) > 0:
+				return a.fetchOne(cmd.Context(), strings.Join(args, " "))
 			}
-			return a.locate(cmd.Context(), max)
+			return a.fetch(cmd.Context(), max)
 		},
 	}
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "look up links and report, without downloading")
-	cmd.Flags().IntVar(&max, "max", 0, fmt.Sprintf("most papers to look up in this run (default %s, 1 credit per 100)", thousands(library.DefaultLocateMax)))
+	cmd.Flags().IntVar(&max, "max", 0, fmt.Sprintf("most PDFs to download in this run (default %d); with --dry-run, papers to look up (default %s)",
+		library.DefaultFetchMax, thousands(library.DefaultLocateMax)))
 	return cmd
 }
 
@@ -167,3 +175,137 @@ func describeLocation(l model.Location) string {
 	}
 	return fmt.Sprintf("%s · %s · %s", version, l.Host, licence)
 }
+
+func (a *app) fetch(ctx context.Context, max int) error {
+	lib, err := a.openExisting(ctx)
+	if err != nil {
+		return err
+	}
+	defer lib.Close()
+
+	opts := library.FetchOptions{Max: max}
+	budget := max
+	if budget == 0 {
+		budget = library.DefaultFetchMax
+	}
+	if a.interactive {
+		opts.Progress = func(f library.Fetched) {
+			fmt.Fprintf(a.stderr, "\r  %s of up to %s papers tried · %s downloaded · %s ",
+				thousands(f.Tried), thousands(budget), thousands(f.Downloaded), megabytes(f.Bytes))
+		}
+	}
+	res, runErr := lib.Fetch(ctx, opts)
+	if a.interactive && res.Tried > 0 {
+		fmt.Fprintln(a.stderr)
+	}
+	if errors.Is(runErr, library.ErrNoFolder) {
+		return a.explainNoFolder(runErr)
+	}
+
+	w := a.stdout
+	if res.Located.Checked > 0 {
+		fmt.Fprintf(w, "Looked up:  links for %s.\n", plural(res.Located.Checked, "paper", "papers"))
+	}
+	switch {
+	case res.Tried == 0 && runErr == nil:
+		fmt.Fprintln(w, "Nothing to download: every paper with a legal PDF link has its PDF, or its\n"+
+			"links failed within the last month. fil fetch --dry-run shows the rest.")
+	default:
+		fmt.Fprintf(w, "Downloaded: %s of %s tried, %s in %s.\n",
+			plural(res.Downloaded, "PDF", "PDFs"), thousands(res.Tried), megabytes(res.Bytes), res.Duration.Round(100*time.Millisecond))
+		if failed := res.Tried - res.Downloaded; failed > 0 {
+			fmt.Fprintf(w, "No PDF:     %s. Links that failed: %s. fil tries them again in a month.\n",
+				plural(failed, "paper", "papers"), reasons(res.Outcomes))
+		}
+	}
+	ctx = context.WithoutCancel(ctx)
+	if n, err := lib.FetchedOnDisk(ctx); err == nil {
+		fmt.Fprintf(w, "Library:    %s with a PDF in %s\n", plural(n, "paper", "papers"), filepath.Join(lib.Folder(), "papers"))
+	}
+	if runErr != nil {
+		if errors.Is(runErr, context.Canceled) {
+			fmt.Fprintln(w, "\nStopped. Every finished download is saved; run fil fetch to continue.")
+			return errCancelled
+		}
+		fmt.Fprintln(w, "\nEvery finished download is saved; run fil fetch to continue.")
+		return runErr
+	}
+	return nil
+}
+
+func (a *app) fetchOne(ctx context.Context, input string) error {
+	lib, err := a.openExisting(ctx)
+	if err != nil {
+		return err
+	}
+	defer lib.Close()
+	p, err := lib.FetchOne(ctx, input)
+	if errors.Is(err, library.ErrNoFolder) {
+		return a.explainNoFolder(err)
+	}
+	if err != nil {
+		return a.explainFind(err)
+	}
+
+	w := a.stdout
+	fmt.Fprintln(w, headline(p.Work))
+	switch {
+	case p.Already:
+		fmt.Fprintf(w, "Already in your library:\n  %s\n", p.File)
+	case p.File != "":
+		fmt.Fprintf(w, "Downloaded:\n  %s\n", p.File)
+	case len(p.Attempts) == 0:
+		fmt.Fprintln(w, "No legal PDF link to try. fil fetch --dry-run says why.")
+		return exitCode(exitFailure)
+	default:
+		fmt.Fprintln(w, "No PDF. What each link did:")
+		for _, at := range p.Attempts {
+			fmt.Fprintf(w, "  • %s — %s\n    %s\n", at.Host, describeOutcome(at.Outcome, at.Status), at.URL)
+		}
+		return exitCode(exitFailure)
+	}
+	return nil
+}
+
+// reasons lists failed attempts by outcome, commonest first, in words.
+func reasons(outcomes map[string]int) string {
+	type kv struct {
+		k string
+		n int
+	}
+	var all []kv
+	for k, n := range outcomes {
+		all = append(all, kv{k, n})
+	}
+	sort.Slice(all, func(i, j int) bool { return all[i].n > all[j].n || all[i].n == all[j].n && all[i].k < all[j].k })
+	var parts []string
+	for _, x := range all {
+		parts = append(parts, fmt.Sprintf("%s %d", describeOutcome(x.k, 0), x.n))
+	}
+	return strings.Join(parts, ", ")
+}
+
+// describeOutcome says what a failed download means.
+func describeOutcome(outcome string, status int) string {
+	s := map[string]string{
+		"refused":       "the host refused",
+		"not-found":     "the link is dead",
+		"http-error":    "the host answered with an error",
+		"not-a-pdf":     "a web page, not a PDF",
+		"too-large":     "larger than 100 MB",
+		"timeout":       "timed out",
+		"network":       "network error",
+		"redirect-loop": "redirected in circles",
+		"duplicate":     "another paper's PDF",
+		"ok":            "downloaded",
+	}[outcome]
+	if s == "" {
+		s = outcome
+	}
+	if status != 0 && outcome != "not-a-pdf" {
+		s += fmt.Sprintf(" (HTTP %d)", status)
+	}
+	return s
+}
+
+func megabytes(b int64) string { return fmt.Sprintf("%.1f MB", float64(b)/(1<<20)) }

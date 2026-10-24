@@ -22,7 +22,8 @@ import (
 //	2  M3: work keyed on fil_id (D17), work_alias; pdf_sha256 and pdf_license gone
 //	3  M3: work_folder, work_file and folder_collection — the papers/ folder (D18)
 //	4  M3: work_pdf and work_location — open-access PDF links (ADR-013)
-const SchemaVersion = 4
+//	5  M3: download_attempt — every download, and why it failed (ADR-013)
+const SchemaVersion = 5
 
 // upgrades[v] moves a library from schema v to v+1. Each runs inside
 // Migrate's one transaction, after the ones before it, so a library several
@@ -31,14 +32,18 @@ var upgrades = map[int]func(ctx context.Context, db *DB, tx *sql.Tx) error{
 	1: upgradeV1ToV2,
 	2: upgradeV2ToV3,
 	3: upgradeV3ToV4,
+	4: upgradeV4ToV5,
 }
 
-// upgradeV2ToV3 adds the tables for the papers/ folder, and upgradeV3ToV4
-// those for open-access links. Every table in both is new, so schema.sql's
-// CREATE ... IF NOT EXISTS adds them and passes over the rest.
+// upgradeV2ToV3 adds the tables for the papers/ folder, upgradeV3ToV4 those
+// for open-access links and upgradeV4ToV5 the download log. Every table in
+// each is new, so schema.sql's CREATE ... IF NOT EXISTS adds them and passes
+// over the rest.
 func upgradeV2ToV3(ctx context.Context, _ *DB, tx *sql.Tx) error { return addTables(ctx, tx, 3) }
 
 func upgradeV3ToV4(ctx context.Context, _ *DB, tx *sql.Tx) error { return addTables(ctx, tx, 4) }
+
+func upgradeV4ToV5(ctx context.Context, _ *DB, tx *sql.Tx) error { return addTables(ctx, tx, 5) }
 
 func addTables(ctx context.Context, tx *sql.Tx, version int) error {
 	if err := applySchema(ctx, tx, Schema); err != nil {

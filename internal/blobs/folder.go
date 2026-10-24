@@ -113,25 +113,53 @@ type WriteOptions struct {
 	MaxSize int64
 }
 
-// Write stores r at rel atomically. The bytes go to a temporary file in the
-// library folder, are synced and checked, and only then renamed into place;
-// any failure removes the temporary file and leaves rel untouched. Write
-// refuses to replace a file that is already there — whatever is at rel is
-// either fil's own earlier copy or the researcher's, and neither is for
-// overwriting.
+// Write stores r at rel atomically: Stage, then Commit. Any failure leaves
+// rel untouched and no temporary file behind. Write refuses to replace a file
+// that is already there — whatever is at rel is either fil's own earlier copy
+// or the researcher's, and neither is for overwriting.
 func (f *Folder) Write(rel string, r io.Reader, opts WriteOptions) (File, error) {
 	rel = Clean(rel)
-	dst := f.Abs(rel)
-	if _, err := os.Lstat(dst); err == nil {
+	if _, err := os.Lstat(f.Abs(rel)); err == nil {
 		return File{}, fmt.Errorf("blobs: write %s: %w", rel, fs.ErrExist)
 	}
-	tmp, err := os.CreateTemp(f.Abs(tmpDir), "write-*.part")
+	s, err := f.Stage(r, opts)
 	if err != nil {
 		return File{}, fmt.Errorf("blobs: write %s: %w", rel, err)
 	}
-	done := false
+	file, err := s.Commit(rel)
+	if err != nil {
+		s.Discard()
+		return File{}, err
+	}
+	return file, nil
+}
+
+// ErrTooLarge is returned when bytes run past WriteOptions.MaxSize.
+var ErrTooLarge = errors.New("larger than the size limit")
+
+// Staged is a file written to the library's temporary directory, checked,
+// and not yet in place. Its hash is known, so a caller can decide whether the
+// bytes are wanted — a download fil already has, say — before they land
+// anywhere a person would see them. Every Staged must end in Commit or
+// Discard.
+type Staged struct {
+	SHA256 string
+	Size   int64
+
+	f   *Folder
+	tmp string
+}
+
+// Stage writes r to a temporary file in the library folder, syncs it and
+// checks it. On any failure nothing is left behind.
+func (f *Folder) Stage(r io.Reader, opts WriteOptions) (*Staged, error) {
+	tmp, err := os.CreateTemp(f.Abs(tmpDir), "write-*.part")
+	if err != nil {
+		return nil, err
+	}
+	ok := false
 	defer func() {
-		if !done {
+		if !ok {
 			tmp.Close()
 			os.Remove(tmp.Name())
 		}
@@ -145,37 +173,56 @@ func (f *Folder) Write(rel string, r io.Reader, opts WriteOptions) (File, error)
 	head := &headBuffer{limit: 1024}
 	n, err := io.Copy(io.MultiWriter(tmp, h, head), src)
 	if err != nil {
-		return File{}, fmt.Errorf("blobs: write %s: %w", rel, err)
+		return nil, err
 	}
 	if opts.MaxSize > 0 && n > opts.MaxSize {
-		return File{}, fmt.Errorf("blobs: write %s: larger than %d bytes", rel, opts.MaxSize)
+		return nil, fmt.Errorf("%w (%d bytes)", ErrTooLarge, opts.MaxSize)
 	}
 	if n == 0 {
-		return File{}, fmt.Errorf("blobs: write %s: no bytes", rel)
+		return nil, errors.New("no bytes")
 	}
 	if opts.PDF && !IsPDF(head.b) {
-		return File{}, fmt.Errorf("blobs: write %s: %w", rel, ErrNotPDF)
+		return nil, ErrNotPDF
 	}
 	sum := hex.EncodeToString(h.Sum(nil))
 	if opts.SHA256 != "" && !strings.EqualFold(opts.SHA256, sum) {
-		return File{}, fmt.Errorf("blobs: write %s: hash %s, expected %s", rel, sum, opts.SHA256)
+		return nil, fmt.Errorf("hash %s, expected %s", sum, opts.SHA256)
 	}
 	if err := tmp.Sync(); err != nil {
-		return File{}, fmt.Errorf("blobs: write %s: %w", rel, err)
+		return nil, err
 	}
 	if err := tmp.Close(); err != nil {
-		return File{}, fmt.Errorf("blobs: write %s: %w", rel, err)
+		return nil, err
+	}
+	ok = true
+	return &Staged{SHA256: sum, Size: n, f: f, tmp: tmp.Name()}, nil
+}
+
+// Commit moves the staged file to rel, refusing to replace anything there.
+// The check and the rename are not one step, but only fil writes through here
+// and only into folders it named.
+func (s *Staged) Commit(rel string) (File, error) {
+	rel = Clean(rel)
+	dst := s.f.Abs(rel)
+	if _, err := os.Lstat(dst); err == nil {
+		return File{}, fmt.Errorf("blobs: write %s: %w", rel, fs.ErrExist)
 	}
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return File{}, fmt.Errorf("blobs: write %s: %w", rel, err)
 	}
-	// The check above and this rename are not one step, but only fil writes
-	// through here and only into folders it named.
-	if err := os.Rename(tmp.Name(), dst); err != nil {
+	if err := os.Rename(s.tmp, dst); err != nil {
 		return File{}, fmt.Errorf("blobs: write %s: %w", rel, err)
 	}
-	done = true
-	return File{Path: rel, SHA256: sum, Size: n}, nil
+	s.tmp = ""
+	return File{Path: rel, SHA256: s.SHA256, Size: s.Size}, nil
+}
+
+// Discard removes the staged file. After a Commit it does nothing.
+func (s *Staged) Discard() {
+	if s.tmp != "" {
+		os.Remove(s.tmp)
+		s.tmp = ""
+	}
 }
 
 // IsPDF reports whether b, the start of a file, is a PDF. The header may follow

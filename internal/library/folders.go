@@ -70,7 +70,12 @@ func (l *Library) FolderFor(ctx context.Context, input string) (WorkFolder, erro
 	if _, err := l.Scan(ctx); err != nil {
 		return WorkFolder{}, err
 	}
+	return l.ensureFolder(ctx, w)
+}
 
+// ensureFolder is FolderFor without the lookup and the scan, for a caller
+// that has done both: w must carry its authors, which name the folder.
+func (l *Library) ensureFolder(ctx context.Context, w model.Work) (WorkFolder, error) {
 	out := WorkFolder{Work: w}
 	want := blobs.FolderName(w)
 	folders, err := l.db.FoldersOf(ctx, w.FilID)

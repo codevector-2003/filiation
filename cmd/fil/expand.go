@@ -57,7 +57,7 @@ func (a *app) expand(ctx context.Context, maxNodes, maxDepth int) error {
 		return nil
 	}
 
-	lib, err := library.Open(ctx, cfg, library.Options{CacheDir: a.cacheDir, NoCache: a.noCache, Transport: a.transport})
+	lib, err := library.Open(ctx, cfg, a.libOptions())
 	if err != nil {
 		return err
 	}

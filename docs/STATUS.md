@@ -1,6 +1,6 @@
 # Project status
 
-**Date:** 24 October 2026 · **Position:** **M2 complete — v0.2 released** · **M3 in progress** (steps 1–5 done)
+**Date:** 24 October 2026 · **Position:** **M2 complete — v0.2 released** · **M3 in progress** (steps 1–6 done)
 **Phase 1 target:** v0.1 by 14 November 2026
 
 > **In one line:** M0 is done, and M1's expander works live — `fil expand` grew one seed to 525
@@ -574,7 +574,7 @@ reworded), D18 (the library is a folder the user chooses; `papers/` with readabl
 | 3 | The library folder and `papers/`: config, names, atomic writes, rescan, `fil library move` | **Done** — 23 Oct |
 | 4 | Spikes 9 (PDF availability), 10 (extractor bake-off), 11 (reference matching) | **Done** — 24 Oct, D20–D22; Unpaywall's half of spike 9 waits for an address |
 | 5 | Legal PDF links: OpenAlex locations, Unpaywall if spike 9 justifies it | **Done** — 24 Oct (OpenAlex); Unpaywall waits on spike 9 |
-| 6 | Downloading, `fil fetch` | Not started |
+| 6 | Downloading, `fil fetch` | **Done** — 24 Oct; the seed's own PDF waits on Unpaywall (no OpenAlex link) |
 | 7 | `internal/text`, FTS5, `fil search` | Not started — waits for spike 10 |
 | 8 | Import, `Inbox/`, local documents | Not started |
 | 9 | Citation context | Not started |
@@ -670,6 +670,30 @@ folder can be created, moved by hand and found again — is met in tests and was
 - **Found on the way:** the CLI test harness had no Documents override, so one test run created an
   empty library folder under the real Documents. It was removed at once; the harness now passes
   its own, and every test that loads settings does too.
+
+**Step 6 — `fil fetch` downloads (ADR-013).** PDFs land in `papers/`, in each paper's
+readable folder, named by version: `published.pdf`, `accepted.pdf`, `preprint.pdf`.
+
+- **`internal/sources/pdfs`**, the one place fil downloads a PDF: streamed, never cached; no
+  cookies or credentials; a User-Agent that names fil; one request a second to each host **on
+  every redirect hop**; the first 1 KB must look like a PDF, and a web page is refused unread.
+  Outcomes are named — refused, not found, not a PDF, too large, timeout, network, redirect loop.
+- **`blobs.Stage` → `Commit` / `Discard`:** a download is hashed in `.filiation/tmp/` before it
+  lands, so bytes the library already holds for *another* paper — a publisher's notice served
+  for many papers — are refused as a duplicate.
+- **Schema v5, `download_attempt`:** every attempt, with outcome, status, size and time. A paper
+  without a PDF says exactly why; a link that failed is left alone for a month.
+- **Order and budget:** seeds first, then the most cited; links tried best first, at most three a
+  paper, one PDF a paper; four downloads at once; 50 PDFs a run by default (`--max`). A PDF the
+  researcher deleted is not downloaded again; `fil fetch <paper>` asks for it explicitly.
+- **Live, on the M0 seed expanded by 100:** run 1 downloaded 32 of 50 (20.8 MB, 2 min 51 s,
+  most of it one download running to the 2-minute timeout); run 2 the next 21 of 50 (36 s). 103
+  attempts, no URL tried twice, all 53 files hash-checked as PDFs. arXiv 24 of 24, PLOS 8 of 8;
+  BMJ, Wiley and handle.net repositories refused every time — as spike 9 measured. A deleted
+  folder was not re-downloaded; naming the paper fetched it again.
+- **Done when, half met:** a second run downloads nothing once the candidates are used up
+  (tested). *"The seed's PDF is in `papers/`"* is not: the M0 seed has no OpenAlex PDF link
+  (step 5). It waits on spike 9's Unpaywall measurement, by decision on 24 Oct.
 
 **Step 5 — legal PDF links (ADR-013).** Every work gets an answer: a ranked list of legal PDF
 links, or why there is none — open but only as a web page, no open copy, not in OpenAlex.

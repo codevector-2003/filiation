@@ -102,7 +102,7 @@ folders however you like; fil finds them again, and each folder you make becomes
 | `fil stats` | The library at a glance, including reference coverage. `--duplicates` lists works that share a title. |
 | `fil export graphml` | The graph as GraphML for Gephi, Cytoscape, yEd, NetworkX or igraph. `--include-stubs` adds works known so far only by ID. |
 | `fil mcp` | Serve your library to an AI assistant over MCP. Your MCP client runs it. See the [MCP guide](docs/MCP.md). |
-| `fil fetch --dry-run` | Find the legal open-access PDFs of your papers — published version, accepted manuscript or preprint — and say why the others have none. Name a paper to see its links. Downloading comes next. |
+| `fil fetch` | Download the legal open-access PDFs of your papers into `papers/` — published version first, then accepted manuscript, then preprint. Never from behind a paywall or a login. 50 a run (`--max`); name a paper to fetch just that one. `--dry-run` says what it would download and why the others have none. |
 | `fil library` | Your library folder and what is in `papers/`. `library folder <paper>` prints a paper's folder, making it if needed; `library scan` finds papers you moved, renamed or deleted; `library new` and `library move` make another library or move this one. `--library <name>` picks a library for any command. |
 | `fil where` | Where your library, settings and cache live. |
 | `fil cache clear` | Empty the cache of OpenAlex responses. Your library isn't touched. |
