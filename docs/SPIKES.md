@@ -348,6 +348,121 @@ results in [`VALIDATION.md`](VALIDATION.md). Two measurements that belong with t
 
 ---
 
+## Spike 9 — PDF availability · **a PDF for about one work in eight** · 24 Oct 2026
+
+`go run ./spikes/9-pdf-availability`. The 20 validation libraries rebuilt live (8,385 fetched works,
+unique within each field), every work's OA locations read from OpenAlex (85 requests, 1 credit
+each), then 40 works per field with a PDF link downloaded the way ADR-013 says fil will: no cookies,
+no credentials, a plain `User-Agent`, one request per second per host, `%PDF-` or it is not a PDF.
+Run twice; the outcomes were identical.
+
+| Field | Works | No open copy | Open, no PDF link | PDF link | Downloads that got a PDF | ≈ works fil can get |
+| --- | --- | --- | --- | --- | --- | --- |
+| Medicine | 1,646 | 44% | 26% | 30% | 11 of 40 (28%) | ~8% |
+| Physics | 1,495 | 43% | 3% | 54% | 34 of 40 (85%) | ~46% |
+| Computer Science | 1,348 | 66% | 9% | 25% | 23 of 40 (58%) | ~14% |
+| Social Sciences | 1,936 | 75% | 8% | 16% | 22 of 40 (55%) | ~9% |
+| Arts and Humanities | 1,960 | 86% | 6% | 8% | 3 of 40 (8%) | <1% |
+| **All** | 8,385 | 64% | 10% | 25% | 93 of 200 (47%) | **~12%** |
+
+The last column multiplies the two before it; with 40 downloads per field it is an estimate, not a
+measurement. Gold and bronze works have a PDF link 89% and 96% of the time, green 58%.
+
+**Why downloads fail — the host decides, not the paper.**
+
+| Host | Attempts | PDFs | What came back |
+| --- | --- | --- | --- |
+| arxiv.org | 56 | **56** | the PDF, every time |
+| journals.plos.org, nature.com, BioMed Central, doi.org, ACL | 14 | 14 | the PDF |
+| Publishers: APS, ACM, Wiley, NEJM, OUP, Lancet, BMJ, JAMA, Cell, PNAS… | ~55 | 0 | **HTTP 403** — bot walls in front of open copies |
+| iopscience.iop.org | 11 | 0 | HTTP 400, or an HTML page |
+| pmc.ncbi.nlm.nih.gov | 7 | 0 | **an HTML page**, never the PDF |
+| hdl.handle.net (repositories) | 10 | 0 | 403 or an HTML landing page |
+
+84 of 200 attempts were 403s and 25 were HTML. fil does not work around either: a 403 is a refusal,
+and an HTML page is recorded as "not a PDF" and never read for links (ADR-013). **PubMed Central** is
+the loss that matters — it is where most open medicine lives — and Europe PMC publishes the same
+open-access articles through a documented API; that is a candidate for a later source, not a
+workaround.
+
+**Speed:** median download 0.8 s, 90th percentile 4 s; median size 0.4–0.9 MB by field. 200
+downloads with four at a time took under five minutes, most of it the per-host wait.
+
+**Unpaywall:** not yet measured — it needs an email address on every request, and the maintainer's
+own is never sent. The spike asks Unpaywall when `FIL_SPIKE_UNPAYWALL_EMAIL` holds a separate one,
+and never writes it down.
+
+---
+
+## Spike 10 — PDF text extraction · **PDFium in WebAssembly** · 24 Oct 2026
+
+`cd spikes/10-pdf-text && go run .` — its own module, so the candidates stay out of fil's `go.mod`.
+19 PDFs from spike 9 (4 per field; the humanities had 3), scored against Poppler's `pdftotext`
+26.09, which stands in for the truth and is not a candidate: it is a separate program.
+
+| | `ledongthuc/pdf` (pure Go) | `go-pdfium` WebAssembly (PDFium on wazero) | `pdftotext` |
+| --- | --- | --- | --- |
+| Files that failed | 2 of 19 (`LZWDecode`, a zlib header) | **0** | 0 |
+| Words F1 against baseline, median | 0.24 | **0.985** | 1 |
+| 6-word sequences in baseline order, median | 0.03 | **0.85** | 1 |
+| Files with order below 0.8 | 15 | 8 | — |
+| Ligature characters left (ﬁ, ﬂ) | 884 | **0** | — |
+| Words longer than 25 letters per 1,000 (missing spaces) | 179 | **0** | — |
+| Page counts that match | 17 of 19 | **19 of 19** | — |
+| Time, all 19 files | 1.8 s | 6.0 s | 6.3 s |
+| Added to a binary built without cgo | +0.6 MB | **+10 MB** (5.75 MB is the `.wasm`) | not shippable |
+| Builds with `CGO_ENABLED=0` for Windows, Linux, macOS | yes | **yes** | — |
+| Licences linked in | BSD-3 | MIT, Apache-2.0 (wazero, commons-pool), BSD-3 (uuid, x/sys, x/text) | — |
+
+`ledongthuc/pdf`'s plain-text call drops the spaces between words in most files: it is fast and
+small, and its output cannot be searched. PDFium's words are the baseline's words. Its lower order
+scores are mostly two-column pages and formulas, which `pdftotext` also orders its own way; the
+one file at 0.22 is a scanned NBER working paper stored **upside down**, with a garbled text layer
+— both tools produce nonsense there. **Text extraction therefore needs a gibberish check** (step 7):
+a text layer is not the same as text.
+
+The 65 private-use characters in PDFium's output are the pieces of large brackets in formulas
+(Symbol font). `pdftotext` produces the same 65.
+
+**Broken files** — empty, cut off at 30%, random bytes behind a `%PDF-` header, HTML saved as
+`.pdf`, a wrecked cross-reference table: every candidate refused the first four with an error and no
+panic or hang. PDFium and `pdftotext` recovered all 45 pages of the wrecked one; `ledongthuc`
+refused it.
+
+**What adopting PDFium costs:** `go-pdfium` v1.21.3 requires **Go 1.26** and `x/text` v0.42, so
+fil's `go` line moves from 1.25 to 1.26 when `internal/text` lands (local toolchain 1.27, CI uses
+`go.mod`). `hashicorp/go-plugin` (MPL-2.0) is in `go-pdfium`'s `go.mod` but **not linked** by the
+WebAssembly package — checked with `go version -m`. On Windows, PDFium's sandbox mounts the current
+drive; fil hands it bytes rather than paths, so it needs no view of the file system.
+
+---
+
+## Spike 11 — matching references from PDF text · **precise, but finding the list is the hard part** · 24 Oct 2026
+
+`go run ./spikes/11-reference-matching`, on the texts spike 10 extracted. OpenAlex's
+`referenced_works` for each paper is the answer key, so the measurement is free. Find the last
+"References" heading, split the entries (numbered when the numbers run in sequence, otherwise at
+author-list starts), and match each OpenAlex reference to the entry holding at least 70% of its
+title's words.
+
+| Text from | Section found | Entries | OpenAlex refs with a title | Matched (recall) | Confirmed by year or surname |
+| --- | --- | --- | --- | --- | --- |
+| `ledongthuc` | 2 of 19 | 9 | 548 | 1% | — |
+| **PDFium** | 12 of 19 | 352 | 548 | **44%** | **97%** |
+| `pdftotext` | 13 of 19 | 310 | 548 | 38% | 96% |
+
+- **When a match is made it is right.** 97% of matches also carry the year or the first author's
+  surname.
+- **When the list is found and split, recall is high**: 62–100% on 9 of the 13 papers where
+  `pdftotext`'s text had a section.
+- **Finding and splitting the list is what fails.** All four physics papers have no "References"
+  heading (APS and arXiv layouts end with numbered notes); one social-science paper's 129
+  references became 5 entries, because its author-year style broke the splitter; one medicine
+  paper's 33 references became 5 entries, the same way with numbers.
+- PDFium's text does slightly better than `pdftotext`'s, which agrees with spike 10.
+
+---
+
 ## Consequences for the build
 
 - **`go.mod` moved to `go 1.25.0`.** `go get` bumped it: `go-sqlite3-wasm/v3` requires it. CLAUDE.md

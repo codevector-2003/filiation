@@ -12,6 +12,10 @@ first; this directory is for re-running a measurement when you doubt it.
 | `go run ./spikes/4-reference-coverage` | What fraction of works have a usable reference list, by field? |
 | `go run ./spikes/5-fts5` | Does the SQLite driver support FTS5, and does the real schema apply? |
 | `go run ./spikes/6-vectors` | Does vector search work in the same file, and is it fast enough? |
+| `go run ./spikes/8-validation` | The M1 validation run: 20 seeds, 5 fields, one library each |
+| `go run ./spikes/9-pdf-availability -dir <dir>` | How many works have a PDF we can actually download, and does Unpaywall add any? Set `FIL_SPIKE_UNPAYWALL_EMAIL` to include Unpaywall; the address is never written down |
+| `cd spikes/10-pdf-text && go run . -pdfs <dir>/pdfs -pdftotext <path> -out <dir>` | Which PDF text extractor? Its own module, so the candidates stay out of fil's `go.mod` |
+| `go run ./spikes/11-reference-matching -text <dir>/text -cache <dir>/cache` | Can a PDF's reference list be split and matched to real works? |
 
 Spike 7 (cross-compilation) has no program — it is three `go build` invocations, recorded in
 `docs/SPIKES.md`.
