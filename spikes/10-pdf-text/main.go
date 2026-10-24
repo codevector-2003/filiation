@@ -54,6 +54,10 @@ import (
 type extractor struct {
 	name string
 	run  func(path string) ([]string, error)
+	// stop, if set, ends a run that has outlived the time limit. Without it
+	// the run keeps going after guarded has given up on it, holding whatever
+	// it holds — for PDFium, an instance from a small pool.
+	stop func()
 }
 
 // Result is one extractor on one file.
@@ -85,10 +89,12 @@ func main() {
 	}
 	defer pool.Close()
 
-	baseline := extractor{"pdftotext", func(p string) ([]string, error) { return runPdftotext(*pdftotext, p) }}
+	// pdftotext runs under exec.CommandContext with the same limit, which kills it.
+	baseline := extractor{name: "pdftotext", run: func(p string) ([]string, error) { return runPdftotext(*pdftotext, p) }}
 	candidates := []extractor{
-		{"ledongthuc", ledongthuc},
-		{"pdfium", pool.extract},
+		// Pure Go: a stuck run leaks a goroutine but holds nothing shared.
+		{name: "ledongthuc", run: ledongthuc},
+		{name: "pdfium", run: pool.extract, stop: pool.kill},
 	}
 
 	var rows []row
@@ -166,6 +172,9 @@ func guarded(e extractor, path string) Result {
 	case r := <-done:
 		return r
 	case <-time.After(timeLimit):
+		if e.stop != nil {
+			e.stop()
+		}
 		return Result{Err: errors.New("timed out"), Took: timeLimit}
 	}
 }
