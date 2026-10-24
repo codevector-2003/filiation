@@ -95,13 +95,19 @@ func (p *pdfiumPool) extract(path string) ([]string, error) {
 	p.mu.Lock()
 	p.running = inst
 	p.mu.Unlock()
+	// Exactly one of kill and this cleanup ends the instance: whichever takes
+	// it out of p.running under the lock owns it. Killed means already gone,
+	// and closing it as well would race Kill's own teardown.
 	defer func() {
 		p.mu.Lock()
-		if p.running == inst {
+		mine := p.running == inst
+		if mine {
 			p.running = nil
 		}
 		p.mu.Unlock()
-		inst.Close()
+		if mine {
+			inst.Close()
+		}
 	}()
 
 	doc, err := inst.OpenDocument(&requests.OpenDocument{File: &data})
