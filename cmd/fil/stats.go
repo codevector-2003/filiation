@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/codevector-2003/filiation/internal/library"
+	"github.com/codevector-2003/filiation/internal/model"
 )
 
 func (a *app) statsCommand() *cobra.Command {
@@ -72,6 +73,19 @@ func (a *app) stats(ctx context.Context, listDuplicates bool) error {
 		withRefs := s.Fetched - s.DeadEnds
 		fmt.Fprintf(w, "Coverage:   %s of %s fetched works have a reference list (%.0f%%)\n",
 			thousands(withRefs), thousands(s.Fetched), 100*float64(withRefs)/float64(s.Fetched))
+	}
+	if c, err := lib.PDFCounts(ctx); err == nil {
+		looked := s.Works - c[model.PDFUnchecked]
+		switch {
+		case looked == 0:
+			fmt.Fprintln(w, "PDFs:       not looked up yet — fil fetch --dry-run finds the legal ones")
+		default:
+			fmt.Fprintf(w, "PDFs:       %s of %s looked up have a legal PDF link", thousands(c[model.PDFLink]), thousands(looked))
+			if n := c[model.PDFUnchecked]; n > 0 {
+				fmt.Fprintf(w, "; %s not looked up yet", thousands(n))
+			}
+			fmt.Fprintln(w, " — fil fetch --dry-run says why the rest have none")
+		}
 	}
 
 	switch {

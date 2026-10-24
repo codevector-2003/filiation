@@ -62,6 +62,13 @@ func hydrate(ctx context.Context, tx *store.Tx, h *model.HydratedWork) (written,
 	if err := tx.UpsertWork(ctx, &h.Work); err != nil {
 		return written{}, err
 	}
+	// The links came free with the work (ADR-013); a response without them
+	// leaves whatever was known before.
+	if h.PDF != nil {
+		if err := tx.PutPDFLinks(ctx, h.OpenAlexID, *h.PDF); err != nil {
+			return written{}, err
+		}
+	}
 	rec, err := tx.RecordEdgesAndStubs(ctx, h)
 	if err != nil {
 		return written{}, err

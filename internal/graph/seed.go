@@ -20,6 +20,7 @@ type Source interface {
 	Resolve(ctx context.Context, id identity.ID) (model.HydratedWork, error)
 	SearchByTitle(ctx context.Context, title string, limit int) ([]openalex.Candidate, error)
 	GetWorksBatch(ctx context.Context, ids []string) (openalex.Batch, error)
+	GetLocations(ctx context.Context, ids []string) (openalex.Located, error)
 }
 
 // Graph grows the citation graph: it takes works from a Source and writes them
