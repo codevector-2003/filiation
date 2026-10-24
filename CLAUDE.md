@@ -78,7 +78,7 @@ than plain search.
 | Web server | stdlib `net/http` + `//go:embed` | **The SPA compiles into the binary.** No separate assets to ship |
 | Embeddings | Ollama HTTP | See ADR-008. The cost of choosing Go |
 | Answers | Ollama, or user-supplied API key | Free path must exist |
-| PDF text | See ADR-009 | The weakest part of the Go choice. Treat as a Phase 3 spike |
+| PDF text | PDFium as WebAssembly (`go-pdfium/webassembly`) | No cgo; ~10 MB on the binary; needs Go 1.26. Spike 10, D20 |
 | Distribution | GoReleaser → GitHub Releases | Cross-compiled binaries for Windows, macOS, Linux |
 
 ### Rejected, with reasons
@@ -236,7 +236,7 @@ Phase 1 carries two extra weeks for that.
 
 ---
 
-## Spikes — all run, 30 Aug 2026
+## Spikes — 1–7 run 30 Aug 2026, 9–11 run 24 Oct 2026
 
 **Results and evidence: `docs/SPIKES.md`. Code: `spikes/`.** Trust those numbers over any
 documentation, including this file's own history.
@@ -250,6 +250,9 @@ documentation, including this file's own history.
 | 5 | Does the driver ship FTS5? | Yes, as a loadable extension — `sqlite3.AutoExtension(fts5.Register)` |
 | 6 | Vector search end to end? | `vec1` is exact but **has no ANN index** (D13) |
 | 7 | Cross-compile with no cgo? | Yes — 3 platforms, ~2.3 MB, D9 holds |
+| 9 | How many works have a PDF fil can get? *(24 Oct 2026)* | **~1 in 8**: 46% physics → <1% humanities. Publishers 403, arXiv always works (D21) |
+| 10 | Which PDF text extractor? | **PDFium in WebAssembly**: 0.985 word F1 vs pdftotext, no cgo (D20) |
+| 11 | Can references be matched from PDF text? | 97% precise, 44% recall — finding the list is the hard part (D22) |
 
 **Two gotchas the store package must handle**, both from spike 5:
 

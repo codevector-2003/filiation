@@ -572,7 +572,7 @@ reworded), D18 (the library is a folder the user chooses; `papers/` with readabl
 | 1 | `identity`: fil IDs | **Done** — 27 Sept |
 | 2 | Schema v2 and the first migration; fil IDs through every layer | **Done** — 27 Sept |
 | 3 | The library folder and `papers/`: config, names, atomic writes, rescan, `fil library move` | **Done** — 23 Oct |
-| 4 | Spikes 9 (PDF availability), 10 (extractor bake-off), 11 (reference matching) | Not started — **needs network**, see below |
+| 4 | Spikes 9 (PDF availability), 10 (extractor bake-off), 11 (reference matching) | **Done** — 24 Oct, D20–D22; Unpaywall's half of spike 9 waits for an address |
 | 5 | Legal PDF links: OpenAlex locations, Unpaywall if spike 9 justifies it | Not started |
 | 6 | Downloading, `fil fetch` | Not started |
 | 7 | `internal/text`, FTS5, `fil search` | Not started — waits for spike 10 |
@@ -670,6 +670,19 @@ folder can be created, moved by hand and found again — is met in tests and was
 - **Found on the way:** the CLI test harness had no Documents override, so one test run created an
   empty library folder under the real Documents. It was removed at once; the harness now passes
   its own, and every test that loads settings does too.
+
+**Step 4 — spikes 9, 10 and 11** (results in `SPIKES.md`, decisions D20–D22), run live on 24 Oct:
+
+- **Spike 9:** OpenAlex offers a PDF link for 25% of 8,385 fetched works, and about half of
+  those downloads succeed — roughly **one work in eight** overall, from ~46% in physics to under 1%
+  in the humanities. arXiv served 56 of 56; publishers answered 403 to nearly everything, and PubMed
+  Central sent HTML. Median download 0.8 s. So `fil fetch` runs inside the command, and the job
+  system moves to M4 (D21). Unpaywall is still to be asked, with a separate address.
+- **Spike 10:** **PDFium as WebAssembly** (D20) — 0.985 median word F1 against `pdftotext`, no
+  failures; the pure-Go candidate ran words together (0.24). Costs ~10 MB and Go 1.26. A text layer
+  can be gibberish, so step 7 needs a check for it.
+- **Spike 11:** matching a PDF's references is 97% precise but 44% recall, because the list is
+  often not found or not split. Not built in M3 (D22).
 
 **Found while planning.** OpenAlex's `oa_url` for the M0 seed, a gold OA paper, is a DOI landing
 page and its `pdf_url` is null — what v0.2 stores is usually not a PDF, so M3 reads OA locations
