@@ -222,6 +222,81 @@ func (c *Client) GetWorksBatch(ctx context.Context, ids []string) (Batch, error)
 	return b, nil
 }
 
+// Located is what GetLocations found.
+type Located struct {
+	// Links maps each requested ID to its PDF links. A requested ID that
+	// OpenAlex merged into another record maps to the survivor's links.
+	Links map[string]model.PDFLinks
+
+	// Missing lists requested IDs OpenAlex has no record of, each confirmed
+	// by a single lookup.
+	Missing []string
+}
+
+// GetLocations reads the open-access PDF links of works by OpenAlex ID,
+// MaxBatch to a request at one credit each — for works fetched before
+// hydration asked for locations, and for stubs.
+//
+// IDs a batch filter omits are looked up one by one, free, exactly as
+// GetWorksBatch does (spike 1: a filter silently drops IDs that exist). If a
+// request fails, what was found so far is returned with the error.
+func (c *Client) GetLocations(ctx context.Context, ids []string) (Located, error) {
+	out := Located{Links: map[string]model.PDFLinks{}}
+	var requested []string
+	seen := map[string]bool{}
+	for _, raw := range ids {
+		id, err := identity.NormaliseOpenAlexID(raw)
+		if err != nil {
+			return out, fmt.Errorf("openalex: locations: %w", err)
+		}
+		if !seen[id] {
+			seen[id] = true
+			requested = append(requested, id)
+		}
+	}
+
+	for start := 0; start < len(requested); start += MaxBatch {
+		chunk := requested[start:min(start+MaxBatch, len(requested))]
+		q := url.Values{}
+		q.Set("filter", "openalex_id:"+strings.Join(chunk, "|"))
+		q.Set("per_page", fmt.Sprint(len(chunk)))
+		q.Set("select", locationFields)
+		body, err := c.http.Get(ctx, BaseURL+"/works?"+q.Encode())
+		if err != nil {
+			return out, fmt.Errorf("openalex: locations of %d: %w", len(chunk), err)
+		}
+		var l list
+		if err := json.Unmarshal(body, &l); err != nil {
+			return out, fmt.Errorf("openalex: decode locations: %w", err)
+		}
+		for i := range l.Results {
+			id, err := identity.NormaliseOpenAlexID(l.Results[i].ID)
+			if err != nil {
+				continue
+			}
+			if links := l.Results[i].pdfLinks(); links != nil {
+				out.Links[id] = *links
+			}
+		}
+	}
+
+	for _, id := range requested {
+		if _, ok := out.Links[id]; ok {
+			continue
+		}
+		h, err := c.getOne(ctx, id, identity.ID{Kind: identity.KindOpenAlex, Value: id, Raw: id})
+		switch {
+		case errors.Is(err, errs.ErrUnresolved):
+			out.Missing = append(out.Missing, id)
+		case err != nil:
+			return out, fmt.Errorf("openalex: confirm %s: %w", id, err)
+		case h.PDF != nil:
+			out.Links[id] = *h.PDF
+		}
+	}
+	return out, nil
+}
+
 // Candidate is one title-search result.
 type Candidate struct {
 	Work model.HydratedWork

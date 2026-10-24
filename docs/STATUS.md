@@ -1,6 +1,6 @@
 # Project status
 
-**Date:** 23 October 2026 · **Position:** **M2 complete — v0.2 released** · **M3 in progress** (steps 1–3 done)
+**Date:** 24 October 2026 · **Position:** **M2 complete — v0.2 released** · **M3 in progress** (steps 1–5 done)
 **Phase 1 target:** v0.1 by 14 November 2026
 
 > **In one line:** M0 is done, and M1's expander works live — `fil expand` grew one seed to 525
@@ -573,7 +573,7 @@ reworded), D18 (the library is a folder the user chooses; `papers/` with readabl
 | 2 | Schema v2 and the first migration; fil IDs through every layer | **Done** — 27 Sept |
 | 3 | The library folder and `papers/`: config, names, atomic writes, rescan, `fil library move` | **Done** — 23 Oct |
 | 4 | Spikes 9 (PDF availability), 10 (extractor bake-off), 11 (reference matching) | **Done** — 24 Oct, D20–D22; Unpaywall's half of spike 9 waits for an address |
-| 5 | Legal PDF links: OpenAlex locations, Unpaywall if spike 9 justifies it | Not started |
+| 5 | Legal PDF links: OpenAlex locations, Unpaywall if spike 9 justifies it | **Done** — 24 Oct (OpenAlex); Unpaywall waits on spike 9 |
 | 6 | Downloading, `fil fetch` | Not started |
 | 7 | `internal/text`, FTS5, `fil search` | Not started — waits for spike 10 |
 | 8 | Import, `Inbox/`, local documents | Not started |
@@ -670,6 +670,31 @@ folder can be created, moved by hand and found again — is met in tests and was
 - **Found on the way:** the CLI test harness had no Documents override, so one test run created an
   empty library folder under the real Documents. It was removed at once; the harness now passes
   its own, and every test that loads settings does too.
+
+**Step 5 — legal PDF links (ADR-013).** Every work gets an answer: a ranked list of legal PDF
+links, or why there is none — open but only as a web page, no open copy, not in OpenAlex.
+
+- **Free for new works.** Hydration now asks OpenAlex for `best_oa_location` and `locations`
+  too; a list request costs one credit whatever it returns. Works fetched before, and stubs, are
+  looked up 100 to a request, the IDs a filter drops confirmed one by one (spike 1). A response
+  without locations — an older cached one — reads as "not known", never as "no open copy".
+- **Order to try:** published, then accepted, then preprint; within a version, OpenAlex's best
+  location first. Only open locations, only http(s) links, each URL once.
+- **Schema v4:** `work_pdf` (the answer and when it was asked) and `work_location` (the ranked
+  links). Answers older than a month are asked again — repositories catch up.
+- **`fil fetch --dry-run`** looks the links up, seeds first then the most cited, and reports what
+  fil would download and why the rest cannot be; `fil fetch --dry-run <paper>` shows one paper's
+  links. `fil stats` gains a PDFs line. Plain `fil fetch` refuses until step 6 builds downloading.
+- **Live, on the M0 seed expanded by 100:** 1,470 works answered in 14 requests — 32% with a PDF
+  link, 16% open without one, 49% no open copy, 4% not in OpenAlex. The 96 hydrated works had
+  their links free.
+- **Measured: OpenAlex is slow to answer for locations** — about 1.25 s for 20 works against
+  0.74 s without them. Three lookups now run at once, all still on the shared 5-per-second bucket,
+  committed in order by the single writer: 48 s → 21 s for the run above.
+- **Found: the M0 seed itself has no direct PDF link.** `10.7717/peerj.4375` is gold open
+  access, but none of its twelve OpenAlex locations carries a `pdf_url` — only landing pages. M3's
+  definition of done is to download exactly that PDF, so OpenAlex alone cannot meet it: whether
+  Unpaywall offers `url_for_pdf` for it is now the question spike 9 must answer.
 
 **Step 4 — spikes 9, 10 and 11** (results in `SPIKES.md`, decisions D20–D22), run live on 24 Oct:
 

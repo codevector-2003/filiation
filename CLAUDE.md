@@ -12,7 +12,7 @@ tool does for papers: it reconstructs where a claim came from by following the c
 - Language: **Go** (see D8 in `docs/DECISIONS.md`)
 - Module: `github.com/codevector-2003/filiation`
 - Binary / CLI command: `fil`
-- Status: **M0 complete** (24 Sept 2026). **M1 complete — v0.1 released** (25 Sept 2026). Every command works and the 20-seed validation run passed 20 of 20 (`docs/VALIDATION.md`). Licensed Apache-2.0 (D15). **M2 complete — v0.2 released** (25 Sept 2026): `fil mcp` serves five tools to AI assistants (`docs/MCP.md`). **M3 in progress** (from 27 Sept 2026) — design in `docs/ARCHITECTURE_PHASE3.md`, decisions D17–D19; steps 1–3 done (fil IDs, schema v3, the library folder and `papers/`). See `docs/STATUS.md`.
+- Status: **M0 complete** (24 Sept 2026). **M1 complete — v0.1 released** (25 Sept 2026). Every command works and the 20-seed validation run passed 20 of 20 (`docs/VALIDATION.md`). Licensed Apache-2.0 (D15). **M2 complete — v0.2 released** (25 Sept 2026): `fil mcp` serves five tools to AI assistants (`docs/MCP.md`). **M3 in progress** (from 27 Sept 2026) — design in `docs/ARCHITECTURE_PHASE3.md`, decisions D17–D19; steps 1–5 done (fil IDs, the library folder and `papers/`, spikes 9–11, legal PDF links). See `docs/STATUS.md`.
 
 ---
 

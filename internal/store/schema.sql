@@ -217,6 +217,34 @@ CREATE TABLE IF NOT EXISTS work_file (
 CREATE INDEX IF NOT EXISTS idx_work_file_work   ON work_file(fil_id);
 CREATE INDEX IF NOT EXISTS idx_work_file_sha256 ON work_file(sha256);
 
+-- ---------------------------------------------------------------- open-access links
+
+-- Schema v4 (ADR-013). What fil knows about each work's legal PDF. A work with
+-- no row has not been looked up; every other work has an answer, so a paper
+-- without a PDF always says why — as reference coverage does (D12).
+CREATE TABLE IF NOT EXISTS work_pdf (
+    fil_id       TEXT PRIMARY KEY NOT NULL REFERENCES work(fil_id) ON DELETE CASCADE,
+    availability TEXT NOT NULL,  -- pdf-link | open-no-pdf | no-open-copy | not-in-openalex
+    checked_at   TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_work_pdf_availability ON work_pdf(availability);
+
+-- A work's PDF links, in the order to try them: published, then accepted, then
+-- preprint. Only open-access locations with a direct PDF link; a landing page
+-- is never read for links (ADR-013).
+CREATE TABLE IF NOT EXISTS work_location (
+    fil_id      TEXT NOT NULL REFERENCES work(fil_id) ON DELETE CASCADE,
+    rank        INTEGER NOT NULL,  -- 0 is tried first
+    pdf_url     TEXT NOT NULL,
+    landing_url TEXT,
+    version     TEXT,              -- published | accepted | preprint; NULL if not stated
+    license     TEXT,              -- NULL when none is stated, as for bronze
+    host        TEXT NOT NULL,
+    source      TEXT NOT NULL,     -- openalex; unpaywall if spike 9 justifies it
+    PRIMARY KEY (fil_id, rank)
+);
+
 -- ---------------------------------------------------------------- bookkeeping
 
 CREATE TABLE IF NOT EXISTS meta (
@@ -224,4 +252,4 @@ CREATE TABLE IF NOT EXISTS meta (
     value TEXT
 );
 
-INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '3');
+INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '4');

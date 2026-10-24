@@ -2,6 +2,7 @@ package openalex
 
 import (
 	"fmt"
+	"net/url"
 	"sort"
 	"strings"
 
@@ -11,11 +12,18 @@ import (
 
 // selectFields is the top-level fields every request asks for. OpenAlex's
 // select takes only top-level names, so primary_location and authorships come
-// whole; everything not listed — locations, topics, concepts, counts by year —
-// is left behind, and it is most of a full work object.
+// whole; everything not listed — topics, concepts, counts by year — is left
+// behind, and it is most of a full work object.
+//
+// best_oa_location and locations carry the open-access PDF links (ADR-013).
+// A list request costs one credit whatever it returns, so asking for them
+// while hydrating is free: a work fetched from now on knows its links.
 const selectFields = "id,doi,ids,title,display_name,publication_year,type,cited_by_count," +
 	"open_access,primary_location,authorships,abstract_inverted_index," +
-	"referenced_works,referenced_works_count"
+	"referenced_works,referenced_works_count,best_oa_location,locations"
+
+// locationFields is what a lookup of links alone asks for.
+const locationFields = "id,open_access,best_oa_location,locations"
 
 // work is the subset of an OpenAlex work object this package reads. Every
 // optional field is a pointer or a nil-able slice because OpenAlex sends null
@@ -33,9 +41,14 @@ type work struct {
 	Type            *string `json:"type"`
 	CitedByCount    int     `json:"cited_by_count"`
 	OpenAccess      struct {
+		IsOA     bool    `json:"is_oa"`
 		OAStatus *string `json:"oa_status"`
 		OAURL    *string `json:"oa_url"`
 	} `json:"open_access"`
+	// Pointers, so that a response without these fields — one cached before
+	// they were asked for — reads as "not known" rather than "no open copy".
+	BestOALocation *oaLocation    `json:"best_oa_location"`
+	Locations      *[]oaLocation  `json:"locations"`
 	PrimaryLocation *location `json:"primary_location"`
 	Authorships     []struct {
 		Author struct {
@@ -55,6 +68,15 @@ type location struct {
 	Source         *struct {
 		DisplayName *string `json:"display_name"`
 	} `json:"source"`
+}
+
+// oaLocation is one copy of a work, as the locations list describes it.
+type oaLocation struct {
+	IsOA           bool    `json:"is_oa"`
+	PDFURL         *string `json:"pdf_url"`
+	LandingPageURL *string `json:"landing_page_url"`
+	Version        *string `json:"version"`
+	License        *string `json:"license"`
 }
 
 // list is a list response: a page of works and its metadata.
@@ -139,6 +161,8 @@ func (w *work) hydrated() (model.HydratedWork, error) {
 		h.Authors = append(h.Authors, author)
 	}
 
+	h.PDF = w.pdfLinks()
+
 	h.ReferencedWorks = make([]string, 0, len(w.ReferencedWorks))
 	for _, ref := range w.ReferencedWorks {
 		if r, err := identity.NormaliseOpenAlexID(ref); err == nil {
@@ -146,6 +170,83 @@ func (w *work) hydrated() (model.HydratedWork, error) {
 		}
 	}
 	return h, nil
+}
+
+// pdfLinks reads a work's open-access PDF links in the order to try them, or
+// returns nil when the response did not include its locations.
+//
+// The order is the version first — published, accepted, then preprint, the
+// copy a reader would cite before the one they could get — then OpenAlex's
+// best location, then the order OpenAlex lists them in. Only open locations
+// with an http or https PDF link count; a landing page is never a PDF.
+func (w *work) pdfLinks() *model.PDFLinks {
+	if w.Locations == nil && w.BestOALocation == nil {
+		return nil
+	}
+	var all []oaLocation
+	if w.BestOALocation != nil {
+		all = append(all, *w.BestOALocation)
+	}
+	if w.Locations != nil {
+		all = append(all, *w.Locations...)
+	}
+
+	out := &model.PDFLinks{Availability: model.PDFNoOpenCopy}
+	if w.OpenAccess.IsOA {
+		out.Availability = model.PDFOpenNoLink
+	}
+	seen := map[string]bool{}
+	for _, l := range all {
+		if !l.IsOA {
+			continue
+		}
+		out.Availability = model.PDFOpenNoLink
+		if l.PDFURL == nil {
+			continue
+		}
+		u, err := url.Parse(strings.TrimSpace(*l.PDFURL))
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || seen[u.String()] {
+			continue
+		}
+		seen[u.String()] = true
+		out.Links = append(out.Links, model.Location{
+			PDFURL:     u.String(),
+			LandingURL: deref(l.LandingPageURL),
+			Version:    version(deref(l.Version)),
+			License:    deref(l.License),
+			Host:       strings.TrimPrefix(strings.ToLower(u.Hostname()), "www."),
+		})
+	}
+	sort.SliceStable(out.Links, func(i, j int) bool {
+		return versionRank[out.Links[i].Version] < versionRank[out.Links[j].Version]
+	})
+	if len(out.Links) > 0 {
+		out.Availability = model.PDFLink
+	}
+	return out
+}
+
+// version maps OpenAlex's version names onto the ones fil names files by
+// (ADR-012): published.pdf, accepted.pdf, preprint.pdf.
+func version(v string) string {
+	switch v {
+	case "publishedVersion":
+		return "published"
+	case "acceptedVersion":
+		return "accepted"
+	case "submittedVersion":
+		return "preprint"
+	}
+	return ""
+}
+
+var versionRank = map[string]int{"published": 0, "accepted": 1, "preprint": 2, "": 3}
+
+func deref(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return strings.TrimSpace(*s)
 }
 
 // arXivID recovers the arXiv ID OpenAlex does not report directly: from an

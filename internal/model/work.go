@@ -138,6 +138,11 @@ func (w *Work) AuthorsLoaded() bool { return w.Authors != nil }
 type HydratedWork struct {
 	Work
 	ReferencedWorks []string
+
+	// PDF is the work's open-access PDF links, when the response carried its
+	// locations. Nil means it did not — an older cached response, say — which
+	// is "not known", never "no open copy".
+	PDF *PDFLinks
 }
 
 // IsDeadEnd reports whether this work can never extend the graph: its references

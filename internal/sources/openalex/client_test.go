@@ -44,8 +44,8 @@ func (f *fixtures) RoundTrip(req *http.Request) (*http.Response, error) {
 	if filter := req.URL.Query().Get("filter"); filter != "" {
 		key += "?filter=" + filter
 	}
-	if got := req.URL.Query().Get("select"); got != selectFields {
-		f.t.Errorf("request %s: select = %q, want selectFields", key, got)
+	if got := req.URL.Query().Get("select"); got != selectFields && got != locationFields {
+		f.t.Errorf("request %s: select = %q, want selectFields or locationFields", key, got)
 	}
 
 	f.mu.Lock()
