@@ -83,7 +83,7 @@ func (a *app) openExisting(ctx context.Context) (*library.Library, error) {
 		fmt.Fprintln(a.stdout, "Your library is empty. Add a paper first, for example:\n\n  fil add 10.7717/peerj.4375")
 		return nil, exitCode(exitOK)
 	}
-	return library.Open(ctx, cfg, library.Options{CacheDir: a.cacheDir, NoCache: a.noCache, Transport: a.transport})
+	return library.Open(ctx, cfg, a.libOptions())
 }
 
 func (a *app) neighbours(ctx context.Context, input string, limit int) error {

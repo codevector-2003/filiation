@@ -339,6 +339,9 @@ rowid order of `cites` is preserved**, because the frontier ranks references by 
 a PDF link, open without one, no open copy, not in OpenAlex; and when it was asked) and
 `work_location` (the links, in the order to try them). Both new tables.
 
+**v5 — the download log (ADR-013), done with build step 6.** `download_attempt`: every
+attempt, its outcome, HTTP status, size and time.
+
 **Later steps, each landing with the code that uses it:**
 download attempts and full-text state (ADR-013), chunk offsets and extractor version (text),
 mentions (ADR-015), import state (ADR-014).

@@ -51,6 +51,8 @@ func (r *replay) RoundTrip(req *http.Request) (*http.Response, error) {
 		status = 400
 	case file == "404":
 		status = 404
+	case strings.HasPrefix(file, "{"): // a literal body, when no recorded response fits
+		body = file
 	default:
 		raw, err := os.ReadFile(filepath.Join(fixtureDir, file))
 		if err != nil {
@@ -71,6 +73,8 @@ type harness struct {
 	documentsDir string
 	routes       map[string]string
 	replay       *replay
+	// pdfs, if set, answers PDF downloads in place of the network.
+	pdfs http.RoundTripper
 }
 
 func newHarness(t *testing.T, routes map[string]string) *harness {
@@ -102,6 +106,7 @@ func (h *harness) run(interactive bool, stdin string, args ...string) (int, stri
 		cacheDir:     h.cacheDir,
 		documentsDir: h.documentsDir,
 		transport:    h.replay,
+		pdfTransport: h.pdfs,
 	}
 	code := a.run(h.t.Context(), args)
 	return code, out.String(), errOut.String()

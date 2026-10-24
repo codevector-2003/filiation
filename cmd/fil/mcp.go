@@ -50,7 +50,7 @@ func (a *app) serveMCP(ctx context.Context) error {
 		fmt.Fprintf(a.stderr, "fil: created your library at %s\n", where)
 	}
 
-	lib, err := library.Open(ctx, cfg, library.Options{CacheDir: a.cacheDir, NoCache: a.noCache, Transport: a.transport})
+	lib, err := library.Open(ctx, cfg, a.libOptions())
 	if err != nil {
 		return err
 	}
