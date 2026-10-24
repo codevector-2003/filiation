@@ -27,6 +27,9 @@ type fakeSource struct {
 	// 1-based number; a non-nil error fails the call. Tests use it to fail a
 	// batch or cancel the run at a chosen point.
 	beforeBatch func(call int) error
+
+	locates      [][]string               // the IDs of every GetLocations call
+	beforeLocate func(ids []string) error // fails a lookup of these IDs; lookups may run at once
 }
 
 func newFakeSource() *fakeSource {
@@ -118,4 +121,38 @@ func universe(n, fanout int) []model.HydratedWork {
 		works = append(works, hydrated(fmt.Sprintf("W%d", i), fmt.Sprintf("10.1000/%d", i), refs...))
 	}
 	return works
+}
+
+// GetLocations answers from each work's PDF links, following merged records
+// the way OpenAlex's single lookup does. A work added without links reads as
+// having no open copy; an unknown ID is missing.
+func (f *fakeSource) GetLocations(ctx context.Context, ids []string) (openalex.Located, error) {
+	f.mu.Lock()
+	f.locates = append(f.locates, append([]string(nil), ids...))
+	hook := f.beforeLocate
+	f.mu.Unlock()
+	out := openalex.Located{Links: map[string]model.PDFLinks{}}
+	if hook != nil {
+		if err := hook(ids); err != nil {
+			return out, err
+		}
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, id := range ids {
+		target := id
+		if to, ok := f.merged[id]; ok {
+			target = to
+		}
+		w, ok := f.works[target]
+		switch {
+		case !ok:
+			out.Missing = append(out.Missing, id)
+		case w.PDF != nil:
+			out.Links[id] = *w.PDF
+		default:
+			out.Links[id] = model.PDFLinks{Availability: model.PDFNoOpenCopy}
+		}
+	}
+	return out, nil
 }
