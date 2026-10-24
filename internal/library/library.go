@@ -17,6 +17,7 @@ import (
 	"github.com/codevector-2003/filiation/internal/identity"
 	"github.com/codevector-2003/filiation/internal/model"
 	"github.com/codevector-2003/filiation/internal/sources/openalex"
+	"github.com/codevector-2003/filiation/internal/sources/pdfs"
 	"github.com/codevector-2003/filiation/internal/store"
 )
 
@@ -33,6 +34,11 @@ type Options struct {
 	// Transport replaces the network. Tests replay recorded responses through
 	// it; front doors leave it nil.
 	Transport http.RoundTripper
+
+	// PDFTransport replaces the network for PDF downloads, which go to
+	// publishers and repositories rather than to OpenAlex. Tests point it at
+	// a local server; front doors leave it nil.
+	PDFTransport http.RoundTripper
 }
 
 // Library is an open library: the store, and the sources that grow it.
@@ -43,6 +49,7 @@ type Options struct {
 type Library struct {
 	db    *store.DB
 	files *blobs.Folder // nil for a library that is only a database
+	pdfs  *pdfs.Client
 	graph *graph.Graph
 	http  *httpx.Client
 	cfg   config.Config
@@ -94,14 +101,25 @@ func Open(ctx context.Context, cfg *config.Config, opts Options) (*Library, erro
 		return nil, err
 	}
 
+	pc, err := pdfs.New(pdfs.Options{UserAgent: pdfUserAgent, Transport: opts.PDFTransport})
+	if err != nil {
+		db.Close()
+		return nil, err
+	}
+
 	return &Library{
 		db:    db,
 		files: files,
+		pdfs:  pc,
 		graph: graph.New(db, openalex.New(h)),
 		http:  h,
 		cfg:   *cfg,
 	}, nil
 }
+
+// pdfUserAgent is what fil calls itself to the hosts it downloads PDFs from:
+// plainly a tool, with where to reach its maintainers (ADR-013).
+const pdfUserAgent = "fil (Filiation; +https://github.com/codevector-2003/filiation)"
 
 // Close closes the library.
 func (l *Library) Close() error { return l.db.Close() }

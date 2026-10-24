@@ -113,7 +113,7 @@ func (a *app) showLibrary(ctx context.Context) error {
 		fmt.Fprintf(w, "No library yet. fil add makes one at:\n\n  %s\n", cfg.Folder)
 		return nil
 	}
-	lib, err := library.Open(ctx, cfg, library.Options{CacheDir: a.cacheDir, NoCache: a.noCache, Transport: a.transport})
+	lib, err := library.Open(ctx, cfg, a.libOptions())
 	if err != nil {
 		return err
 	}

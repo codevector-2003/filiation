@@ -38,6 +38,8 @@ type app struct {
 	documentsDir string
 	// transport replaces the network; nil in production.
 	transport http.RoundTripper
+	// pdfTransport replaces the network for PDF downloads; nil in production.
+	pdfTransport http.RoundTripper
 
 	lines *bufio.Reader
 
@@ -166,11 +168,7 @@ func (a *app) add(ctx context.Context, input string, acceptFirst bool, limit int
 		}
 	}
 
-	lib, err := library.Open(ctx, cfg, library.Options{
-		CacheDir:  a.cacheDir,
-		NoCache:   a.noCache,
-		Transport: a.transport,
-	})
+	lib, err := library.Open(ctx, cfg, a.libOptions())
 	if err != nil {
 		return err
 	}
@@ -353,6 +351,12 @@ func (a *app) loadConfig() (*config.Config, error) {
 		}
 	}
 	return cfg, err
+}
+
+// libOptions are the library options every command opens with: the cache,
+// and in tests the replayed OpenAlex and the local PDF hosts.
+func (a *app) libOptions() library.Options {
+	return library.Options{CacheDir: a.cacheDir, NoCache: a.noCache, Transport: a.transport, PDFTransport: a.pdfTransport}
 }
 
 // firstRun offers a choice of library folder and records it (ADR-011). The

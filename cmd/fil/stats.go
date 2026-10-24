@@ -40,7 +40,7 @@ func (a *app) stats(ctx context.Context, listDuplicates bool) error {
 		fmt.Fprintln(a.stdout, "Your library is empty. Add a paper first, for example:\n\n  fil add 10.7717/peerj.4375")
 		return nil
 	}
-	lib, err := library.Open(ctx, cfg, library.Options{CacheDir: a.cacheDir, NoCache: a.noCache, Transport: a.transport})
+	lib, err := library.Open(ctx, cfg, a.libOptions())
 	if err != nil {
 		return err
 	}
@@ -85,6 +85,11 @@ func (a *app) stats(ctx context.Context, listDuplicates bool) error {
 				fmt.Fprintf(w, "; %s not looked up yet", thousands(n))
 			}
 			fmt.Fprintln(w, " — fil fetch --dry-run says why the rest have none")
+		}
+		if dir := lib.Folder(); dir != "" {
+			if n, err := lib.FetchedOnDisk(ctx); err == nil {
+				fmt.Fprintf(w, "            %s on disk in papers/ — fil fetch downloads more\n", plural(n, "paper has its PDF", "papers have their PDF"))
+			}
 		}
 	}
 

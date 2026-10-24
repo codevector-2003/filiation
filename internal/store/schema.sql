@@ -245,6 +245,25 @@ CREATE TABLE IF NOT EXISTS work_location (
     PRIMARY KEY (fil_id, rank)
 );
 
+-- Schema v5. Every download attempt, so a paper without a PDF says exactly why
+-- — "the publisher refused, the repository sent a web page" — and a link that
+-- failed is not tried again for a month (ADR-013).
+CREATE TABLE IF NOT EXISTS download_attempt (
+    id         INTEGER PRIMARY KEY,
+    fil_id     TEXT NOT NULL REFERENCES work(fil_id) ON DELETE CASCADE,
+    url        TEXT NOT NULL,
+    host       TEXT NOT NULL,
+    outcome    TEXT NOT NULL,  -- ok | refused | not-found | http-error | not-a-pdf | too-large
+                               -- | timeout | network | redirect-loop | duplicate
+    status     INTEGER,        -- the HTTP status, when there was one
+    bytes      INTEGER,
+    millis     INTEGER,
+    at         TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_download_attempt_work ON download_attempt(fil_id);
+CREATE INDEX IF NOT EXISTS idx_download_attempt_url  ON download_attempt(url);
+
 -- ---------------------------------------------------------------- bookkeeping
 
 CREATE TABLE IF NOT EXISTS meta (
@@ -252,4 +271,4 @@ CREATE TABLE IF NOT EXISTS meta (
     value TEXT
 );
 
-INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '4');
+INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '5');
