@@ -332,13 +332,23 @@ type downloader struct {
 }
 
 func newDownloader(dir string) *downloader {
-	return &downloader{
-		// No Jar: no cookies. Redirects are followed, as a browser would.
-		client: &http.Client{Timeout: 90 * time.Second},
-		dir:    dir,
-		hosts:  map[string]*rate.Limiter{},
+	d := &downloader{dir: dir, hosts: map[string]*rate.Limiter{}}
+	// No Jar: no cookies. Redirects are followed, as a browser would, and
+	// every hop waits on its own host's limiter: doi.org hands most requests
+	// on to a publisher, and that publisher's server is the one to spare.
+	d.client = &http.Client{
+		Timeout: 90 * time.Second,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 10 {
+				return errors.New("stopped after 10 redirects")
+			}
+			return d.limiter(hostOf(req.URL)).Wait(req.Context())
+		},
 	}
+	return d
 }
+
+func hostOf(u *url.URL) string { return strings.TrimPrefix(strings.ToLower(u.Hostname()), "www.") }
 
 func (d *downloader) limiter(host string) *rate.Limiter {
 	d.mu.Lock()
@@ -359,7 +369,7 @@ func (d *downloader) get(ctx context.Context, raw, source, path string) (a Attem
 		a.Outcome = "bad-url"
 		return a
 	}
-	a.Host = strings.TrimPrefix(strings.ToLower(u.Hostname()), "www.")
+	a.Host = hostOf(u)
 	if err := d.limiter(a.Host).Wait(ctx); err != nil {
 		a.Outcome = "cancelled"
 		return a

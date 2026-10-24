@@ -501,7 +501,7 @@ WebAssembly and run by wazero, so there is still no cgo (hard rule 4). It is han
 path, and runs under a time limit with a recover, one file failing one paper.
 
 **Why.** Against `pdftotext` on 19 real PDFs from five fields: 0.985 median word F1, no failures,
-no ligatures left, no words run together, every page count right, and as fast as `pdftotext`. The
+no ligatures left, no words run together, every page count right, and within about twice `pdftotext`'s time. The
 pure-Go `ledongthuc/pdf` scored 0.24 — its text loses the spaces between words — and failed on two
 files.
 

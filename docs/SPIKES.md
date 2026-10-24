@@ -388,6 +388,11 @@ workaround.
 **Speed:** median download 0.8 s, 90th percentile 4 s; median size 0.4–0.9 MB by field. 200
 downloads with four at a time took under five minutes, most of it the per-host wait.
 
+**Redirects get the per-host limit too.** The recorded run limited only the first host of each URL;
+a link through `doi.org` reached the publisher unlimited (found in review, PR #3). The spike now
+waits on each redirect hop's own host, and `fil fetch` must do the same (step 6). The outcomes
+above are per host and would not change, but the run was not repeated after the fix.
+
 **Unpaywall:** not yet measured — it needs an email address on every request, and the maintainer's
 own is never sent. The spike asks Unpaywall when `FIL_SPIKE_UNPAYWALL_EMAIL` holds a separate one,
 and never writes it down.
@@ -409,7 +414,7 @@ and never writes it down.
 | Ligature characters left (ﬁ, ﬂ) | 884 | **0** | — |
 | Words longer than 25 letters per 1,000 (missing spaces) | 179 | **0** | — |
 | Page counts that match | 17 of 19 | **19 of 19** | — |
-| Time, all 19 files | 1.8 s | 6.0 s | 6.3 s |
+| Time, all 19 files (two runs) | 0.6–1.8 s | 6.0–6.4 s | 2.9–6.3 s |
 | Added to a binary built without cgo | +0.6 MB | **+10 MB** (5.75 MB is the `.wasm`) | not shippable |
 | Builds with `CGO_ENABLED=0` for Windows, Linux, macOS | yes | **yes** | — |
 | Licences linked in | BSD-3 | MIT, Apache-2.0 (wazero, commons-pool), BSD-3 (uuid, x/sys, x/text) | — |
@@ -428,6 +433,14 @@ The 65 private-use characters in PDFium's output are the pieces of large bracket
 `.pdf`, a wrecked cross-reference table: every candidate refused the first four with an error and no
 panic or hang. PDFium and `pdftotext` recovered all 45 pages of the wrecked one; `ledongthuc`
 refused it.
+
+**A time limit must stop the work, not just stop waiting for it** (found in review, PR #3). PDFium
+runs in a small pool of instances, and an extraction abandoned at its time limit would keep its
+instance. The spike now kills the instance, with wazero's `WithCloseOnContextDone` so the kill
+interrupts code mid-run — measured: a 48-page extraction killed 20 ms in returns at once, and the
+next file extracts normally. go-pdfium's default runtime config has to be repeated alongside it,
+because the bundled module needs WebAssembly exception handling. `internal/text` (step 7) uses the
+same set-up. Re-run after the fix: identical quality scores.
 
 **What adopting PDFium costs:** `go-pdfium` v1.21.3 requires **Go 1.26** and `x/text` v0.42, so
 fil's `go` line moves from 1.25 to 1.26 when `internal/text` lands (local toolchain 1.27, CI uses
