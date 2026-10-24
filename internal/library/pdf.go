@@ -48,7 +48,8 @@ type PDFLinks struct {
 }
 
 // PDFLinks returns what is known about the PDF of the work input names,
-// looking it up first — one request — if it never has been.
+// looking it up first — one request — if it never has been, or if the answer
+// is older than LocateMaxAge, as a library-wide lookup would.
 func (l *Library) PDFLinks(ctx context.Context, input string) (PDFLinks, error) {
 	w, err := l.Find(ctx, input)
 	if err != nil {
@@ -58,7 +59,8 @@ func (l *Library) PDFLinks(ctx context.Context, input string) (PDFLinks, error) 
 	if err != nil {
 		return PDFLinks{}, err
 	}
-	if links.Availability == model.PDFUnchecked && w.OpenAlexID != "" && !w.Unresolved {
+	stale := links.Availability == model.PDFUnchecked || (!at.IsZero() && time.Since(at) > LocateMaxAge)
+	if stale && w.OpenAlexID != "" && !w.Unresolved {
 		if _, err := l.graph.LocateIDs(ctx, []string{w.OpenAlexID}, nil); err != nil {
 			return PDFLinks{}, err
 		}
