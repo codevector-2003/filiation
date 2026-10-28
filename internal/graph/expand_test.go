@@ -129,6 +129,37 @@ func TestExpandRespectsTheBudget(t *testing.T) {
 	}
 }
 
+// HydrateIDs fetches the works it is given, wherever they sit on the
+// frontier, and keeps their depth.
+func TestHydrateIDs(t *testing.T) {
+	t.Parallel()
+	g, db, src := seeded(t, universe(400, 6), "W1")
+	refs := refsOf(t, db, "W1")
+	pick := []string{refs[len(refs)-1], refs[0]}
+	before, _ := db.GetWork(t.Context(), pick[0])
+
+	res, err := g.HydrateIDs(t.Context(), pick)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Hydrated != 2 || len(src.batches) != 1 || len(src.batches[0]) != 2 {
+		t.Errorf("HydrateIDs = %+v in batches %v; want 2 hydrated in one request", res, src.batches)
+	}
+	for _, id := range pick {
+		w, _ := db.GetWork(t.Context(), id)
+		if !w.Hydrated || w.Title == nil || len(refsOf(t, db, id)) == 0 {
+			t.Errorf("%s after HydrateIDs = %+v; want a title and its references", id, w)
+		}
+	}
+	after, _ := db.GetWork(t.Context(), pick[0])
+	if model.Deref(after.Depth, -1) != model.Deref(before.Depth, -1) {
+		t.Errorf("depth %v became %v", model.Deref(before.Depth, -1), model.Deref(after.Depth, -1))
+	}
+	if res, err := g.HydrateIDs(t.Context(), nil); err != nil || res.Hydrated != 0 {
+		t.Errorf("HydrateIDs(nil) = %+v, %v", res, err)
+	}
+}
+
 func TestExpandGraphMatchesTheSource(t *testing.T) {
 	t.Parallel()
 	// The golden check, computed independently of the expander: whatever was

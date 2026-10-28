@@ -286,6 +286,9 @@ type SearchHit struct {
 // Searched is a search's answer.
 type Searched struct {
 	Hits []SearchHit
+	// Partial reports that no passage had every word, so Hits are the
+	// passages with some of them, those with the most ranked first.
+	Partial bool
 	// Unread counts the PDFs the library knows of but has not read, which a
 	// search cannot see: fil extract reads them. Search does not scan
 	// papers/, so a PDF put there since the last scan is not counted.
@@ -294,7 +297,8 @@ type Searched struct {
 
 // Search finds passages in the library's PDFs by keyword: every word must
 // appear, "quoted phrases" in order, and a word ending in * matches as a
-// prefix. Words match by stem, so "citing" finds "cited". Reference lists are
+// prefix. When no passage has every word, it returns those with some of
+// them, and says so (Partial). Words match by stem, so "citing" finds "cited". Reference lists are
 // left out unless asked for.
 func (l *Library) Search(ctx context.Context, words string, opts SearchOptions) (Searched, error) {
 	if opts.Limit <= 0 {
@@ -317,6 +321,15 @@ func (l *Library) Search(ctx context.Context, words string, opts SearchOptions) 
 		return Searched{}, err
 	}
 	var out Searched
+	if len(hits) == 0 {
+		// No passage has every word: rather than nothing, the passages with
+		// some of them, labelled as such.
+		q.Any = true
+		if hits, err = l.db.Search(ctx, q); err != nil {
+			return Searched{}, err
+		}
+		out.Partial = len(hits) > 0
+	}
 	works := map[string]model.Work{}
 	for _, h := range hits {
 		w, ok := works[h.FilID]

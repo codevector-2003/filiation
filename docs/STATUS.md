@@ -721,9 +721,13 @@ in WebAssembly, cleaned, checked, cut into passages and indexed with FTS5.
   (96% word-like). Exactly the failure the check must not make. The limit is now 25%: a font with
   no character map loses its letters, far more than that. Across the other 110: letters 0.67–0.93,
   word-like 0.87–0.99, vowels 0.37–0.42 — every limit has a wide margin. Kept as a test.
-- **Seen, for later steps:** a paper downloaded while still a stub shows as "[not fetched: W…]" in
-  search results until it is hydrated (step 10's `fil show` territory); and some PDFs space a
-  ligature inside a word ("fi ndings"), which PDFium reports as written.
+- **Seen live, and fixed after step 7 (29 Oct):** a paper downloaded while still a stub showed as
+  "[not fetched: W…]" in search and got an `Unknown-nd-Untitled` folder. `fil fetch` now hydrates
+  the stubs it is about to download — one request per 100 (`graph.HydrateIDs`) — so each has a
+  title, a named folder, and its own references for citation context (step 9). And a search with
+  no passage holding every word returned nothing: it now falls back to passages with any of the
+  words, bm25 ranking those with more first, labelled as partial. Still as written: some PDFs space
+  a ligature inside a word ("fi ndings"), which PDFium reports faithfully.
 - **Tests** use real PDFs made in code (`text/pdftest`), so no binary sits in `testdata`. A
   3,000-page PDF that takes 17 s to read is stopped at a 50 ms limit, and both instances serve the
   next files. The fetch test's seed is now a real PDF: fetched, read, and found on page 2.

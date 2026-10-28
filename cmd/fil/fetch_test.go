@@ -123,9 +123,14 @@ func TestFetchOnePaper(t *testing.T) {
 		!strings.Contains(out, path) {
 		t.Errorf("search: exit %d\n%s\n%s", code, out, errOut)
 	}
-	code, out, _ = h.run(false, "", "search", "nowhere", "to", "be", "found")
-	if code != exitNotFound || !strings.Contains(out, "No passage contains all of those words.") {
+	code, out, _ = h.run(false, "", "search", "zyxwv", "qwertz")
+	if code != exitNotFound || !strings.Contains(out, "No passage contains any of those words.") {
 		t.Errorf("search for absent words: exit %d\n%s", code, out)
+	}
+	// No passage has every word: the ones with some of them, labelled.
+	code, out, _ = h.run(false, "", "search", "hybrid", "zyxwv")
+	if code != exitOK || !strings.Contains(out, "These contain some of them") || !strings.Contains(out, "«hybrid»") {
+		t.Errorf("search with one absent word: exit %d\n%s", code, out)
 	}
 	if code, _, errOut := h.run(false, "", "search", "-", "+"); code != exitInvalidInput || !strings.Contains(errOut, "at least one word") {
 		t.Errorf("search with no words: exit %d\n%s", code, errOut)

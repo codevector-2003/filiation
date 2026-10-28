@@ -162,6 +162,14 @@ func TestSearch(t *testing.T) {
 	if hits, _ := db.Search(ctx, SearchQuery{Words: "open access", Limit: 2}); len(hits) != 2 {
 		t.Errorf("limit 2 = %d hits", len(hits))
 	}
+	// Any: a passage with some of the words, the one with more first.
+	if hits, _ := db.Search(ctx, SearchQuery{Words: "physics zyxwv", Limit: 10}); len(hits) != 0 {
+		t.Errorf("all words, one absent = %+v", hits)
+	}
+	if hits, _ := db.Search(ctx, SearchQuery{Words: "physics advantage zyxwv", Limit: 10, Any: true}); len(hits) < 2 ||
+		hits[0].Page != 2 {
+		t.Errorf("any word = %+v; want W1's page 2, which has two of them, first", hits)
+	}
 	// A phrase must be in order.
 	if hits, _ := db.Search(ctx, SearchQuery{Words: `"access open"`, Limit: 10}); len(hits) != 0 {
 		t.Errorf("a phrase matched out of order: %+v", hits)
