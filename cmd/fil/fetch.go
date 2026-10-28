@@ -217,6 +217,10 @@ func (a *app) fetch(ctx context.Context, max int) error {
 	if res.Located.Checked > 0 {
 		fmt.Fprintf(w, "Looked up:  links for %s.\n", plural(res.Located.Checked, "paper", "papers"))
 	}
+	if res.Hydrated > 0 {
+		fmt.Fprintf(w, "Details:    fetched for %s known only by ID, so each has a title and a named folder.\n",
+			plural(res.Hydrated, "paper", "papers"))
+	}
 	switch {
 	case res.Tried == 0 && runErr == nil:
 		fmt.Fprintln(w, "Nothing to download: every paper with a legal PDF link has its PDF, or its\n"+

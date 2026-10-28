@@ -200,6 +200,17 @@ func TestSearchOptions(t *testing.T) {
 	if refs, _ := l.Search(ctx, "Harnad", SearchOptions{References: true}); len(refs.Hits) != 1 || refs.Hits[0].Section != text.SectionReferences {
 		t.Errorf("with references = %+v", refs.Hits)
 	}
+	// No passage has every word: the passages with some, marked partial.
+	if all, _ := l.Search(ctx, "open access", SearchOptions{}); all.Partial {
+		t.Error("a search every word of which matched is marked partial")
+	}
+	some, err := l.Search(ctx, "advantage zyxwv", SearchOptions{})
+	if err != nil || !some.Partial || len(some.Hits) == 0 {
+		t.Errorf("one absent word = %+v, %v; want partial hits", some, err)
+	}
+	if none, _ := l.Search(ctx, "zyxwv qwertz", SearchOptions{}); none.Partial || len(none.Hits) != 0 {
+		t.Errorf("no word present = %+v", none)
+	}
 	if _, err := l.Search(ctx, " - ", SearchOptions{}); !errors.Is(err, errs.ErrEmptyQuery) {
 		t.Errorf("an empty search: %v", err)
 	}
