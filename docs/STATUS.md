@@ -572,9 +572,9 @@ reworded), D18 (the library is a folder the user chooses; `papers/` with readabl
 | 1 | `identity`: fil IDs | **Done** — 27 Sept |
 | 2 | Schema v2 and the first migration; fil IDs through every layer | **Done** — 27 Sept |
 | 3 | The library folder and `papers/`: config, names, atomic writes, rescan, `fil library move` | **Done** — 23 Oct |
-| 4 | Spikes 9 (PDF availability), 10 (extractor bake-off), 11 (reference matching) | **Done** — 24 Oct, D20–D22; Unpaywall's half of spike 9 waits for an address |
-| 5 | Legal PDF links: OpenAlex locations, Unpaywall if spike 9 justifies it | **Done** — 24 Oct (OpenAlex); Unpaywall waits on spike 9 |
-| 6 | Downloading, `fil fetch` | **Done** — 24 Oct; the seed's own PDF waits on Unpaywall (no OpenAlex link) |
+| 4 | Spikes 9 (PDF availability), 10 (extractor bake-off), 11 (reference matching) | **Done** — 24 Oct, D20–D22; Unpaywall measured 28 Oct: adds nothing (D21) |
+| 5 | Legal PDF links: OpenAlex locations, Unpaywall if spike 9 justifies it | **Done** — 24 Oct (OpenAlex); Unpaywall not built (D21) |
+| 6 | Downloading, `fil fetch` | **Done** — 24 Oct; the seed's own PDF arrives by import (step 8): no source has a PDF link for it |
 | 7 | `internal/text`, FTS5, `fil search` | **Done** — 28 Oct; the seed's own passage waits on its PDF (step 6) |
 | 8 | Import, `Inbox/`, local documents | Not started |
 | 9 | Citation context | Not started |
@@ -750,7 +750,8 @@ readable folder, named by version: `published.pdf`, `accepted.pdf`, `preprint.pd
   folder was not re-downloaded; naming the paper fetched it again.
 - **Done when, half met:** a second run downloads nothing once the candidates are used up
   (tested). *"The seed's PDF is in `papers/`"* is not: the M0 seed has no OpenAlex PDF link
-  (step 5). It waits on spike 9's Unpaywall measurement, by decision on 24 Oct.
+  (step 5). It waited on spike 9's Unpaywall measurement, by decision on 24 Oct. **Measured 28
+  Oct: Unpaywall has no PDF link for it either** (D21), so it arrives by import in step 8.
 
 **Step 5 — legal PDF links (ADR-013).** Every work gets an answer: a ranked list of legal PDF
 links, or why there is none — open but only as a web page, no open copy, not in OpenAlex.
@@ -783,7 +784,8 @@ links, or why there is none — open but only as a web page, no open copy, not i
   those downloads succeed — roughly **one work in eight** overall, from ~46% in physics to under 1%
   in the humanities. arXiv served 56 of 56; publishers answered 403 to nearly everything, and PubMed
   Central sent HTML. Median download 0.8 s. So `fil fetch` runs inside the command, and the job
-  system moves to M4 (D21). Unpaywall is still to be asked, with a separate address.
+  system moves to M4 (D21). Unpaywall, asked on 28 Oct with a separate address, added no PDF
+  link OpenAlex did not already give, so it is not built (D21).
 - **Spike 10:** **PDFium as WebAssembly** (D20) — 0.985 median word F1 against `pdftotext`, no
   failures; the pure-Go candidate ran words together (0.24). Costs ~10 MB and Go 1.26. A text layer
   can be gibberish, so step 7 needs a check for it.
