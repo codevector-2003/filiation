@@ -119,7 +119,7 @@ func (a *app) rootCommand() *cobra.Command {
 	root.PersistentFlags().BoolVar(&a.noCache, "no-cache", false, "fetch from OpenAlex even if a response is cached")
 
 	root.AddCommand(a.addCommand(), a.expandCommand(), a.neighboursCommand(), a.pathCommand(),
-		a.statsCommand(), a.fetchCommand(), a.exportCommand(), a.libraryCommand(), a.mcpCommand(), a.whereCommand(),
+		a.statsCommand(), a.fetchCommand(), a.extractCommand(), a.searchCommand(), a.exportCommand(), a.libraryCommand(), a.mcpCommand(), a.whereCommand(),
 		a.versionCommand(), a.cacheCommand())
 	return root
 }

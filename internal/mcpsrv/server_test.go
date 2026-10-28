@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -316,10 +317,20 @@ func TestExpandGraph(t *testing.T) {
 		t.Errorf("library after expand = %+v; want 1041 works, 47 fetched, 1655 citations", out.Library)
 	}
 
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if !slices.Equal(c.progress, []float64{46}) {
-		t.Errorf("progress notifications = %v, want one report of 46", c.progress)
+	// The server sends the notification before the result, but the client
+	// handles notifications on a goroutine of their own, so it can land just
+	// after the call returns. Seen once in CI on Linux.
+	var got []float64
+	for deadline := time.Now().Add(5 * time.Second); ; time.Sleep(10 * time.Millisecond) {
+		c.mu.Lock()
+		got = slices.Clone(c.progress)
+		c.mu.Unlock()
+		if len(got) > 0 || time.Now().After(deadline) {
+			break
+		}
+	}
+	if !slices.Equal(got, []float64{46}) {
+		t.Errorf("progress notifications = %v, want one report of 46", got)
 	}
 }
 

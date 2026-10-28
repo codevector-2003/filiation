@@ -197,6 +197,17 @@ func DefaultCacheDir() (string, error) {
 	return filepath.Join(base, "filiation", "http"), nil
 }
 
+// DefaultCompiledDir is where the PDF extractor keeps its compiled code, so
+// it starts in a tenth of a second rather than three. Regenerable, like the
+// HTTP cache, so it sits beside it.
+func DefaultCompiledDir() (string, error) {
+	base, err := os.UserCacheDir()
+	if err != nil {
+		return "", fmt.Errorf("locate user cache directory: %w", err)
+	}
+	return filepath.Join(base, "filiation", "pdfium"), nil
+}
+
 // Load resolves configuration.
 //
 // Which library, highest priority first: the --db flag, FILIATION_DB,

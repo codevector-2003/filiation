@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://github.com/codevector-2003/filiation/releases/tag/v0.2.0"><img src="https://img.shields.io/badge/release-v0.2.0-6366f1" alt="Release v0.2.0"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/licence-Apache--2.0-6366f1" alt="Licence: Apache-2.0"></a>
-  <img src="https://img.shields.io/badge/go-1.25-00ADD8?logo=go&logoColor=white" alt="Go 1.25">
+  <img src="https://img.shields.io/badge/go-1.26-00ADD8?logo=go&logoColor=white" alt="Go 1.26">
   <img src="https://img.shields.io/badge/platforms-Windows%20%C2%B7%20macOS%20%C2%B7%20Linux-64748b" alt="Windows, macOS, Linux">
   <img src="https://img.shields.io/badge/cgo-none-22c55e" alt="No cgo">
   <a href="https://openalex.org"><img src="https://img.shields.io/badge/data-OpenAlex-f97316" alt="Data: OpenAlex"></a>
@@ -73,7 +73,7 @@ Get the archive for your system from **[Releases](https://github.com/codevector-
 ```sh
 git clone https://github.com/codevector-2003/filiation
 cd filiation
-go build ./cmd/fil        # Go 1.25 or later. Pure Go, no C compiler needed.
+go build ./cmd/fil        # Go 1.26 or later. Pure Go, no C compiler needed.
 ```
 
 ### First steps
@@ -102,7 +102,9 @@ folders however you like; fil finds them again, and each folder you make becomes
 | `fil stats` | The library at a glance, including reference coverage. `--duplicates` lists works that share a title. |
 | `fil export graphml` | The graph as GraphML for Gephi, Cytoscape, yEd, NetworkX or igraph. `--include-stubs` adds works known so far only by ID. |
 | `fil mcp` | Serve your library to an AI assistant over MCP. Your MCP client runs it. See the [MCP guide](docs/MCP.md). |
-| `fil fetch` | Download the legal open-access PDFs of your papers into `papers/` — published version first, then accepted manuscript, then preprint. Never from behind a paywall or a login. 50 a run (`--max`); name a paper to fetch just that one. `--dry-run` says what it would download and why the others have none. |
+| `fil fetch` | Download the legal open-access PDFs of your papers into `papers/` — published version first, then accepted manuscript, then preprint. Never from behind a paywall or a login. 50 a run (`--max`); name a paper to fetch just that one. `--dry-run` says what it would download and why the others have none. Once the downloads are done, it reads their text so `fil search` finds them. |
+| `fil search <words>` | Find passages in your PDFs by keyword, best first, each with its paper and page. Words match by stem; `"quote"` a phrase; `word*` matches a prefix. Reference lists are left out unless you pass `--references`; `--paper` searches one paper. |
+| `fil extract` | Read the text of PDFs fil has not read yet — ones you put in `papers/` yourself, say. A scan with no text layer, a gibberish text layer or a damaged file is reported with the reason. `--again` reads everything again. |
 | `fil library` | Your library folder and what is in `papers/`. `library folder <paper>` prints a paper's folder, making it if needed; `library scan` finds papers you moved, renamed or deleted; `library new` and `library move` make another library or move this one. `--library <name>` picks a library for any command. |
 | `fil where` | Where your library, settings and cache live. |
 | `fil cache clear` | Empty the cache of OpenAlex responses. Your library isn't touched. |
@@ -200,7 +202,7 @@ Issues and pull requests are welcome. Before a larger change, read [`docs/STATUS
 
 ## Acknowledgements
 
-Reference data comes from [OpenAlex](https://openalex.org), an open index of the world's research. SQLite runs in pure Go through [`ncruces/go-sqlite3`](https://github.com/ncruces/go-sqlite3). The command line is built with [`spf13/cobra`](https://github.com/spf13/cobra).
+Reference data comes from [OpenAlex](https://openalex.org), an open index of the world's research. SQLite runs in pure Go through [`ncruces/go-sqlite3`](https://github.com/ncruces/go-sqlite3). PDF text comes from [PDFium](https://pdfium.googlesource.com/pdfium/), compiled to WebAssembly by [`klippa-app/go-pdfium`](https://github.com/klippa-app/go-pdfium) and run by [`wazero`](https://github.com/tetratelabs/wazero). The command line is built with [`spf13/cobra`](https://github.com/spf13/cobra).
 
 ## Licence
 
