@@ -80,6 +80,10 @@ var (
 	// unresolved, and retyping it will not help.
 	ErrInvalidInput = errors.New("invalid identifier")
 
+	// ErrEmptyQuery means a search had nothing to search for: no word with a
+	// letter or a digit in it. The fix is to type some words.
+	ErrEmptyQuery = errors.New("nothing to search for")
+
 	// ErrSchemaTooNew means the library was written by a newer build of fil
 	// than the one now running, and must not be touched.
 	//

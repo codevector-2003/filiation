@@ -42,6 +42,9 @@ type FetchOptions struct {
 	Max int
 	// Progress, if set, is called after each paper with the running totals.
 	Progress func(Fetched)
+	// ReadProgress, if set, is called after each PDF is read, once the
+	// downloads are done.
+	ReadProgress func(Extracted)
 }
 
 // Fetched is what a fetch did.
@@ -56,6 +59,10 @@ type Fetched struct {
 	Outcomes map[string]int
 
 	Papers []FetchedPaper
+
+	// Read is the reading of the PDFs that followed the downloads: every PDF
+	// in papers/ not yet read, whether downloaded now or before.
+	Read Extracted
 }
 
 // Attempt is one download attempt: the link, its host, how it ended.
@@ -67,6 +74,7 @@ type FetchedPaper struct {
 	File     string // absolute path of the PDF, when one was saved or was already there
 	Already  bool   // the PDF was already in the library; nothing was downloaded
 	Attempts []Attempt
+	Text     *ExtractedPaper // reading the PDF, when there is one
 }
 
 // Fetch downloads the open-access PDFs of up to Max papers into papers/ —
@@ -78,9 +86,12 @@ type FetchedPaper struct {
 // paper's links best first — published, accepted, preprint — until one
 // gives a PDF, at most three. Every attempt is recorded; a link that failed
 // is left alone for a month. Cancelling keeps every finished download.
+//
+// Once the downloads are done, it reads the text of every PDF not yet read,
+// so a search finds them (ExtractText).
 func (l *Library) Fetch(ctx context.Context, opts FetchOptions) (Fetched, error) {
 	start := time.Now()
-	res := Fetched{Outcomes: map[string]int{}}
+	res := Fetched{Outcomes: map[string]int{}, Read: Extracted{Counts: map[string]int{}}}
 	if l.files == nil {
 		return res, ErrNoFolder
 	}
@@ -142,7 +153,12 @@ feed:
 	if err := ctx.Err(); err != nil {
 		return res, err
 	}
-	return res, firstErr
+	if firstErr != nil {
+		return res, firstErr
+	}
+	read, err := l.extractAll(ctx, ExtractOptions{Progress: opts.ReadProgress})
+	res.Read = read
+	return res, err
 }
 
 // FetchOne downloads the PDF of the paper input names. Naming a paper is
@@ -169,14 +185,28 @@ func (l *Library) FetchOne(ctx context.Context, input string) (FetchedPaper, err
 	}
 	for _, f := range files {
 		if !f.Missing && isPDFPath(f.Path) {
-			return FetchedPaper{Work: w, File: l.files.Abs(f.Path), Already: true}, nil
+			return l.withText(ctx, FetchedPaper{Work: w, File: l.files.Abs(f.Path), Already: true})
 		}
 	}
 	links, err := l.db.LinksToTry(ctx, w.FilID, 0)
 	if err != nil {
 		return FetchedPaper{}, err
 	}
-	return l.fetchWork(ctx, w, links)
+	got, err := l.fetchWork(ctx, w, links)
+	if err != nil || got.File == "" {
+		return got, err
+	}
+	return l.withText(ctx, got)
+}
+
+// withText reads the paper's PDF, unless it has been read already.
+func (l *Library) withText(ctx context.Context, p FetchedPaper) (FetchedPaper, error) {
+	t, err := l.extractWork(ctx, p.Work.FilID, false)
+	if err != nil {
+		return p, err
+	}
+	p.Text = &t
+	return p, nil
 }
 
 func (l *Library) workWithAuthors(ctx context.Context, filID string) (model.Work, error) {

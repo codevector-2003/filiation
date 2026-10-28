@@ -515,7 +515,8 @@ to avoid. Native PDFium through cgo — breaks hard rule 4.
 
 **Follow-on, for step 7:** a gibberish check. One file in 19 had a text layer that was nonsense (a
 scanned page stored upside down); a text layer is not the same as text, and such a paper must be
-recorded as "no usable text", not indexed.
+recorded as "no usable text", not indexed. **Built in step 7** (`text.Judge`): a scan is `no-text`,
+a layer with too few letters, vowels or word-like tokens is `gibberish`, and neither is indexed.
 
 ---
 

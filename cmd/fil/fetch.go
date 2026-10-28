@@ -28,6 +28,8 @@ func (a *app) fetchCommand() *cobra.Command {
 			"Your own papers come first, then the ones your library cites most. Each run\n" +
 			"downloads at most --max PDFs; run it again to continue. A PDF you deleted is\n" +
 			"not downloaded again — name the paper to ask for it.\n\n" +
+			"Once the downloads are done, fil reads the text of every new PDF, so\n" +
+			"fil search finds it.\n\n" +
 			"With --dry-run, fil only looks up the links and reports what it would\n" +
 			"download, and why each paper without a PDF has none.",
 		Example: "  fil fetch\n  fil fetch --max 200\n  fil fetch 10.7717/peerj.4375\n  fil fetch --dry-run",
@@ -189,13 +191,22 @@ func (a *app) fetch(ctx context.Context, max int) error {
 		budget = library.DefaultFetchMax
 	}
 	if a.interactive {
+		downloading := false // a download progress line is on screen
 		opts.Progress = func(f library.Fetched) {
+			downloading = true
 			fmt.Fprintf(a.stderr, "\r  %s of up to %s papers tried · %s downloaded · %s ",
 				thousands(f.Tried), thousands(budget), thousands(f.Downloaded), megabytes(f.Bytes))
 		}
+		opts.ReadProgress = func(e library.Extracted) {
+			if downloading {
+				downloading = false
+				fmt.Fprintln(a.stderr) // reading gets a line of its own
+			}
+			a.readProgress(e)
+		}
 	}
 	res, runErr := lib.Fetch(ctx, opts)
-	if a.interactive && res.Tried > 0 {
+	if a.interactive && (res.Tried > 0 || res.Read.Done > 0) {
 		fmt.Fprintln(a.stderr)
 	}
 	if errors.Is(runErr, library.ErrNoFolder) {
@@ -218,13 +229,16 @@ func (a *app) fetch(ctx context.Context, max int) error {
 				plural(failed, "paper", "papers"), reasons(res.Outcomes))
 		}
 	}
+	if res.Read.Total > 0 {
+		a.printRead(res.Read)
+	}
 	ctx = context.WithoutCancel(ctx)
 	if n, err := lib.FetchedOnDisk(ctx); err == nil {
 		fmt.Fprintf(w, "Library:    %s with a PDF in %s\n", plural(n, "paper", "papers"), filepath.Join(lib.Folder(), "papers"))
 	}
 	if runErr != nil {
 		if errors.Is(runErr, context.Canceled) {
-			fmt.Fprintln(w, "\nStopped. Every finished download is saved; run fil fetch to continue.")
+			fmt.Fprintln(w, "\nStopped. Every finished download, and every PDF read, is saved; run fil fetch\nto continue.")
 			return errCancelled
 		}
 		fmt.Fprintln(w, "\nEvery finished download is saved; run fil fetch to continue.")
@@ -252,8 +266,14 @@ func (a *app) fetchOne(ctx context.Context, input string) error {
 	switch {
 	case p.Already:
 		fmt.Fprintf(w, "Already in your library:\n  %s\n", p.File)
+		if p.Text != nil {
+			a.printPaperText(*p.Text)
+		}
 	case p.File != "":
 		fmt.Fprintf(w, "Downloaded:\n  %s\n", p.File)
+		if p.Text != nil {
+			a.printPaperText(*p.Text)
+		}
 	case len(p.Attempts) == 0:
 		fmt.Fprintln(w, "No legal PDF link to try. fil fetch --dry-run says why.")
 		return exitCode(exitFailure)

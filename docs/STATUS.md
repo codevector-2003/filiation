@@ -575,7 +575,7 @@ reworded), D18 (the library is a folder the user chooses; `papers/` with readabl
 | 4 | Spikes 9 (PDF availability), 10 (extractor bake-off), 11 (reference matching) | **Done** — 24 Oct, D20–D22; Unpaywall's half of spike 9 waits for an address |
 | 5 | Legal PDF links: OpenAlex locations, Unpaywall if spike 9 justifies it | **Done** — 24 Oct (OpenAlex); Unpaywall waits on spike 9 |
 | 6 | Downloading, `fil fetch` | **Done** — 24 Oct; the seed's own PDF waits on Unpaywall (no OpenAlex link) |
-| 7 | `internal/text`, FTS5, `fil search` | Not started — waits for spike 10 |
+| 7 | `internal/text`, FTS5, `fil search` | **Done** — 28 Oct; the seed's own passage waits on its PDF (step 6) |
 | 8 | Import, `Inbox/`, local documents | Not started |
 | 9 | Citation context | Not started |
 | 10 | `fil list`, `fil show`, full text in `fil stats`; MCP `search_library` and a fetch tool | Not started |
@@ -670,6 +670,63 @@ folder can be created, moved by hand and found again — is met in tests and was
 - **Found on the way:** the CLI test harness had no Documents override, so one test run created an
   empty library folder under the real Documents. It was removed at once; the harness now passes
   its own, and every test that loads settings does too.
+
+**Step 7 — text and `fil search` (ADR-009, D20).** Every PDF in `papers/` is read with PDFium
+in WebAssembly, cleaned, checked, cut into passages and indexed with FTS5.
+
+- **`internal/text`**, no database: `PDFium` (spike 10's set-up — two instances, bytes not paths,
+  a time limit that kills the instance, panics recovered, and now **no file-system mount at
+  all**: go-pdfium mounts the whole drive unless told otherwise); `Clean`; `Judge`; `Chunks`.
+  `Read` ties them together and turns a bad file into a result, never an error.
+- **What PDFium hands back, measured on real papers:** `\r\n` line ends; a word hyphenated at a
+  line end arrives already joined, with **U+0002** where the hyphen was; **U+00AD** standing in for
+  a printed hyphen inside a line; other control and private-use characters for glyphs with no
+  meaning. A hyphen that does end a line is a number range. `Clean` handles each.
+- **The gibberish check** (spike 10 found a text layer is not text): too few characters per page
+  is a scan (`no-text`); too many U+FFFD, too few letters, too few vowels among Latin letters, or
+  too few word-like tokens is `gibberish`. Language-blind — German, Chinese and formula-heavy pages
+  pass — and tuned to lean towards ok, since a paper wrongly dropped from search is worse than
+  noise in it. On 10 real papers: 86–96% letters, 96–100% word-like, vowel share 0.39–0.41,
+  against limits of 35%, 45% and 0.25.
+- **Passages** of about 250 words end at a sentence and never cross a page, so every hit has one
+  page; each stores its byte offsets in its page. Passages after the last references heading are
+  marked `references` and left out of search by default (`--references` puts them back) — a
+  heading missed costs some noise, nothing else (spike 11).
+- **Schema v6:** `work_text` (the file read and its hash, the status and why, the extractor
+  version) and chunk offsets — the first `ALTER TABLE` in the migrations. A v1 library's chunk
+  table is rebuilt from the current schema on the way, so the step adds only missing columns.
+  A changed file, or a newer `ExtractorVersion`, is read again; a scan is not retried until it
+  changes. Folding two works keeps one paper's text, never two mixed.
+- **Search** is FTS5 bm25 with Porter stemming, at most three passages a paper by default.
+  **What a person types is never FTS5 syntax:** every word and quoted phrase becomes a quoted FTS5
+  string, `*` a prefix, control characters separators — `C++`, `NEAR(`, `col:umn` or a stray quote
+  cannot be a syntax error (tested). Matches are marked with control characters the front door
+  renders; the CLI shows «green open access».
+- **Commands:** `fil fetch` reads every new PDF once its downloads are done (the user's choice:
+  after the downloads, not between them); `fil fetch <paper>` reads that one. `fil extract
+  [paper] [--again]` reads PDFs put in `papers/` by hand. `fil search <words> [--limit]
+  [--paper] [--references]` prints paper, page, snippet and file, and says how many PDFs are
+  still unread. `fil stats` gains a Text line.
+- **Start-up:** compiling PDFium's 5.75 MB module took **3.1 s on every run**. wazero's
+  compilation cache, kept in the user cache directory beside the HTTP cache (`…/filiation/pdfium`,
+  ~21 MB), brings it to **80 ms**; a cache that cannot be used is skipped, never fatal.
+- **Cost:** Go 1.26 (`go-pdfium` requires it); binary 29.4 → 40.2 MB on Windows, +10.7 MB on each
+  platform; `CGO_ENABLED=0` builds for all three.
+- **Live, 6 seeds across physics, CS, medicine, economics and biology:** `fil fetch --max 120`
+  downloaded 111 PDFs (121 MB, 4 min 38 s) and **read all 111 in 37 s** — 4,354 passages, a
+  187-page review included. A phrase copied from page 11 of one paper was found on page 11; an
+  author's name found their own paper and, with `--references`, the bibliographies citing them.
+- **Found live: the first gibberish limit was wrong.** One physics review was called gibberish
+  for 7% unmapped characters — every one a mathematical symbol in its equations, its prose intact
+  (96% word-like). Exactly the failure the check must not make. The limit is now 25%: a font with
+  no character map loses its letters, far more than that. Across the other 110: letters 0.67–0.93,
+  word-like 0.87–0.99, vowels 0.37–0.42 — every limit has a wide margin. Kept as a test.
+- **Seen, for later steps:** a paper downloaded while still a stub shows as "[not fetched: W…]" in
+  search results until it is hydrated (step 10's `fil show` territory); and some PDFs space a
+  ligature inside a word ("fi ndings"), which PDFium reports as written.
+- **Tests** use real PDFs made in code (`text/pdftest`), so no binary sits in `testdata`. A
+  3,000-page PDF that takes 17 s to read is stopped at a 50 ms limit, and both instances serve the
+  next files. The fetch test's seed is now a real PDF: fetched, read, and found on page 2.
 
 **Step 6 — `fil fetch` downloads (ADR-013).** PDFs land in `papers/`, in each paper's
 readable folder, named by version: `published.pdf`, `accepted.pdf`, `preprint.pdf`.
@@ -783,7 +840,7 @@ unfolded, and every probable title duplicate reported.
 | --- | --- | --- |
 | 1 | ~~**Licence**~~ — **decided: Apache-2.0** (D15) | Closed |
 | 2 | ~~**Zotero**~~ — **decided: not in M3** (D19); later via a BibTeX or CSL-JSON export | Closed for M3 |
-| 3 | **PDF text extraction** (ADR-009) — pure Go, PDFium as WebAssembly, or external | **Yes, for M3 step 7.** Spike 10 decides |
+| 3 | ~~**PDF text extraction**~~ (ADR-009) — **decided: PDFium as WebAssembly** (D20, spike 10); built in M3 step 7 | Closed |
 | 4 | **`sqlite-vec` revisit** (D13) — only if a pre-filtered query misses target, and only after checking whether it is a real ANN index or just a faster scan | No. Not before M4 |
 | 5 | **Who maintains this after the degree?** | No, but it changes how much to invest in docs and tests now |
 

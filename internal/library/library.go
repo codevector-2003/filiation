@@ -20,6 +20,7 @@ import (
 	"github.com/codevector-2003/filiation/internal/sources/openalex"
 	"github.com/codevector-2003/filiation/internal/sources/pdfs"
 	"github.com/codevector-2003/filiation/internal/store"
+	"github.com/codevector-2003/filiation/internal/text"
 )
 
 // Options are the choices a front door makes that are not configuration.
@@ -86,6 +87,11 @@ func Open(ctx context.Context, cfg *config.Config, opts Options) (*Library, erro
 			if dir, err = config.DefaultCacheDir(); err != nil {
 				db.Close()
 				return nil, err
+			}
+			// The PDF extractor's compiled code is cached beside it. A run
+			// told where to cache — a test — compiles afresh instead.
+			if compiled, err := config.DefaultCompiledDir(); err == nil {
+				text.Shared().UseCache(compiled)
 			}
 		}
 		dc, err := httpx.NewDirCache(dir)

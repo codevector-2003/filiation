@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/codevector-2003/filiation/internal/text/pdftest"
 )
 
 // The M0 seed is gold open access, yet none of its twelve OpenAlex locations
@@ -59,9 +61,23 @@ const seedWithLink = `{"meta":{"count":1},"results":[{"id":"https://openalex.org
 	"locations":[{"is_oa":true,"pdf_url":"http://peerj.test/articles/4375.pdf",
 		"landing_page_url":"https://doi.org/10.7717/peerj.4375","version":"publishedVersion","license":"cc-by"}]}]}`
 
+// stateOfOA stands in for the seed's PDF: real, two pages, readable.
+var stateOfOA = pdftest.Make(
+	"The state of OA: a large-scale analysis of the prevalence and impact of\n"+
+		"open access articles. Despite growing interest in open access to scholarly\n"+
+		"literature, there is an unmet need for large-scale, up-to-date and\n"+
+		"reproducible studies assessing the prevalence and characteristics of open\n"+
+		"access. We address this need using three samples, each of one hundred thousand\n"+
+		"articles, investigating three populations of articles and their access status.",
+	"We estimate that at least 28 percent of the scholarly literature is open access,\n"+
+		"and that this proportion is growing, driven particularly by growth in gold and\n"+
+		"hybrid. We also find that green open access, deposited in repositories, and\n"+
+		"hybrid open access are cited more often than closed articles in this sample.",
+)
+
 func TestFetchOnePaper(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("%PDF-1.7\nthe state of OA\n%%EOF\n"))
+		w.Write(stateOfOA)
 	}))
 	defer srv.Close()
 	h := newHarness(t, map[string]string{
@@ -80,21 +96,51 @@ func TestFetchOnePaper(t *testing.T) {
 	if code != exitOK || !strings.Contains(out, "Downloaded:") {
 		t.Fatalf("fetch <paper>: exit %d\n%s\n%s", code, out, errOut)
 	}
-	path := strings.TrimSpace(out[strings.Index(out, "Downloaded:")+len("Downloaded:"):])
+	path, _, _ := strings.Cut(strings.TrimSpace(out[strings.Index(out, "Downloaded:")+len("Downloaded:"):]), "\n")
 	if filepath.Base(path) != "published.pdf" || !strings.Contains(path, filepath.Join("Filiation", "My Library", "papers")) {
 		t.Errorf("saved at %q", path)
 	}
 	if b, err := os.ReadFile(path); err != nil || !strings.HasPrefix(string(b), "%PDF-") {
 		t.Errorf("the file is not the PDF: %v", err)
 	}
+	// Read as soon as it is downloaded.
+	if !strings.Contains(out, "Text:  searchable, 2 pages") {
+		t.Errorf("fetch <paper> did not read the PDF:\n%s", out)
+	}
 
 	_, out, _ = h.run(false, "", "fetch", "10.7717/peerj.4375")
-	if !strings.Contains(out, "Already in your library:") {
+	if !strings.Contains(out, "Already in your library:") || !strings.Contains(out, "read before") {
 		t.Errorf("second fetch <paper>:\n%s", out)
 	}
 	_, out, _ = h.run(false, "", "stats")
-	if !strings.Contains(out, "1 paper has its PDF on disk in papers/") {
+	if !strings.Contains(out, "1 paper has its PDF on disk in papers/") || !strings.Contains(out, "Text:       1 paper searchable") {
 		t.Errorf("stats:\n%s", out)
+	}
+
+	// M3 step 7, done when: a passage is found, with its page.
+	code, out, errOut = h.run(false, "", "search", "green", "open", "access", "hybrid")
+	if code != exitOK || !strings.Contains(out, "page 2") || !strings.Contains(out, "«green open access»") ||
+		!strings.Contains(out, path) {
+		t.Errorf("search: exit %d\n%s\n%s", code, out, errOut)
+	}
+	code, out, _ = h.run(false, "", "search", "nowhere", "to", "be", "found")
+	if code != exitNotFound || !strings.Contains(out, "No passage contains all of those words.") {
+		t.Errorf("search for absent words: exit %d\n%s", code, out)
+	}
+	if code, _, errOut := h.run(false, "", "search", "-", "+"); code != exitInvalidInput || !strings.Contains(errOut, "at least one word") {
+		t.Errorf("search with no words: exit %d\n%s", code, errOut)
+	}
+	_, out, _ = h.run(false, "", "extract")
+	if !strings.Contains(out, "Nothing to read") {
+		t.Errorf("extract after fetch read everything:\n%s", out)
+	}
+	_, out, _ = h.run(false, "", "extract", "--again")
+	if !strings.Contains(out, "Read:       1 PDF") || !strings.Contains(out, "1 searchable") {
+		t.Errorf("extract --again:\n%s", out)
+	}
+	_, out, _ = h.run(false, "", "extract", "10.7717/peerj.4375")
+	if !strings.Contains(out, "Text:  searchable, 2 pages; read before") {
+		t.Errorf("extract <paper>:\n%s", out)
 	}
 
 	// Deleted by hand: stats looks at the disk, not the last scan.

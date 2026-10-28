@@ -342,8 +342,13 @@ a PDF link, open without one, no open copy, not in OpenAlex; and when it was ask
 **v5 — the download log (ADR-013), done with build step 6.** `download_attempt`: every
 attempt, its outcome, HTTP status, size and time.
 
+**v6 — text (ADR-009), done with build step 7.** `work_text`: for each paper, the PDF read (path
+and hash), what reading it gave — `ok`, `no-text`, `gibberish`, `unreadable`, `timed-out` — and
+why, page and character counts, and the extractor version, so a changed file or a newer extractor
+is read again. `chunk` gains `char_start` and `char_end`, byte offsets into its page's cleaned
+text: the first change to a table that already existed, made with `ALTER TABLE ADD COLUMN`.
+
 **Later steps, each landing with the code that uses it:**
-download attempts and full-text state (ADR-013), chunk offsets and extractor version (text),
 mentions (ADR-015), import state (ADR-014).
 
 ---
