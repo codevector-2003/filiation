@@ -286,9 +286,11 @@ write our own.
 - **Read for M0 step 5.** Its URL-wrapped DOI trimming and title comparison were reimplemented in
   `internal/identity`; its looser substring title match was deliberately not (ADR-005). See
   `docs/STATUS.md`.
-- **Read again before M3.** Its ordered source fallback chain (`services/resolver.py`,
-  `pdf_resolver.py`) is the shape M3 needs for OpenAlex → Unpaywall. Its ISBN handling for books
-  bears on the humanities coverage gap (D12).
+- **Read before M3, and overtaken by spike 9.** Its ordered source fallback chain
+  (`services/resolver.py`, `pdf_resolver.py`) was the planned shape for OpenAlex → Unpaywall, but
+  Unpaywall adds no PDF link OpenAlex does not give and is **not built** (D21). Do not reintroduce
+  it; a later source (Europe PMC, Zenodo) would follow that shape. Its ISBN handling for books
+  still bears on the humanities coverage gap (D12).
 
 ---
 
