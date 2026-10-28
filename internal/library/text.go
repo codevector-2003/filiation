@@ -128,7 +128,9 @@ func (l *Library) extractWork(ctx context.Context, filID string, again bool) (Ex
 			return ExtractedPaper{}, err
 		}
 		if ok && t.SHA256 == r.SHA256 && t.Extractor == text.ExtractorVersion {
-			return ExtractedPaper{Work: w, File: l.files.Abs(t.Path), Status: t.Status, Reason: t.Reason,
+			// The file as it is now: a PDF moved or renamed since it was read
+			// keeps its hash, and its text, but not its old path.
+			return ExtractedPaper{Work: w, File: l.files.Abs(r.Path), Status: t.Status, Reason: t.Reason,
 				Pages: t.Pages, Already: true}, nil
 		}
 	}

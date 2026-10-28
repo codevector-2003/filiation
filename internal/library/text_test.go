@@ -136,6 +136,16 @@ func TestExtractTextReadsPDFsPutThereByHand(t *testing.T) {
 	if err != nil || !one.Already || one.Status != "no-text" {
 		t.Errorf("ExtractOne(B) = %+v, %v; want already read, no-text", one, err)
 	}
+	// Renamed by hand: same bytes, so not read again, but reported where it
+	// is now.
+	renamed := filepath.Join(filepath.Dir(one.File), "renamed scan.pdf")
+	if err := os.Rename(one.File, renamed); err != nil {
+		t.Fatal(err)
+	}
+	one, err = l.ExtractOne(ctx, works["B"].FilID, false)
+	if err != nil || !one.Already || one.File != renamed {
+		t.Errorf("after a rename, ExtractOne(B) = %+v, %v; want already read, at %s", one, err, renamed)
+	}
 	one, err = l.ExtractOne(ctx, works["B"].FilID, true)
 	if err != nil || one.Already || one.Status != "no-text" {
 		t.Errorf("ExtractOne(B, again) = %+v, %v", one, err)
