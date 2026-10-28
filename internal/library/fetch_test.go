@@ -56,6 +56,8 @@ func newPDFHosts(t *testing.T) *pdfHosts {
 		switch r.URL.Path {
 		case "/seed.pdf", "/seed-copy.pdf": // the same bytes under two links
 			w.Write(seedPDF)
+		case "/retired.pdf":
+			w.Write(pdftest.Make("The same paper, under the ID OpenAlex retired when it merged two records."))
 		case "/stub.pdf":
 			w.Write(pdftest.Make("A reference that was known only by its ID until it was fetched."))
 		case "/preprint.pdf":
@@ -125,7 +127,7 @@ func openFetchTestWith(t *testing.T, routes map[string]string) (*Library, *pdfHo
 		t.Fatal(err)
 	}
 	n, _ := l.Neighbours(ctx, "10.7717/peerj.4375")
-	works := map[string]model.Work{"seed": added.Work, "A": n.Cites[0], "B": n.Cites[1], "C": n.Cites[2], "D": n.Cites[3]}
+	works := map[string]model.Work{"seed": added.Work, "A": n.Cites[0], "B": n.Cites[1], "C": n.Cites[2], "D": n.Cites[3], "E": n.Cites[4]}
 
 	// A, B and C have titles, as fetch gives a reference before downloading
 	// it (hydrateStubs), so these tests need no recorded hydration. D stays
@@ -435,5 +437,44 @@ func TestFetchGivesAStubATitleFirst(t *testing.T) {
 	got, err := l.Find(ctx, d.FilID)
 	if err != nil || !got.Hydrated || got.DisplayTitle() != "Measuring the stub" {
 		t.Errorf("D after fetch = %+v, %v", got, err)
+	}
+}
+
+// Two papers on the list that hydration finds to be one — OpenAlex merged E
+// into D — are downloaded once, not twice under two names (found in review,
+// PR #9).
+func TestFetchDownloadsAMergedPaperOnce(t *testing.T) {
+	t.Parallel()
+	routes := maps.Clone(peerj)
+	l, _, works := openFetchTestWith(t, routes)
+	ctx := t.Context()
+	d, e := works["D"], works["E"]
+	record := `{"id":"https://openalex.org/` + d.OpenAlexID + `","title":"Measuring the stub",
+		"publication_year":2017,"type":"article","referenced_works":[]}`
+	// The batch returns D alone, for either order; E's single lookup answers
+	// with D: E was merged into it.
+	routes["/works?filter=openalex_id:"+d.OpenAlexID+"|"+e.OpenAlexID] = `{"meta":{"count":1},"results":[` + record + `]}`
+	routes["/works?filter=openalex_id:"+e.OpenAlexID+"|"+d.OpenAlexID] = `{"meta":{"count":1},"results":[` + record + `]}`
+	routes["/works/"+e.OpenAlexID] = record
+	if err := l.db.Tx(ctx, func(tx *store.Tx) error {
+		if err := tx.PutPDFLinks(ctx, d.OpenAlexID, model.PDFLinks{Availability: model.PDFLink,
+			Links: []model.Location{link("pub.test", "/stub.pdf", "published")}}); err != nil {
+			return err
+		}
+		return tx.PutPDFLinks(ctx, e.OpenAlexID, model.PDFLinks{Availability: model.PDFLink,
+			Links: []model.Location{link("repo.test", "/retired.pdf", "published")}})
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := l.Fetch(ctx, FetchOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	files, err := l.db.FilesOf(ctx, d.FilID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 1 {
+		t.Errorf("D has %d files after the merge, want 1: %+v", len(files), files)
 	}
 }

@@ -118,6 +118,15 @@ func (l *Library) Fetch(ctx context.Context, opts FetchOptions) (Fetched, error)
 	if res.Hydrated, err = l.hydrateStubs(ctx, ids); err != nil {
 		return res, err
 	}
+	if res.Hydrated > 0 {
+		// Hydrating can fold one listed paper into another — a retired
+		// OpenAlex ID and its survivor were both on the list — and the two
+		// jobs would download one paper twice. Ask again: the folded record
+		// is gone, and the survivor is listed once.
+		if todo, err = l.db.WorksToFetch(ctx, opts.Max, FetchRetryAfter); err != nil {
+			return res, err
+		}
+	}
 
 	var mu sync.Mutex
 	jobs := make(chan store.ToFetch)
