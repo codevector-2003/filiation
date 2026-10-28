@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"maps"
 	"strings"
 	"sync"
 	"testing"
@@ -55,6 +56,8 @@ func newPDFHosts(t *testing.T) *pdfHosts {
 		switch r.URL.Path {
 		case "/seed.pdf", "/seed-copy.pdf": // the same bytes under two links
 			w.Write(seedPDF)
+		case "/stub.pdf":
+			w.Write(pdftest.Make("A reference that was known only by its ID until it was fetched."))
 		case "/preprint.pdf":
 			w.Write([]byte("%PDF-1.7\na preprint\n%%EOF\n"))
 		case "/landing":
@@ -97,6 +100,13 @@ func link(host, path, version string) model.Location {
 //	ref C the seed's own bytes again, under another link
 func openFetchTest(t *testing.T) (*Library, *pdfHosts, map[string]model.Work) {
 	t.Helper()
+	return openFetchTestWith(t, maps.Clone(peerj))
+}
+
+// openFetchTestWith is openFetchTest answering OpenAlex from routes, which a
+// test may add to before it fetches.
+func openFetchTestWith(t *testing.T, routes map[string]string) (*Library, *pdfHosts, map[string]model.Work) {
+	t.Helper()
 	h := newPDFHosts(t)
 	dir := t.TempDir()
 	cfg := &config.Config{MaxNodes: 500, MaxDepth: 3, MaxRefsPerWork: 100, FolderCollections: true}
@@ -104,7 +114,7 @@ func openFetchTest(t *testing.T) (*Library, *pdfHosts, map[string]model.Work) {
 		t.Fatal(err)
 	}
 	l, err := Open(t.Context(), cfg, Options{CacheDir: filepath.Join(dir, "cache"),
-		Transport: &replay{t: t, routes: peerj}, PDFTransport: h.transport()})
+		Transport: &replay{t: t, routes: routes}, PDFTransport: h.transport()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +125,26 @@ func openFetchTest(t *testing.T) (*Library, *pdfHosts, map[string]model.Work) {
 		t.Fatal(err)
 	}
 	n, _ := l.Neighbours(ctx, "10.7717/peerj.4375")
-	works := map[string]model.Work{"seed": added.Work, "A": n.Cites[0], "B": n.Cites[1], "C": n.Cites[2]}
+	works := map[string]model.Work{"seed": added.Work, "A": n.Cites[0], "B": n.Cites[1], "C": n.Cites[2], "D": n.Cites[3]}
+
+	// A, B and C have titles, as fetch gives a reference before downloading
+	// it (hydrateStubs), so these tests need no recorded hydration. D stays
+	// a stub, for the test of that.
+	err = l.db.Tx(ctx, func(tx *store.Tx) error {
+		for _, k := range []string{"A", "B", "C"} {
+			w := works[k]
+			title := "Reference " + k
+			w.Title, w.Hydrated, w.FetchedRefs = &title, true, true
+			if err := tx.UpsertWork(ctx, &w); err != nil {
+				return err
+			}
+			works[k] = w
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ids, err := l.db.ToLocate(ctx, 1000, 0)
 	if err != nil {
@@ -361,5 +390,50 @@ func TestIsPDFPath(t *testing.T) {
 		if got := isPDFPath(p); got != want {
 			t.Errorf("isPDFPath(%q) = %v", p, got)
 		}
+	}
+}
+
+// A paper fil knows only by its ID is fetched before its PDF is downloaded,
+// so its folder is named for it and search shows its title — not
+// "Unknown-nd-Untitled".
+func TestFetchGivesAStubATitleFirst(t *testing.T) {
+	t.Parallel()
+	routes := maps.Clone(peerj)
+	l, _, works := openFetchTestWith(t, routes)
+	ctx := t.Context()
+	d := works["D"]
+	if !d.IsStub() {
+		t.Fatalf("D = %+v, want a stub", d)
+	}
+	routes["/works?filter=openalex_id:"+d.OpenAlexID] = `{"meta":{"count":1},"results":[{
+		"id":"https://openalex.org/` + d.OpenAlexID + `","title":"Measuring the stub",
+		"publication_year":2017,"type":"article",
+		"authorships":[{"author":{"id":"https://openalex.org/A5000000001","display_name":"Ada Lovelace"}}],"referenced_works":[]}]}`
+	if err := l.db.Tx(ctx, func(tx *store.Tx) error {
+		return tx.PutPDFLinks(ctx, d.OpenAlexID, model.PDFLinks{Availability: model.PDFLink,
+			Links: []model.Location{link("pub.test", "/stub.pdf", "published")}})
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := l.Fetch(ctx, FetchOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Hydrated != 1 {
+		t.Errorf("Hydrated = %d, want D", res.Hydrated)
+	}
+	var file string
+	for _, p := range res.Papers {
+		if p.Work.FilID == d.FilID {
+			file = p.File
+		}
+	}
+	if !strings.Contains(filepath.Base(filepath.Dir(file)), "Lovelace-2017-Measuring-the-stub") {
+		t.Errorf("D's PDF is at %q; want a folder named for it", file)
+	}
+	got, err := l.Find(ctx, d.FilID)
+	if err != nil || !got.Hydrated || got.DisplayTitle() != "Measuring the stub" {
+		t.Errorf("D after fetch = %+v, %v", got, err)
 	}
 }

@@ -163,6 +163,31 @@ func (g *Graph) Expand(ctx context.Context, o ExpandOptions) (model.ExpansionRes
 	return finish(model.StopBudgetExhausted, nil)
 }
 
+// HydrateIDs fetches the named works — stubs, typically — whatever their
+// place on the frontier: fetch calls it for the papers it is about to
+// download, so each gets a title, a folder named for it, and its own
+// references. One request per openalex.MaxBatch IDs; each batch is committed
+// as Expand commits one, so the works keep their depth and source.
+func (g *Graph) HydrateIDs(ctx context.Context, ids []string) (model.ExpansionResult, error) {
+	var res model.ExpansionResult
+	start := time.Now()
+	for len(ids) > 0 {
+		n := min(len(ids), openalex.MaxBatch)
+		batch, fetchErr := g.src.GetWorksBatch(ctx, ids[:n])
+		// What arrived is paid for, so it is kept even if the rest failed.
+		if err := g.commit(context.WithoutCancel(ctx), batch, map[string]int{}, &res); err != nil {
+			return res, err
+		}
+		if fetchErr != nil {
+			res.Duration = time.Since(start)
+			return res, fmt.Errorf("graph: hydrate: %w", fetchErr)
+		}
+		ids = ids[n:]
+	}
+	res.Duration = time.Since(start)
+	return res, nil
+}
+
 // commit writes one batch in one transaction and adds it to res.
 //
 // The counts are gathered separately and added to res only once the

@@ -50,6 +50,7 @@ type FetchOptions struct {
 // Fetched is what a fetch did.
 type Fetched struct {
 	Located    Located // links looked up first, for papers never asked about
+	Hydrated   int     // papers known only by ID, fetched first so they have a title
 	Tried      int     // papers a download was tried for
 	Downloaded int     // papers that now have a PDF
 	Bytes      int64
@@ -108,6 +109,13 @@ func (l *Library) Fetch(ctx context.Context, opts FetchOptions) (Fetched, error)
 	}
 	todo, err := l.db.WorksToFetch(ctx, opts.Max, FetchRetryAfter)
 	if err != nil {
+		return res, err
+	}
+	ids := make([]string, len(todo))
+	for i, job := range todo {
+		ids[i] = job.FilID
+	}
+	if res.Hydrated, err = l.hydrateStubs(ctx, ids); err != nil {
 		return res, err
 	}
 
@@ -175,6 +183,9 @@ func (l *Library) FetchOne(ctx context.Context, input string) (FetchedPaper, err
 	if _, err := l.Scan(ctx); err != nil {
 		return FetchedPaper{}, err
 	}
+	if _, err := l.hydrateStubs(ctx, []string{p.Work.FilID}); err != nil {
+		return FetchedPaper{}, err
+	}
 	w, err := l.workWithAuthors(ctx, p.Work.FilID)
 	if err != nil {
 		return FetchedPaper{}, err
@@ -207,6 +218,35 @@ func (l *Library) withText(ctx context.Context, p FetchedPaper) (FetchedPaper, e
 	}
 	p.Text = &t
 	return p, nil
+}
+
+// hydrateStubs fetches the metadata of the stubs among the papers about to be
+// downloaded — a reference fil has a PDF link for but no title yet — so
+// each gets a folder named for it and a title in search, and its own
+// references for citation context. One request per 100 papers.
+//
+// A failure to hydrate does not stop the downloads: the folder is named
+// "Unknown" for now and renamed when the paper is fetched later. Only
+// cancelling is an error.
+func (l *Library) hydrateStubs(ctx context.Context, filIDs []string) (int, error) {
+	var stubs []string
+	for _, id := range filIDs {
+		w, err := l.getWork(ctx, id)
+		if err != nil {
+			return 0, err
+		}
+		if w.IsStub() && !w.Unresolved && w.OpenAlexID != "" {
+			stubs = append(stubs, w.OpenAlexID)
+		}
+	}
+	if len(stubs) == 0 {
+		return 0, nil
+	}
+	res, err := l.graph.HydrateIDs(ctx, stubs)
+	if err != nil && ctx.Err() != nil {
+		return res.Hydrated, ctx.Err()
+	}
+	return res.Hydrated, nil
 }
 
 func (l *Library) workWithAuthors(ctx context.Context, filID string) (model.Work, error) {

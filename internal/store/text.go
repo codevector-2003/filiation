@@ -184,6 +184,10 @@ type SearchQuery struct {
 	PerPaper   int    // most passages from one paper; zero means no limit
 	FilID      string // only this paper, when set
 	References bool   // include reference lists, left out by default
+	// Any matches passages with any of the words rather than all of them —
+	// the fallback when no passage has them all. bm25 still ranks a passage
+	// with more of the words higher.
+	Any bool
 }
 
 // Hit is one passage that matched.
@@ -209,9 +213,13 @@ const (
 // Search finds passages by keyword, best first (FTS5's bm25), with words
 // matched by stem — "citing" finds "cited".
 func (db *DB) Search(ctx context.Context, q SearchQuery) ([]Hit, error) {
-	match, err := MatchQuery(q.Words)
+	terms, err := matchTerms(q.Words)
 	if err != nil {
 		return nil, err
+	}
+	match := strings.Join(terms, " ")
+	if q.Any {
+		match = strings.Join(terms, " OR ")
 	}
 	fil := ""
 	if q.FilID != "" {
@@ -263,6 +271,15 @@ LIMIT ?7;`, match, q.References, fil, perPaper, MarkStart, MarkEnd, q.Limit)
 // own operators — AND, OR, NOT, NEAR, column filters, parentheses — are not
 // offered: typed by someone who does not know them, they fail or surprise.
 func MatchQuery(typed string) (string, error) {
+	terms, err := matchTerms(typed)
+	if err != nil {
+		return "", err
+	}
+	return strings.Join(terms, " "), nil
+}
+
+// matchTerms is MatchQuery's terms, each a quoted FTS5 string.
+func matchTerms(typed string) ([]string, error) {
 	// A control character separates words; inside an FTS5 string a NUL
 	// would end the statement.
 	words := strings.Map(func(r rune) rune {
@@ -307,7 +324,7 @@ func MatchQuery(typed string) (string, error) {
 		add(strings.TrimRight(word, "*"), prefix)
 	}
 	if len(terms) == 0 {
-		return "", fmt.Errorf("store: search for %q: %w", typed, errs.ErrEmptyQuery)
+		return nil, fmt.Errorf("store: search for %q: %w", typed, errs.ErrEmptyQuery)
 	}
-	return strings.Join(terms, " "), nil
+	return terms, nil
 }
