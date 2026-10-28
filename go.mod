@@ -1,6 +1,6 @@
 module github.com/codevector-2003/filiation
 
-go 1.25.0
+go 1.26.0
 
 // Added with `go get` as each milestone needs it. Check the licence of every
 // one before adding it, and remember: no dependency may require cgo (D9).
@@ -9,7 +9,7 @@ go 1.25.0
 //   M0  github.com/ncruces/go-sqlite3                SQLite, WASM, no cgo (ADR-007) · MIT
 //   M0  github.com/BurntSushi/toml                   config file (step 3) · MIT, no cgo
 //   M0  golang.org/x/time/rate                       token bucket (step 6, ADR-004) · BSD-3, no cgo.
-//                                                    Pinned at v0.15.0: v0.16.0 requires Go 1.26.
+//                                                    Pinned at v0.15.0 while fil was on Go 1.25.
 //   M0  github.com/spf13/cobra                       CLI (step 9) · Apache-2.0, no cgo. Brings
 //                                                    spf13/pflag (BSD-3) and, on Windows only,
 //                                                    inconshreveable/mousetrap (Apache-2.0).
@@ -17,6 +17,13 @@ go 1.25.0
 //                                                    no cgo. Brings google/jsonschema-go and
 //                                                    segmentio/encoding (MIT), uritemplate,
 //                                                    x/oauth2 and x/sync (BSD-3).
+//   M3  github.com/klippa-app/go-pdfium              PDF text: PDFium compiled to WebAssembly
+//                                                    (D20) · MIT, no cgo. Its webassembly
+//                                                    package alone is linked: wazero (Apache-2.0),
+//                                                    go-commons-pool (Apache-2.0), google/uuid
+//                                                    (BSD-3). Requires Go 1.26. Adds ~10 MB.
+//   M3  github.com/tetratelabs/wazero                runs PDFium · Apache-2.0, pure Go. Named
+//                                                    directly for its runtime and cache config.
 //
 // Planned:
 //   M1  gonum.org/v1/gonum/graph                     PageRank, communities
@@ -30,17 +37,21 @@ go 1.25.0
 
 require (
 	github.com/BurntSushi/toml v1.6.0
+	github.com/klippa-app/go-pdfium v1.21.3
 	github.com/modelcontextprotocol/go-sdk v1.8.0
 	github.com/ncruces/go-sqlite3 v0.35.3
 	github.com/spf13/cobra v1.10.2
-	golang.org/x/sys v0.47.0
-	golang.org/x/text v0.40.0
+	github.com/tetratelabs/wazero v1.12.0
+	golang.org/x/sys v0.48.0
+	golang.org/x/text v0.42.0
 	golang.org/x/time v0.15.0
 )
 
 require (
 	github.com/google/jsonschema-go v0.4.3 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/jolestar/go-commons-pool/v2 v2.1.2 // indirect
 	github.com/ncruces/go-sqlite3-wasm/v3 v3.2.35304 // indirect
 	github.com/ncruces/julianday v1.0.0 // indirect
 	github.com/segmentio/asm v1.1.3 // indirect
@@ -48,5 +59,5 @@ require (
 	github.com/spf13/pflag v1.0.9 // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	golang.org/x/oauth2 v0.35.0 // indirect
-	golang.org/x/sync v0.22.0 // indirect
+	golang.org/x/sync v0.23.0 // indirect
 )

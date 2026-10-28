@@ -17,6 +17,25 @@ import (
 	"github.com/codevector-2003/filiation/internal/config"
 	"github.com/codevector-2003/filiation/internal/model"
 	"github.com/codevector-2003/filiation/internal/store"
+	"github.com/codevector-2003/filiation/internal/text/pdftest"
+)
+
+// seedPDF is a real PDF, so a test can read and search it. Its page 2 says
+// something only it says.
+var seedPDF = pdftest.Make(
+	"Data reuse and the open data citation advantage\n"+
+		"Heather A. Piwowar and Todd J. Vision\n"+
+		"Background. Attribution to the original contributor upon reuse of published data is\n"+
+		"important both as a reward for data creators and to document the provenance of\n"+
+		"research findings. Previous studies have found that papers with publicly available\n"+
+		"datasets receive a higher number of citations than similar studies without available\n"+
+		"data. However, few previous analyses have had the statistical power to control for the\n"+
+		"many variables known to predict citation rate, which has led to uncertain estimates.",
+	"Results. We found that studies that made data available in a public repository\n"+
+		"received nine percent more citations than similar studies for which the data\n"+
+		"was not made available. Data reuse was traced through the gene expression\n"+
+		"microarray repository, and the citation benefit was robust to many confounders,\n"+
+		"including journal impact factor, date of publication and author country.",
 )
 
 // pdfHosts stands in for publishers and repositories: one local server
@@ -35,7 +54,7 @@ func newPDFHosts(t *testing.T) *pdfHosts {
 		h.mu.Unlock()
 		switch r.URL.Path {
 		case "/seed.pdf", "/seed-copy.pdf": // the same bytes under two links
-			w.Write([]byte("%PDF-1.7\nthe seed\n%%EOF\n"))
+			w.Write(seedPDF)
 		case "/preprint.pdf":
 			w.Write([]byte("%PDF-1.7\na preprint\n%%EOF\n"))
 		case "/landing":

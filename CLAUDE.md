@@ -12,7 +12,7 @@ tool does for papers: it reconstructs where a claim came from by following the c
 - Language: **Go** (see D8 in `docs/DECISIONS.md`)
 - Module: `github.com/codevector-2003/filiation`
 - Binary / CLI command: `fil`
-- Status: **M0 complete** (24 Sept 2026). **M1 complete — v0.1 released** (25 Sept 2026). Every command works and the 20-seed validation run passed 20 of 20 (`docs/VALIDATION.md`). Licensed Apache-2.0 (D15). **M2 complete — v0.2 released** (25 Sept 2026): `fil mcp` serves five tools to AI assistants (`docs/MCP.md`). **M3 in progress** (from 27 Sept 2026) — design in `docs/ARCHITECTURE_PHASE3.md`, decisions D17–D19; steps 1–6 done (fil IDs, the library folder and `papers/`, spikes 9–11, legal PDF links, `fil fetch`). See `docs/STATUS.md`.
+- Status: **M0 complete** (24 Sept 2026). **M1 complete — v0.1 released** (25 Sept 2026). Every command works and the 20-seed validation run passed 20 of 20 (`docs/VALIDATION.md`). Licensed Apache-2.0 (D15). **M2 complete — v0.2 released** (25 Sept 2026): `fil mcp` serves five tools to AI assistants (`docs/MCP.md`). **M3 in progress** (from 27 Sept 2026) — design in `docs/ARCHITECTURE_PHASE3.md`, decisions D17–D19; steps 1–7 done (fil IDs, the library folder and `papers/`, spikes 9–11, legal PDF links, `fil fetch`, text extraction and `fil search`). See `docs/STATUS.md`.
 
 ---
 
@@ -66,7 +66,7 @@ than plain search.
 
 | Layer | Choice | Why |
 | --- | --- | --- |
-| Language | Go 1.25 | One static binary per platform. No runtime for the user to install |
+| Language | Go 1.26 | One static binary per platform. No runtime for the user to install. 1.26 since M3 step 7: `go-pdfium` needs it (D20) |
 | SQLite driver | `ncruces/go-sqlite3` | WASM build, **no cgo**. Ships FTS5 and vec1 as loadable extensions |
 | Vector search | `ext/vec1` (SQLite's own) | Same file, no new dependency. **Exact but brute-force — no ANN index.** See D13 |
 | Keyword search | SQLite FTS5 | Confirmed working (spike 5) — but must be registered per connection |
@@ -265,7 +265,7 @@ documentation, including this file's own history.
 
 ## Conventions
 
-- Go 1.25. `gofmt` and `golangci-lint`. Table-driven tests with the stdlib `testing` package.
+- Go 1.26. `gofmt` and `golangci-lint`. Table-driven tests with the stdlib `testing` package.
 - `context.Context` as the first parameter of anything that does I/O.
 - Errors wrapped with `fmt.Errorf("...: %w", err)`. Sentinel errors in `internal/errs`.
 - No network in unit tests — record OpenAlex responses as fixtures, replay with an

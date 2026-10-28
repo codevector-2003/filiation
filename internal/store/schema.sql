@@ -112,12 +112,14 @@ CREATE INDEX IF NOT EXISTS idx_cites_intent ON cites(intent);
 -- ---------------------------------------------------------------- text for retrieval
 
 CREATE TABLE IF NOT EXISTS chunk (
-    id       INTEGER PRIMARY KEY,
-    work_id  TEXT NOT NULL REFERENCES work(fil_id) ON DELETE CASCADE,
-    section  TEXT,
-    page     INTEGER,
-    ordinal  INTEGER,   -- position within the work, for stitching neighbours back together
-    text     TEXT NOT NULL
+    id         INTEGER PRIMARY KEY,
+    work_id    TEXT NOT NULL REFERENCES work(fil_id) ON DELETE CASCADE,
+    section    TEXT,      -- 'references' after the paper's references heading, else NULL
+    page       INTEGER,   -- from 1
+    ordinal    INTEGER,   -- position within the work, for stitching neighbours back together
+    text       TEXT NOT NULL,
+    char_start INTEGER,   -- schema v6: byte offsets of text in its page's cleaned text
+    char_end   INTEGER
 );
 
 CREATE INDEX IF NOT EXISTS idx_chunk_work ON chunk(work_id);
@@ -264,6 +266,24 @@ CREATE TABLE IF NOT EXISTS download_attempt (
 CREATE INDEX IF NOT EXISTS idx_download_attempt_work ON download_attempt(fil_id);
 CREATE INDEX IF NOT EXISTS idx_download_attempt_url  ON download_attempt(url);
 
+-- Schema v6. What reading each paper's PDF gave: searchable text, or why there
+-- is none — a scan, a text layer that is gibberish, a damaged file — so a paper
+-- without text says why, as one without a PDF does (ADR-009). The chunks are the
+-- text; this row is where they came from. A PDF whose hash or extractor changes
+-- is read again.
+CREATE TABLE IF NOT EXISTS work_text (
+    fil_id     TEXT PRIMARY KEY NOT NULL REFERENCES work(fil_id) ON DELETE CASCADE,
+    path       TEXT NOT NULL,   -- the PDF read, relative to the library folder
+    sha256     TEXT NOT NULL,   -- its hash when read
+    status     TEXT NOT NULL,   -- ok | no-text | gibberish | unreadable | timed-out
+    reason     TEXT,            -- why, in words, when not ok
+    pages      INTEGER,
+    chars      INTEGER,
+    extractor  TEXT NOT NULL,   -- e.g. pdfium/1; an older one means read again
+    millis     INTEGER,
+    read_at    TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- ---------------------------------------------------------------- bookkeeping
 
 CREATE TABLE IF NOT EXISTS meta (
@@ -271,4 +291,4 @@ CREATE TABLE IF NOT EXISTS meta (
     value TEXT
 );
 
-INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '5');
+INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '6');

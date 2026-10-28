@@ -226,7 +226,12 @@ func (tx *Tx) MergeInto(ctx context.Context, oldID, newID string) error {
 		`UPDATE note SET work_id = ?1 WHERE work_id = ?2;`,
 		`INSERT OR IGNORE INTO collection_work (collection_id, work_id)
 		 SELECT collection_id, ?1 FROM collection_work WHERE work_id = ?2;`,
+		// Its text too, unless the survivor has its own: a paper's text is one
+		// reading of one PDF, never two mixed.
+		`DELETE FROM chunk WHERE work_id = ?2 AND EXISTS (SELECT 1 FROM work_text WHERE fil_id = ?1);`,
+		`DELETE FROM work_text WHERE fil_id = ?2 AND EXISTS (SELECT 1 FROM work_text WHERE fil_id = ?1);`,
 		`UPDATE chunk SET work_id = ?1 WHERE work_id = ?2;`,
+		`UPDATE work_text SET fil_id = ?1 WHERE fil_id = ?2;`,
 		// Its folders and files on disk are the survivor's; their paths do not
 		// change, and the next scan finds the old fil ID in a folder name as an
 		// alias.

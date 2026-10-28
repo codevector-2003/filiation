@@ -95,6 +95,9 @@ func (a *app) stats(ctx context.Context, listDuplicates bool) error {
 			if n, err := lib.FetchedOnDisk(ctx); err == nil {
 				fmt.Fprintf(w, "            %s on disk in papers/ — fil fetch downloads more\n", plural(n, "paper has its PDF", "papers have their PDF"))
 			}
+			if c, err := lib.TextCounts(ctx); err == nil {
+				printTextCounts(w, c)
+			}
 		}
 	}
 
