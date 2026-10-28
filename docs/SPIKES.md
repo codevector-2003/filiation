@@ -393,9 +393,27 @@ a link through `doi.org` reached the publisher unlimited (found in review, PR #3
 waits on each redirect hop's own host, and `fil fetch` must do the same (step 6). The outcomes
 above are per host and would not change, but the run was not repeated after the fix.
 
-**Unpaywall:** not yet measured — it needs an email address on every request, and the maintainer's
-own is never sent. The spike asks Unpaywall when `FIL_SPIKE_UNPAYWALL_EMAIL` holds a separate one,
-and never writes it down.
+**Re-run after the fix, 28 Oct 2026:** the 20 libraries rebuilt (8,381 works, 25% with a PDF
+link, the same split by field) and a new sample of 200 downloads: **100 PDFs (50%)** — physics 95%,
+computer science 70%, social sciences 45%, medicine 30%, humanities 10%. arXiv served 61 of 62;
+publishers still answered 403 (81 attempts) or HTML (21). The outcomes stand. The median time rose
+from 0.8 s to 6.4 s because each redirect hop now waits its own turn on its host — mostly arXiv,
+queued at one request a second — not because hosts got slower.
+
+**Unpaywall, 28 Oct 2026 — adds nothing OpenAlex does not already give.** Asked with a separate
+address supplied by the maintainer, read from `FIL_SPIKE_UNPAYWALL_EMAIL` only; it appears in no
+file the spike wrote (checked). 286 DOIs: 198 works OpenAlex gave no PDF link for, and 88 whose
+OpenAlex download failed.
+
+| Asked about | Unpaywall's answer |
+| --- | --- |
+| 198 works with no OpenAlex PDF link (closed, or open as a web page only) | **No PDF link for any of them** |
+| 88 works whose OpenAlex link failed | A PDF link for all 88 — **every one the same link OpenAlex gave**, already refused; nothing new to try |
+| The M0 seed, `10.7717/peerj.4375`, asked once by hand | Gold OA, 10 locations (PeerJ, PubMed Central, PubMed, Zenodo, institutional repositories), **no `url_for_pdf` on any** |
+| 5 DOIs | 404, unknown to Unpaywall |
+
+The two services share their data, and on this sample Unpaywall's PDF links are a subset of
+OpenAlex's. Decision recorded in D21: not built.
 
 ---
 

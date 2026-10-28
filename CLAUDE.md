@@ -38,7 +38,8 @@ than plain search.
 ## Hard rules — do not violate these
 
 1. **Never download a paywalled PDF.** No scraping publisher sites. No using anyone's
-   institutional login. Open access only, via OpenAlex OA locations and Unpaywall.
+   institutional login. Open access only, via OpenAlex OA locations (Unpaywall was measured and
+   adds nothing, D21).
    This is a permanent line, not a v1 limitation.
 2. **Do not write a reference parser.** OpenAlex already returns resolved reference lists
    (`referenced_works`). PDF reference extraction has real error rates that compound across a
@@ -250,7 +251,7 @@ documentation, including this file's own history.
 | 5 | Does the driver ship FTS5? | Yes, as a loadable extension — `sqlite3.AutoExtension(fts5.Register)` |
 | 6 | Vector search end to end? | `vec1` is exact but **has no ANN index** (D13) |
 | 7 | Cross-compile with no cgo? | Yes — 3 platforms, ~2.3 MB, D9 holds |
-| 9 | How many works have a PDF fil can get? *(24 Oct 2026)* | **~1 in 8**: 46% physics → <1% humanities. Publishers 403, arXiv always works (D21) |
+| 9 | How many works have a PDF fil can get? *(24 Oct 2026)* | **~1 in 8**: 46% physics → <1% humanities. Publishers 403, arXiv always works. **Unpaywall adds nothing** (28 Oct) — not built (D21) |
 | 10 | Which PDF text extractor? | **PDFium in WebAssembly**: 0.985 word F1 vs pdftotext, no cgo (D20) |
 | 11 | Can references be matched from PDF text? | 97% precise, 44% recall — finding the list is the hard part (D22) |
 
@@ -285,9 +286,11 @@ write our own.
 - **Read for M0 step 5.** Its URL-wrapped DOI trimming and title comparison were reimplemented in
   `internal/identity`; its looser substring title match was deliberately not (ADR-005). See
   `docs/STATUS.md`.
-- **Read again before M3.** Its ordered source fallback chain (`services/resolver.py`,
-  `pdf_resolver.py`) is the shape M3 needs for OpenAlex → Unpaywall. Its ISBN handling for books
-  bears on the humanities coverage gap (D12).
+- **Read before M3, and overtaken by spike 9.** Its ordered source fallback chain
+  (`services/resolver.py`, `pdf_resolver.py`) was the planned shape for OpenAlex → Unpaywall, but
+  Unpaywall adds no PDF link OpenAlex does not give and is **not built** (D21). Do not reintroduce
+  it; a later source (Europe PMC, Zenodo) would follow that shape. Its ISBN handling for books
+  still bears on the humanities coverage gap (D12).
 
 ---
 

@@ -54,7 +54,7 @@ internal/
 ├── blobs/        the papers/ folder: names, atomic writes, hashes, rescans (ADR-012)
 ├── sources/
 │   ├── openalex/ + OA locations, fetched when PDFs are wanted (ADR-013)
-│   └── unpaywall/  second opinion, only if spike 9 shows it adds links (ADR-013)
+│   └── unpaywall/  not built: spike 9 found it adds no links (D21)
 ├── httpx/        + streaming download to a file, bypassing the response cache
 ├── text/         extract (ADR-009, decided by spike 10), clean, chunk, find markers
 ├── library/      + Fetch, Import, Search, List, Show
@@ -220,7 +220,8 @@ shape `quelle`'s resolver uses, reimplemented, never imported:
    expansion does not change and old libraries need no backfill.
 2. **Unpaywall** — `url_for_pdf` by DOI. Unpaywall requires an email address; it is asked only
    when the contact email is set, and otherwise skipped with a one-line note. Built only if spike
-   9 shows it finds PDFs OpenAlex does not: the two share data.
+   9 shows it finds PDFs OpenAlex does not: the two share data. **Measured 28 Oct: it does not —
+   not built (D21).**
 
 **Downloading.**
 - Stream to `.filiation/tmp/`, never into memory; a size cap (100 MB by default).

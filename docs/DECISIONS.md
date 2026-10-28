@@ -522,8 +522,8 @@ a layer with too few letters, vowels or word-like tokens is `gibberish`, and nei
 
 ## D21 — What fil can promise about PDFs, and how fetching runs
 
-**Decided:** 24 Oct 2026, by spike 9 · the Unpaywall half is still to be measured · detail in
-`SPIKES.md`
+**Decided:** 24 Oct 2026, by spike 9 · Unpaywall decided 28 Oct, when the spike asked it · detail
+in `SPIKES.md`
 
 - **The promise is "about one paper in eight", and it depends on the field.** OpenAlex offers a PDF
   link for 25% of fetched works and a download succeeds for about half of those: roughly 46% of
@@ -537,8 +537,15 @@ a layer with too few letters, vowels or word-like tokens is `gibberish`, and nei
   take minutes, not hours. **The job system (D16) is not needed for downloads; it moves to M4**,
   where embedding a library is the first truly long job. Open to change if `fil fetch` on a real
   library shows otherwise.
-- **Unpaywall:** decided once spike 9 has asked it, with a separate address the maintainer
-  supplies.
+- **Unpaywall is not built** (28 Oct). Asked about 286 works, it offered no PDF link for any of
+  the 198 OpenAlex had none for, and for the other 88 only the links OpenAlex had already given.
+  For the M0 seed it has ten open locations and no PDF link — the same as OpenAlex. It would add
+  a required email address, a second rate limit and a second source to keep in step, for nothing.
+  Revisit only if a later sample shows otherwise. `internal/sources/unpaywall` stays empty.
+- **The M0 seed's PDF therefore arrives by import (step 8):** the researcher downloads its CC-BY
+  PDF from PeerJ and drops it into `Inbox/`; fil identifies, verifies and files it. That meets
+  M3's "the seed's PDF is in `papers/`" within the hard rules — no landing page is ever read for
+  links. A direct Zenodo source (the seed has Zenodo deposits) is noted for later, like Europe PMC.
 - **Europe PMC** publishes PubMed Central's open-access articles through a documented API. It is
   the most promising next source for medicine, and is noted here rather than built.
 
