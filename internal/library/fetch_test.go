@@ -58,6 +58,9 @@ func newPDFHosts(t *testing.T) *pdfHosts {
 			w.Write(seedPDF)
 		case "/retired.pdf":
 			w.Write(pdftest.Make("The same paper, under the ID OpenAlex retired when it merged two records."))
+		case "/titled.pdf":
+			w.Write(pdftest.Doc{Title: "Measuring the stub", Pages: []string{"Ada Lovelace\nWe measure the stub, " +
+				"and find it longer than expected in every one of the cases we looked at closely."}}.Bytes())
 		case "/stub.pdf":
 			w.Write(pdftest.Make("A reference that was known only by its ID until it was fetched."))
 		case "/preprint.pdf":

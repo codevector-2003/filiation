@@ -171,3 +171,18 @@ func TestLargestTextStopsAtTheAuthors(t *testing.T) {
 		}
 	}
 }
+
+// Accents printed as glyphs of their own, and names with and without them,
+// still match (found live, M3 step 10: "Bjo¨ rk1" in a PLoS ONE paper).
+func TestAccentsMatch(t *testing.T) {
+	if got := Clean("Bo-Christer Bjo¨ rk1 , Patrik Welling1 and V. Larivie`re"); got != "Bo-Christer Björk1 , Patrik Welling1 and V. Larivière" {
+		t.Errorf("Clean = %q", got)
+	}
+	page := Clean("Open Access to the Scientific Journal Literature: Situation 2009\nBo-Christer Bjo¨ rk1 , Patrik Welling1")
+	if !Mentions([]string{page}, "Open Access to the Scientific Journal Literature: Situation 2009", "Björk") {
+		t.Error("Björk was not found in a page that prints him with a spaced accent")
+	}
+	if !Mentions([]string{"The state of OA\nVincent Lariviere"}, "The state of OA", "Larivière") {
+		t.Error("an accent in the record but not in the PDF blocked the match")
+	}
+}

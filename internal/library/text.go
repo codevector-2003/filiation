@@ -272,6 +272,11 @@ func (l *Library) readOne(ctx context.Context, job store.ToRead) (ExtractedPaper
 	if err != nil {
 		return ExtractedPaper{}, false, err
 	}
+	if r.Status == text.StatusOK {
+		if err := l.checkIdentity(wctx, job, r.Text, w); err != nil {
+			return ExtractedPaper{}, false, err
+		}
+	}
 	return ExtractedPaper{Work: w, File: abs, Status: t.Status, Reason: t.Reason, Pages: t.Pages,
 		Passages: len(chunks), Mentions: len(mentions), Took: took}, true, nil
 }

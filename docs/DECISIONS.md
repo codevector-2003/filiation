@@ -576,5 +576,7 @@ stub (`hydrated = 0`) and on the expansion frontier, so `fil expand` treats it a
 A paper that has a PDF but is itself a stub is hydrated before it is read: without its reference
 list there is nothing to find.
 
-**Superscript citation markers are not built in M3 step 9**, by plan; measured live at 23% of the
-references in papers read. They are the first thing to add to citation context.
+**Superscript citation markers are not built in M3**: measured in step 9 at 23% of the references
+in papers read; built in step 10 and hand-checked at 82% precision (33 of 40), under the 90% bar,
+so reverted. Affiliation marks, formula indices and two-reference entries were the failures; each
+needs its own fix and its own hand check before superscripts come back.

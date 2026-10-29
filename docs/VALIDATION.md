@@ -132,3 +132,56 @@ Rules 1–3 of `ARCHITECTURE.md` §6 did what they were written to do.
 
 Both were fixed before v0.2 (M2 steps 4–5 in [`STATUS.md`](STATUS.md)): works now carry their first
 three authors, and the field is `cited_by_count_global`.
+
+## M3 step 10 — the PDF tools from a real client, 29 October 2026
+
+Does an assistant use the library's PDFs well — quote them, rather than paraphrase from memory?
+
+**Set-up.** As M2: Claude Code 2.1.273, headless, Sonnet, `--strict-mcp-config` with only the
+filiation server and only its tools allowed; the dev build, in an isolated settings profile, on a
+throwaway library folder outside the user's own (`AppData\Local\fil-check10`). The library: the M0
+seed, `fil expand --max-nodes 100`, `fil fetch --max 30` — 1,491 works, 22 PDFs, 21 searchable,
+332 of 534 citations from papers with text carrying their sentence. One prompt:
+
+> I'm researching the open-access citation advantage, using my Filiation library. First fetch up
+> to 10 more open-access PDFs. Then: (1) what do the papers' own texts say about how large the
+> citation advantage is? Quote passages with their paper and page. (2) Pick the most relevant paper
+> and tell me which earlier works it cites when making its main claim, with the sentence it cites
+> them in. (3) Is there any paper in the library whose PDF looks wrong, or that has no searchable
+> text, and why?
+
+### What the assistant did
+
+24 turns, US$0.82. It used every new tool unprompted:
+
+| Calls | What for |
+| --- | --- |
+| `library_stats`, then `fetch_pdfs` `max_pdfs: 10` | 6 more PDFs (2 links were web pages, 2 refused) |
+| `search_library` ×13 | Passages on the size of the advantage, then within single papers by `paper` |
+| `neighbours` `cites`, `get_paper` ×6 | The chosen paper's references and their sentences; then each candidate for part 3 |
+
+### Findings
+
+**The answer quoted the papers, with pages.** Eysenbach 2006 p.1 ("twice as likely to be cited
+(odds ratio = 2.1 …)"), Antelman 2004 p.5 (45% in philosophy to 86% in political science), Davis
+2008 p.7 (17%, 11% without PNAS), Gargouri 2010 p.11, Hajjem 2006 p.5, Tennant 2016's table on p.8,
+and Kurtz and Henneken 2007's dissent — each a passage `search_library` returned. It framed the
+spread itself as the finding: whether a study controls for self-selection.
+
+**Citation sentences did their job.** For Gargouri et al. 2010 it gave the main-claim sentence —
+"This 'OA Impact Advantage' has been found in all fields analyzed so far … [3–12]" — and the six
+works cited in it, from the library's mentions, marking the one stub as "title known, content not
+fetched".
+
+**The download check was used as meant.** It found Henneken et al. 2006 flagged as possibly another
+paper, checked with `search_library` on that paper, and concluded the file is a different document
+(a report by Brody et al.) sitting at that link — which it is. It explained missing PDFs by their
+recorded reasons (`open_as_web_page_only`, `every_link_failed`).
+
+**Two gaps, both fixed before the PR:**
+
+- **It passed folder-style names** ("Eysenbach-2006") as `paper`, which fail, then recovered with fil
+  IDs. The argument's description now says to pass the `fil_id` every result carries.
+- **It missed the one paper with a gibberish text layer**: nothing listed the papers without text,
+  so it could only find them one `get_paper` at a time. `library_stats` now reports `pdfs`, with
+  each paper without text and why, and each download that may be another paper.

@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
@@ -27,6 +28,10 @@ type File struct {
 	Version string // published | accepted | preprint, or empty
 	Origin  string // download | import | found
 	Missing bool
+	// Identity is IdentityMatch or IdentityMismatch once the file has been
+	// checked against its paper, "" before. Read only: written by
+	// SetIdentity, never by PutFile.
+	Identity string
 }
 
 // File origins.
@@ -38,7 +43,7 @@ const (
 
 const folderColumns = `path, fil_id, ifnull(given_name, ''), missing`
 
-const fileColumns = `path, fil_id, sha256, size, ifnull(mtime, 0), ifnull(version, ''), origin, missing`
+const fileColumns = `path, fil_id, sha256, size, ifnull(mtime, 0), ifnull(version, ''), origin, missing, ifnull(identity, '')`
 
 // Folders returns every work folder the library knows, in path order.
 func (db *DB) Folders(ctx context.Context) ([]Folder, error) {
@@ -116,7 +121,8 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (path) DO UPDATE SET
     fil_id = excluded.fil_id, sha256 = excluded.sha256, size = excluded.size,
     mtime = excluded.mtime, version = excluded.version, origin = excluded.origin,
-    missing = excluded.missing;`,
+    missing = excluded.missing,
+    identity = CASE WHEN work_file.sha256 = excluded.sha256 THEN work_file.identity END;`,
 		f.Path, f.FilID, strings.ToLower(f.SHA256), f.Size, f.ModTime,
 		nullString(f.Version), f.Origin, boolToInt(f.Missing))
 	if err != nil {
@@ -127,12 +133,24 @@ ON CONFLICT (path) DO UPDATE SET
 
 // MoveFile records that the file at from is now at to.Path.
 func (tx *Tx) MoveFile(ctx context.Context, from string, to File) error {
+	var identity sql.NullString
 	if from != to.Path {
+		// The same bytes keep what was found about them.
+		if err := tx.tx.QueryRowContext(ctx, `SELECT identity FROM work_file WHERE path = ? AND sha256 = ?;`,
+			from, strings.ToLower(to.SHA256)).Scan(&identity); err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("store: move file %s: %w", from, err)
+		}
 		if _, err := tx.tx.ExecContext(ctx, `DELETE FROM work_file WHERE path = ?;`, from); err != nil {
 			return fmt.Errorf("store: move file %s: %w", from, err)
 		}
 	}
-	return tx.PutFile(ctx, to)
+	if err := tx.PutFile(ctx, to); err != nil {
+		return err
+	}
+	if identity.Valid {
+		return tx.SetIdentity(ctx, to.Path, identity.String)
+	}
+	return nil
 }
 
 // SyncFolderCollections makes the collections that mirror folders match want,
@@ -263,7 +281,7 @@ func queryFiles(ctx context.Context, q queryer, query string, args ...any) ([]Fi
 	for rows.Next() {
 		var f File
 		if err := rows.Scan(&f.Path, &f.FilID, &f.SHA256, &f.Size, &f.ModTime,
-			&f.Version, &f.Origin, &f.Missing); err != nil {
+			&f.Version, &f.Origin, &f.Missing, &f.Identity); err != nil {
 			return nil, fmt.Errorf("store: list files: %w", err)
 		}
 		out = append(out, f)

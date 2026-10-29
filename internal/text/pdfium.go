@@ -19,7 +19,7 @@ import (
 // ExtractorVersion names the extractor and the cleaning applied to its
 // output. Text read by an older version is read again; raise it whenever a
 // change here or in Clean would change what is stored.
-const ExtractorVersion = "pdfium/2" // 2: citation context is found as the PDF is read
+const ExtractorVersion = "pdfium/3" // 2: citation context is found as a PDF is read; 3: spaced accents joined
 
 // Extractor returns the text of each page of a PDF, in page order. It is an
 // interface so PDFium can be replaced without touching cleaning or chunking

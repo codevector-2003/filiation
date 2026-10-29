@@ -21,7 +21,7 @@ type Work struct {
 	// Stub marks a work known only by its ID: something in the library cites
 	// it, but its metadata has not been fetched. It must never be presented as
 	// if the library knew what it is (§6, rule 3).
-	Stub bool `json:"stub" jsonschema:"true when only the ID is known: the library has not fetched this work, so it has no title yet"`
+	Stub bool `json:"stub" jsonschema:"true when the library has not fetched this work: its title may be known, its abstract and references are not"`
 
 	Title string `json:"title,omitempty"`
 

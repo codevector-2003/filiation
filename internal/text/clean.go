@@ -1,6 +1,7 @@
 package text
 
 import (
+	"regexp"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -28,6 +29,7 @@ import (
 func Clean(page string) string {
 	page = strings.ReplaceAll(page, "\r\n", "\n")
 	page = strings.ReplaceAll(page, "\r", "\n")
+	page = spacedAccent.ReplaceAllStringFunc(page, joinAccent)
 	page = norm.NFC.String(page)
 
 	var b strings.Builder
@@ -78,6 +80,25 @@ func Clean(page string) string {
 		}
 	}
 	return collapseBlankLines(strings.Trim(b.String(), "\n"))
+}
+
+// spacedAccent is a letter followed by an accent printed as a glyph of its
+// own, and sometimes a space: "Bjo¨ rk" for "Björk", "Larivie`re". Some
+// fonts set accents that way, and the name is then not a word of the text —
+// not findable, not matchable (found live, M3 step 10).
+var spacedAccent = regexp.MustCompile("(\\p{L})([¨´`ˆ˜¸ˇ˚]) ?(\\p{L})")
+
+// combining maps a spacing accent to the combining mark NFC composes with
+// the letter before it.
+var combining = map[rune]string{
+	'¨': "̈", '´': "́", '`': "̀", 'ˆ': "̂",
+	'˜': "̃", '¸': "̧", 'ˇ': "̌", '˚': "̊",
+}
+
+func joinAccent(m string) string {
+	first, n := utf8.DecodeRuneInString(m)
+	accent, k := utf8.DecodeRuneInString(m[n:])
+	return string(first) + combining[accent] + strings.TrimLeft(m[n+k:], " ")
 }
 
 // ligatures PDFium leaves alone are spelt out, so "ﬁnd" is found by "find".

@@ -99,7 +99,7 @@ You can keep using the CLI while an assistant is connected. Both work on the sam
 
 ## What the assistant can do
 
-Five tools, named for what a researcher wants rather than for how fil works inside:
+Eight tools, named for what a researcher wants rather than for how fil works inside:
 
 | Tool | In a sentence | Changes the library |
 | --- | --- | --- |
@@ -107,7 +107,10 @@ Five tools, named for what a researcher wants rather than for how fil works insi
 | [`expand_graph`](#expand_graph) | Fetch the works the library cites but doesn't have yet, most-cited first | Yes |
 | [`neighbours`](#neighbours) | What a paper cites, and what in the library cites it | No |
 | [`find_path`](#find_path) | The chain of citations between two papers | No |
-| [`library_stats`](#library_stats) | What the library holds, and how complete its reference data is | No |
+| [`library_stats`](#library_stats) | What the library holds, how complete its reference data is, and its PDFs | No |
+| [`search_library`](#search_library) | Passages from the library's PDFs, by keyword, with their page | No |
+| [`get_paper`](#get_paper) | Everything about one paper: its PDF or why none, its text or why none, its citation sentences | No |
+| [`fetch_pdfs`](#fetch_pdfs) | Download the legal open-access PDFs of the library's papers, and read them | Yes |
 
 Things to ask once it's connected:
 
@@ -115,9 +118,12 @@ Things to ask once it's connected:
 - *"Which of its references are the most cited?"*
 - *"Does it build on 'Anatomy of green open access'? Through what chain?"*
 - *"How complete is my reference data? Are there duplicates?"*
+- *"Fetch the open PDFs, then tell me what the papers themselves say about the size of the effect, with pages."*
+- *"Which earlier works does this paper cite for its main claim, and in what sentence?"*
 
-A sample session, with the calls the assistant made and what came back, is in
-[`VALIDATION.md`](VALIDATION.md#m2--a-real-mcp-client-25-september-2026).
+Sample sessions, with the calls the assistant made and what came back, are in
+[`VALIDATION.md`](VALIDATION.md#m2--a-real-mcp-client-25-september-2026) — M2's graph tools, and
+M3's PDF tools.
 
 ### Three promises every answer keeps
 
@@ -126,9 +132,11 @@ A sample session, with the calls the assistant made and what came back, is in
 2. **Every paper carries its IDs and open-access status.** The IDs let the assistant ask a
    follow-up about any paper it was shown. The status stops it from claiming it can read a paper it
    can't.
-3. **Stubs are labelled.** A *stub* is a work the library knows only by ID: something cites it, but
-   it hasn't been fetched yet. Stubs come back with `"stub": true` and no title, so an assistant
-   can't talk about one as if it knew what it says.
+3. **Stubs are labelled.** A *stub* is a work the library hasn't fetched: something cites it. Stubs
+   come back with `"stub": true` — a title when fil looked one up to recognise it in a PDF, but no
+   abstract and no references — so an assistant can't talk about one as if it knew what it says.
+4. **Quotes come from the PDFs.** `search_library` and the citation sentences return the papers'
+   own words with their page, so an answer can quote rather than paraphrase from memory.
 
 ---
 
@@ -144,7 +152,7 @@ structured results. Arguments not given take the default shown.
 | `fil_id` | yes | The library's own ID, `F` followed by eight letters and digits (`F7K2M9QXA`). It never changes. Pass it to any other tool |
 | `id` | for every paper OpenAlex knows | OpenAlex ID, `W` followed by digits. Also accepted by any other tool |
 | `oa_status` | yes | `diamond`, `gold`, `green`, `hybrid` or `bronze` are free to read; `closed` is not; `unknown` until the paper is fetched |
-| `stub` | yes | `true` when only the ID is known |
+| `stub` | yes | `true` when the paper hasn't been fetched: its title may be known, its abstract and references are not |
 | `title`, `year`, `type`, `venue`, `doi` | when known | Bibliographic details |
 | `authors` | when recorded | The first three authors, in byline order |
 | `more_authors` | when there are more | How many further authors the byline has ("et al.") |
@@ -221,6 +229,11 @@ Returns the `paper`, and `references` and/or `cited_by`, each a capped list:
 `cited_by` counts only papers **in your library**. For the worldwide figure, see the paper's
 `cited_by_count_global`.
 
+When fil has read the paper's PDF, `sentences` gives, for the references listed, up to three
+sentences each that the paper cites them in, with the page and section
+([ADR-015](ARCHITECTURE_PHASE3.md#adr-015-citation-context-attaches-sentences-to-edges-that-already-exist)).
+A reference cited nowhere fil could tie to it has none: no match, no sentence, never a guess.
+
 ### `find_path`
 
 | Argument | Default | |
@@ -252,6 +265,53 @@ title, plus `duplicates_omitted`. Works sharing a title are *probably* one paper
 certainly (a book review carries its book's title), so fil never merges them on its own
 ([D14](DECISIONS.md#d14--title-level-duplicates-are-reported-never-merged-automatically)).
 
+For a library with a folder, `pdfs` reports `papers_with_pdf`, `searchable`,
+`citations_with_sentence`, `without_text` — up to 20 papers whose PDF gave no searchable text, each
+with its `status` (`no-text` for a scan, `gibberish`, `unreadable`, `timed-out`) and `reason` — and
+`pdf_may_be_another_paper`: downloads whose first pages don't carry their paper's title and author.
+
+### `search_library`
+
+| Argument | Default | |
+| --- | --- | --- |
+| `query` | required | Words to find. Every word must appear; `"quoted phrases"` match as written; `word*` matches a prefix; words match by stem |
+| `paper` | all papers | Search one paper: its `fil_id`, as every result carries |
+| `limit` | 10 | Passages to return. At most 50, and at most 3 from one paper |
+| `include_references` | `false` | Search reference lists too; otherwise an author's name finds every bibliography citing them |
+
+Returns `passages`, best first: each with its `paper`, `page`, the matching `text` (matched words
+between `[[` and `]]`), and the `pdf_path` on the user's disk. `partial: true` means no passage had
+every word, so these have some of them. `unread_pdfs` counts PDFs not read yet, which were not
+searched.
+
+### `get_paper`
+
+| Argument | Default | |
+| --- | --- | --- |
+| `identifier` | required | The paper, already in the library |
+
+Returns the `paper`; `cites` and `cited_by_here`; `pdf` — `on_disk`, or why there is none
+(`no_open_copy`, `open_as_web_page_only`, `every_link_failed`, `deleted_by_user`, `not_in_openalex`,
+`link_known_not_fetched`, `not_looked_up`) — with `pdf_path`, and
+`pdf_may_be_another_edition` when its first pages don't carry its title and author; `text` —
+`searchable`, `not_read`, or the status and reason; and `references_with_sentence` with the first
+few `sentences`.
+
+### `fetch_pdfs`
+
+| Argument | Default | |
+| --- | --- | --- |
+| `max_pdfs` | 20 | Most PDFs to download in this call. At most 100 |
+| `identifier` | all papers | Fetch one paper |
+
+Downloads legal open-access PDFs only — never from behind a paywall or a login — the user's own
+papers first, then the most cited, then reads them so `search_library` finds them. Runs inside the
+call, with progress notifications, and keeps every finished download if cancelled. Returns `tried`,
+`downloaded`, `failed_links` by why, `read`, `searchable`, and `papers_with_pdf`. Most papers have no
+open PDF: about one in eight overall, nearly half in physics, almost none in the humanities
+([D21](DECISIONS.md#d21--what-fil-can-promise-about-pdfs-and-how-fetching-runs)). A library that is a
+single database file has no folder for PDFs, and `fetch_pdfs` says how to give it one.
+
 ### Errors
 
 A tool that fails returns an error the assistant can read and act on. Each one names the next
@@ -275,6 +335,9 @@ step:
 | Works per `expand_graph` call | 200 by default, 500 at most | The expansion runs inside the call ([D16](DECISIONS.md#d16--mcp-expansion-runs-inside-the-call-the-job-system-waits-for-m3)). 500 works take about 20 seconds, well inside any client's timeout. For more, the assistant calls again |
 | Path length | 6 by default, 10 at most | A longer chain says little about how two papers are related |
 | Duplicate groups shown | 20 | The rest are counted in `duplicates_omitted` |
+| Passages per `search_library` call | 10 by default, 50 at most; 3 per paper | One long paper that uses the words throughout must not crowd out the rest |
+| PDFs per `fetch_pdfs` call | 20 by default, 100 at most | Downloads wait on each host's rate (one a second), so 100 take a few minutes |
+| Citation sentences per reference in `neighbours` | 3 | `get_paper` and `fil neighbours --context` show the rest |
 
 OpenAlex allows about 1,000 list requests a day per user, and fetching a single paper is free.
 One `expand_graph` of 500 works uses roughly 5–10 of them, so the allowance is very unlikely to be
