@@ -25,7 +25,8 @@ import (
 //	5  M3: download_attempt — every download, and why it failed (ADR-013)
 //	6  M3: work_text, and chunk offsets — the text of each PDF, or why there is none
 //	7  M3: import_attempt — what importing each of the user's PDFs gave (ADR-014)
-const SchemaVersion = 7
+//	8  M3: mention — every citation found in a PDF, with its sentence (ADR-015)
+const SchemaVersion = 8
 
 // upgrades[v] moves a library from schema v to v+1. Each runs inside
 // Migrate's one transaction, after the ones before it, so a library several
@@ -37,6 +38,7 @@ var upgrades = map[int]func(ctx context.Context, db *DB, tx *sql.Tx) error{
 	4: upgradeV4ToV5,
 	5: upgradeV5ToV6,
 	6: upgradeV6ToV7,
+	7: upgradeV7ToV8,
 }
 
 // upgradeV2ToV3 adds the tables for the papers/ folder, upgradeV3ToV4 those
@@ -48,6 +50,9 @@ func upgradeV2ToV3(ctx context.Context, _ *DB, tx *sql.Tx) error { return addTab
 func upgradeV3ToV4(ctx context.Context, _ *DB, tx *sql.Tx) error { return addTables(ctx, tx, 4) }
 
 func upgradeV4ToV5(ctx context.Context, _ *DB, tx *sql.Tx) error { return addTables(ctx, tx, 5) }
+
+// upgradeV7ToV8 adds mention, a new table.
+func upgradeV7ToV8(ctx context.Context, _ *DB, tx *sql.Tx) error { return addTables(ctx, tx, 8) }
 
 // upgradeV6ToV7 adds import_attempt, a new table.
 func upgradeV6ToV7(ctx context.Context, _ *DB, tx *sql.Tx) error { return addTables(ctx, tx, 7) }

@@ -12,11 +12,13 @@ import (
 
 // seedPage is the M0 seed's first page as PeerJ sets it, with title as its
 // title: the DOI in the header, the authors, and a cited DOI in the text.
-func seedPage(title string) []byte {
-	return pdftest.Make("PeerJ\nDOI 10.7717/peerj.4375\n" + title + "\nHeather Piwowar, Jason Priem, Vincent Lariviere\n" +
+func seedPage(title string) []byte { return pdftest.Make(seedPageText(title)) }
+
+func seedPageText(title string) string {
+	return "PeerJ\nDOI 10.7717/peerj.4375\n" + title + "\nHeather Piwowar, Jason Priem, Vincent Lariviere\n" +
 		"Despite growing interest in open access, there is an unmet need for large-scale studies\n" +
 		"of its prevalence. Earlier work (doi:10.1000/earlier.1) estimated it from one sample only.\n" +
-		"We estimate that at least 28 percent of the scholarly literature is open access today.")
+		"We estimate that at least 28 percent of the scholarly literature is open access today."
 }
 
 const seedTitle = "The state of OA: a large-scale analysis of the prevalence and impact of Open Access articles"
@@ -131,5 +133,33 @@ func TestImportOnAFirstRun(t *testing.T) {
 	code, out, errOut := h.run(false, "", "import", file)
 	if code != exitOK || !strings.Contains(out, "✓ oa.pdf") || !strings.Contains(errOut, "Created your library") {
 		t.Errorf("first run: exit %d\n%s\n%s", code, out, errOut)
+	}
+}
+
+// fil neighbours --context shows the sentence each reference is cited in,
+// once the paper's PDF has been read; fil stats counts them.
+func TestNeighboursWithContext(t *testing.T) {
+	h := newHarness(t, maps.Clone(peerj))
+	if code, _, errOut := h.run(false, "", "add", "10.7717/peerj.4375"); code != exitOK {
+		t.Fatalf("add: exit %d\n%s", code, errOut)
+	}
+	_, out, _ := h.run(false, "", "neighbours", "10.7717/peerj.4375", "--context")
+	if !strings.Contains(out, "No citation sentences") {
+		t.Errorf("before reading:\n%s", out)
+	}
+	file := filepath.Join(t.TempDir(), "oa.pdf")
+	os.WriteFile(file, pdftest.Make(seedPageText(seedTitle)+
+		"\nOpen access journals grew steadily for two decades (Laakso et al., 2011)."), 0o644)
+	if code, out, errOut := h.run(false, "", "import", file); code != exitOK {
+		t.Fatalf("import: exit %d\n%s\n%s", code, out, errOut)
+	}
+	code, out, errOut := h.run(false, "", "neighbours", "10.7717/peerj.4375", "--context")
+	if code != exitOK || !strings.Contains(out, "The Development of Open Access Journal Publishing") ||
+		!strings.Contains(out, "p. 1: “Open access journals grew steadily for two decades") ||
+		!strings.Contains(out, "Sentences found for 1 of 54 references.") {
+		t.Errorf("neighbours --context: exit %d\n%s\n%s", code, out, errOut)
+	}
+	if _, out, _ := h.run(false, "", "stats"); !strings.Contains(out, "Context:    1 of 54 citations") {
+		t.Errorf("stats:\n%s", out)
 	}
 }
