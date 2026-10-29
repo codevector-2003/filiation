@@ -32,6 +32,9 @@ type replay struct {
 	mu     sync.Mutex
 	routes map[string]string // key -> fixture file or "404"
 	calls  int
+	// details answers the reference-details lookups reading makes, when
+	// they were not recorded (detailsAnswer).
+	details bool
 }
 
 func (r *replay) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -45,6 +48,12 @@ func (r *replay) RoundTrip(req *http.Request) (*http.Response, error) {
 	r.mu.Unlock()
 
 	status, body := 200, ""
+	if !ok && r.details {
+		if st, b, found := detailsAnswer(key); found {
+			return &http.Response{StatusCode: st, Header: http.Header{},
+				Body: io.NopCloser(strings.NewReader(b)), Request: req}, nil
+		}
+	}
 	switch {
 	case !ok:
 		r.t.Errorf("unexpected request %s", key)
@@ -88,7 +97,7 @@ func newHarness(t *testing.T, routes map[string]string) *harness {
 		// Never the real Documents folder: a first run makes a library there.
 		documentsDir: filepath.Join(dir, "Documents"),
 		routes:       routes,
-		replay:       &replay{t: t, routes: routes},
+		replay:       &replay{t: t, routes: routes, details: true},
 	}
 }
 
@@ -560,7 +569,7 @@ func TestNeighboursCommand(t *testing.T) {
 	}
 	for _, want := range []string{
 		"The state of OA: a large-scale analysis",
-		"Cites 54 works — 46 fetched, 8 known only by ID:",
+		"Cites 54 works — 46 fetched, 8 not fetched yet:",
 		"… and 39 more — pass --limit 0 to list all.",
 		"Cited by 1 work in your library:",
 	} {

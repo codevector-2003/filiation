@@ -3,13 +3,13 @@ package library
 import (
 	"context"
 	"errors"
+	"maps"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strconv"
-	"maps"
 	"strings"
 	"sync"
 	"testing"
@@ -116,7 +116,7 @@ func openFetchTestWith(t *testing.T, routes map[string]string) (*Library, *pdfHo
 		t.Fatal(err)
 	}
 	l, err := Open(t.Context(), cfg, Options{CacheDir: filepath.Join(dir, "cache"),
-		Transport: &replay{t: t, routes: routes}, PDFTransport: h.transport()})
+		Transport: &replay{t: t, routes: routes, details: true}, PDFTransport: h.transport()})
 	if err != nil {
 		t.Fatal(err)
 	}

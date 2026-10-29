@@ -561,3 +561,20 @@ physics layouts) or not split (author-year and some numbered styles). Parsed cit
 local documents stay out of M3, as D19 planned. If built later, the work is in finding and
 splitting the list, not in matching; the edges stay one hop, marked `source = pdf`, with a
 confidence. Hard rule 2 is unchanged: a work OpenAlex knows always uses OpenAlex's list.
+
+---
+
+## D23 — Citation context fetches details of cited works, not their references
+
+**Decided:** 29 Oct 2026, M3 step 9 · detail in `STATUS.md`
+
+Recognising a reference in a PDF needs its title, year and first author, and most references are
+stubs. Hydrating them would record their own reference lists: about 50 new stubs each, 275,000 for
+a library of a hundred read papers. Instead `graph.DetailIDs` fetches the same batch (one request,
+one credit per 100) and writes only title, year and authors (`store.PutDetails`); the work stays a
+stub (`hydrated = 0`) and on the expansion frontier, so `fil expand` treats it as not yet fetched.
+A paper that has a PDF but is itself a stub is hydrated before it is read: without its reference
+list there is nothing to find.
+
+**Superscript citation markers are not built in M3 step 9**, by plan; measured live at 23% of the
+references in papers read. They are the first thing to add to citation context.

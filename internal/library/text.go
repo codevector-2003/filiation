@@ -53,6 +53,7 @@ type Extracted struct {
 	Done     int            // PDFs read
 	Counts   map[string]int // by text.Status
 	Passages int
+	Mentions int // places the papers cite their references, found in their text
 	Duration time.Duration
 	Papers   []ExtractedPaper
 
@@ -69,6 +70,7 @@ type ExtractedPaper struct {
 	Reason   string // why there is no text, when Status is not ok
 	Pages    int
 	Passages int
+	Mentions int // places it cites a reference, found in its text
 	Took     time.Duration
 	Already  bool // read before, from the same file; nothing was done
 }
@@ -159,6 +161,9 @@ func (l *Library) extractWork(ctx context.Context, filID string, again bool) (Ex
 func (l *Library) extract(ctx context.Context, todo []store.ToRead, progress func(Extracted)) (Extracted, error) {
 	start := time.Now()
 	res := Extracted{Total: len(todo), Counts: map[string]int{}}
+	if err := l.detailReferences(ctx, todo); err != nil {
+		return res, err
+	}
 	var mu sync.Mutex
 	var firstErr error
 	jobs := make(chan store.ToRead)
@@ -237,9 +242,30 @@ func (l *Library) readOne(ctx context.Context, job store.ToRead) (ExtractedPaper
 	}
 	t := store.Text{FilID: job.FilID, Path: job.Path, SHA256: job.SHA256, Status: string(r.Status), Reason: r.Reason,
 		Pages: r.Pages, Chars: r.Chars, Extractor: text.ExtractorVersion, Millis: took.Milliseconds()}
+	// Where it cites its references, found while its pages are in hand.
+	var mentions []store.Mention
+	if r.Status == text.StatusOK {
+		refs, err := l.db.RefsOf(ctx, job.FilID)
+		if err != nil {
+			return ExtractedPaper{}, false, err
+		}
+		tr := make([]text.Ref, len(refs))
+		for i, c := range refs {
+			tr[i] = text.Ref{ID: c.FilID, Title: c.Title, Year: c.Year, DOI: c.DOI, Surname: c.Surname}
+		}
+		for _, m := range text.Contexts(r.Text, tr) {
+			mentions = append(mentions, store.Mention{ToWork: m.Ref, Page: m.Page, Start: m.Start, End: m.End,
+				Sentence: m.Sentence, Section: m.Section, Marker: m.Marker, Method: m.Method, Confidence: m.Confidence})
+		}
+	}
 	// Recorded even if the user cancels now: the work is done.
 	wctx := context.WithoutCancel(ctx)
-	if err := l.db.Tx(wctx, func(tx *store.Tx) error { return tx.PutText(wctx, t, chunks) }); err != nil {
+	if err := l.db.Tx(wctx, func(tx *store.Tx) error {
+		if err := tx.PutText(wctx, t, chunks); err != nil {
+			return err
+		}
+		return tx.PutMentions(wctx, job.FilID, mentions)
+	}); err != nil {
 		return ExtractedPaper{}, false, err
 	}
 	w, err := l.workWithAuthors(wctx, job.FilID)
@@ -247,13 +273,39 @@ func (l *Library) readOne(ctx context.Context, job store.ToRead) (ExtractedPaper
 		return ExtractedPaper{}, false, err
 	}
 	return ExtractedPaper{Work: w, File: abs, Status: t.Status, Reason: t.Reason, Pages: t.Pages,
-		Passages: len(chunks), Took: took}, true, nil
+		Passages: len(chunks), Mentions: len(mentions), Took: took}, true, nil
+}
+
+// detailReferences gives the stubs the papers about to be read cite their
+// titles, years and authors — what citation context recognises them by —
+// without recording their own references (graph.DetailIDs). One request per
+// 100 stubs. A failure leaves those references unrecognised for this
+// reading, and reading goes on; only cancelling stops it.
+func (l *Library) detailReferences(ctx context.Context, todo []store.ToRead) error {
+	ids := make([]string, len(todo))
+	for i, t := range todo {
+		ids[i] = t.FilID
+	}
+	// A paper downloaded while still a stub — before fetch hydrated what it
+	// downloads — has no reference list to find in its text. It gets one.
+	if _, err := l.hydrateStubs(ctx, ids); err != nil {
+		return err
+	}
+	stubs, err := l.db.StubsCitedBy(ctx, ids)
+	if err != nil || len(stubs) == 0 {
+		return err
+	}
+	if _, err := l.graph.DetailIDs(ctx, stubs); err != nil && ctx.Err() != nil {
+		return ctx.Err()
+	}
+	return nil
 }
 
 func (e *Extracted) add(p ExtractedPaper) {
 	e.Done++
 	e.Counts[p.Status]++
 	e.Passages += p.Passages
+	e.Mentions += p.Mentions
 	e.Papers = append(e.Papers, p)
 }
 
@@ -361,4 +413,46 @@ func (l *Library) Search(ctx context.Context, words string, opts SearchOptions) 
 	}
 	out.Unread = len(unread)
 	return out, nil
+}
+
+// Mention is one place a paper cites a reference, found in its PDF
+// (ADR-015): the sentence, its page and section, and how sure fil is.
+type Mention struct {
+	Page       int
+	Sentence   string
+	Section    string // the heading above it, or ""
+	Marker     string // as printed: "[12]", "Piwowar et al., 2018"
+	Method     string // numeric | author-year
+	Confidence float64
+}
+
+// CitationContexts returns where the paper input names cites each of its
+// references, keyed by the cited work's fil ID, in reading order. A
+// reference cited nowhere fil could find has no entry — no match, no
+// context (ADR-015).
+func (l *Library) CitationContexts(ctx context.Context, input string) (map[string][]Mention, error) {
+	w, err := l.Find(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+	ms, err := l.db.MentionsOf(ctx, w.FilID)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string][]Mention{}
+	for _, m := range ms {
+		out[m.ToWork] = append(out[m.ToWork], Mention{Page: m.Page, Sentence: m.Sentence, Section: m.Section,
+			Marker: m.Marker, Method: m.Method, Confidence: m.Confidence})
+	}
+	return out, nil
+}
+
+// ContextCounts says how far citation context reaches: of the citations
+// made by papers whose PDF has text, how many carry the sentence they were
+// made in.
+type ContextCounts = store.ContextCounts
+
+// ContextCounts counts citation context across the library.
+func (l *Library) ContextCounts(ctx context.Context) (ContextCounts, error) {
+	return l.db.ContextCounts(ctx)
 }

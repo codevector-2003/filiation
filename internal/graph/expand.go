@@ -188,6 +188,38 @@ func (g *Graph) HydrateIDs(ctx context.Context, ids []string) (model.ExpansionRe
 	return res, nil
 }
 
+// DetailIDs fetches the title, year and authors of the named stubs without
+// hydrating them: their own references are not recorded, so the graph does
+// not grow, and they stay on the frontier as works still to fetch. Citation
+// context needs them to recognise a paper's references in its text. One
+// request per openalex.MaxBatch IDs; it returns how many got details.
+func (g *Graph) DetailIDs(ctx context.Context, ids []string) (int, error) {
+	n := 0
+	for len(ids) > 0 {
+		k := min(len(ids), openalex.MaxBatch)
+		batch, fetchErr := g.src.GetWorksBatch(ctx, ids[:k])
+		if len(batch.Works) > 0 {
+			err := g.db.Tx(context.WithoutCancel(ctx), func(tx *store.Tx) error {
+				for i := range batch.Works {
+					if err := tx.PutDetails(ctx, &batch.Works[i]); err != nil {
+						return err
+					}
+				}
+				return nil
+			})
+			if err != nil {
+				return n, err
+			}
+			n += len(batch.Works)
+		}
+		if fetchErr != nil {
+			return n, fmt.Errorf("graph: details: %w", fetchErr)
+		}
+		ids = ids[k:]
+	}
+	return n, nil
+}
+
 // commit writes one batch in one transaction and adds it to res.
 //
 // The counts are gathered separately and added to res only once the

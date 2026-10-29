@@ -300,6 +300,27 @@ CREATE TABLE IF NOT EXISTS import_attempt (
     at         TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Schema v8 (ADR-015). Every place a paper cites another, found in its PDF: the
+-- sentence, and where it is. Only for an edge OpenAlex already gave: nothing read
+-- from a PDF creates, removes or redirects one. cites.context keeps the first
+-- mention, for display; M6 needs them all.
+CREATE TABLE IF NOT EXISTS mention (
+    id         INTEGER PRIMARY KEY,
+    from_work  TEXT NOT NULL REFERENCES work(fil_id) ON DELETE CASCADE,
+    to_work    TEXT NOT NULL REFERENCES work(fil_id) ON DELETE CASCADE,
+    page       INTEGER NOT NULL,   -- from 1
+    char_start INTEGER NOT NULL,   -- byte offsets of the sentence in its page's cleaned text
+    char_end   INTEGER NOT NULL,
+    sentence   TEXT NOT NULL,
+    section    TEXT,               -- introduction | methods | results | discussion | …, when a heading says
+    marker     TEXT NOT NULL,      -- as printed: "[12]", "(Piwowar et al., 2018)"
+    method     TEXT NOT NULL,      -- numeric | author-year
+    confidence REAL NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_mention_from ON mention(from_work);
+CREATE INDEX IF NOT EXISTS idx_mention_to   ON mention(to_work);
+
 -- ---------------------------------------------------------------- bookkeeping
 
 CREATE TABLE IF NOT EXISTS meta (
@@ -307,4 +328,4 @@ CREATE TABLE IF NOT EXISTS meta (
     value TEXT
 );
 
-INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '7');
+INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '8');

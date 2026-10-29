@@ -291,7 +291,7 @@ different file (an annotated copy) keeps both. An imported paper is a seed with
 
 ### ADR-015: Citation context attaches sentences to edges that already exist
 
-**Status:** Agreed · **Date:** 27 Sept 2026
+**Status:** Agreed 27 Sept 2026 · **Built** in step 9, 29 Oct 2026 (hand-checked 50 of 50); D23
 
 **Context.** To know that `[12]` means a particular paper, fil has to look at entry 12 of the
 paper's reference list. Hard rule 2 forbids a reference parser because its errors compound across
@@ -354,7 +354,10 @@ by hash — imported, a duplicate, unconfirmed, candidates to choose from, unide
 OpenAlex, unreadable — with the reason, the work it was filed under, and whether a title search was
 spent on it. A local document is a `work` row with no `openalex_id`, `source = upload`.
 
-**Later steps, each landing with the code that uses it:** mentions (ADR-015).
+**v8 — citation context (ADR-015), done with build step 9.** `mention`: every place a paper cites
+one of its references — page, the sentence and its offsets, section, the marker as printed, the
+method (numeric, author-year) and a confidence. `cites.context`, `section` and `confidence` hold
+the first mention, for display. The store refuses a mention for an edge OpenAlex did not give.
 
 ---
 
