@@ -26,7 +26,8 @@ import (
 //	6  M3: work_text, and chunk offsets — the text of each PDF, or why there is none
 //	7  M3: import_attempt — what importing each of the user's PDFs gave (ADR-014)
 //	8  M3: mention — every citation found in a PDF, with its sentence (ADR-015)
-const SchemaVersion = 8
+//	9  M3: work_file.identity — whether a downloaded PDF is the paper it is filed under
+const SchemaVersion = 9
 
 // upgrades[v] moves a library from schema v to v+1. Each runs inside
 // Migrate's one transaction, after the ones before it, so a library several
@@ -39,6 +40,7 @@ var upgrades = map[int]func(ctx context.Context, db *DB, tx *sql.Tx) error{
 	5: upgradeV5ToV6,
 	6: upgradeV6ToV7,
 	7: upgradeV7ToV8,
+	8: upgradeV8ToV9,
 }
 
 // upgradeV2ToV3 adds the tables for the papers/ folder, upgradeV3ToV4 those
@@ -50,6 +52,31 @@ func upgradeV2ToV3(ctx context.Context, _ *DB, tx *sql.Tx) error { return addTab
 func upgradeV3ToV4(ctx context.Context, _ *DB, tx *sql.Tx) error { return addTables(ctx, tx, 4) }
 
 func upgradeV4ToV5(ctx context.Context, _ *DB, tx *sql.Tx) error { return addTables(ctx, tx, 5) }
+
+// upgradeV8ToV9 gives work_file its identity column, unless the table was
+// already rebuilt from the current schema on the way (a v1 library is).
+func upgradeV8ToV9(ctx context.Context, _ *DB, tx *sql.Tx) error {
+	if err := addColumnIfMissing(ctx, tx, "work_file", "identity", "TEXT"); err != nil {
+		return err
+	}
+	return addTables(ctx, tx, 9)
+}
+
+// addColumnIfMissing adds a column to a table that already exists.
+func addColumnIfMissing(ctx context.Context, tx *sql.Tx, table, column, kind string) error {
+	var n int
+	if err := tx.QueryRowContext(ctx,
+		`SELECT count(*) FROM pragma_table_info(?) WHERE name = ?;`, table, column).Scan(&n); err != nil {
+		return fmt.Errorf("read %s columns: %w", table, err)
+	}
+	if n > 0 {
+		return nil
+	}
+	if _, err := tx.ExecContext(ctx, `ALTER TABLE `+table+` ADD COLUMN `+column+` `+kind+`;`); err != nil {
+		return fmt.Errorf("add %s.%s: %w", table, column, err)
+	}
+	return nil
+}
 
 // upgradeV7ToV8 adds mention, a new table.
 func upgradeV7ToV8(ctx context.Context, _ *DB, tx *sql.Tx) error { return addTables(ctx, tx, 8) }

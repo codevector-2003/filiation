@@ -578,7 +578,7 @@ reworded), D18 (the library is a folder the user chooses; `papers/` with readabl
 | 7 | `internal/text`, FTS5, `fil search` | **Done** — 28 Oct; the seed's own passage waits on its PDF (step 6) |
 | 8 | Import, `Inbox/`, local documents | **Done** — 29 Oct; live: 34 of 40 renamed PDFs filed, all correct, the other 6 with the right paper among the candidates |
 | 9 | Citation context | **Done** — 29 Oct; hand-checked: 50 of 50 mentions on a fresh sample tie to the right work |
-| 10 | `fil list`, `fil show`, full text in `fil stats`; MCP `search_library` and a fetch tool | Not started |
+| 10 | `fil list`, `fil show`, full text in `fil stats`; MCP `search_library` and a fetch tool | **Done** — 29 Oct; checked from a real MCP client |
 | 11 | Validation run, docs, tag **v0.3** | Not started |
 
 **Steps 1–2 — fil IDs, and the first migration.** Every work now has a fil ID
@@ -670,6 +670,39 @@ folder can be created, moved by hand and found again — is met in tests and was
 - **Found on the way:** the CLI test harness had no Documents override, so one test run created an
   empty library folder under the real Documents. It was removed at once; the harness now passes
   its own, and every test that loads settings does too.
+
+**Step 10 — the front doors.** What steps 5–9 recorded, through every front door, each over one
+library function.
+
+- **`fil list`** — seeds first, then most cited here; beside each its first author, PDF, text, and
+  citation sentences. `--seeds`, `--with-pdf`, `--without-text`, `--collection`, `--title`,
+  `--limit`, `--json`. One store query.
+- **`fil show <paper>`** — details, place in the graph, its folder, its PDF or **why there is none**
+  (no open copy, only a web page, every link failed with how, deleted by you), its text or **why
+  there is none**, and its first citation sentences.
+- **`fil stats --why`** — every paper whose PDF gave no text, by reason: M3's "`fil stats` says why
+  each paper without text has none".
+- **MCP: eight tools.** `search_library` (passages with page and file), `get_paper` (`fil show` as
+  data), `fetch_pdfs` (downloads inside the call, with progress, like `expand_graph`); `neighbours`
+  gains citation sentences; `library_stats` gains the PDFs. Instructions and the stub description
+  now say a stub may have a title (D23).
+- **A download is checked against its paper** once read: its first pages must carry the paper's
+  title and first author (step 8's check). A mismatch is **flagged, kept**: schema v9's
+  `work_file.identity`, which survives the file moving and resets when it changes. Live, 2 of 22
+  downloads were flagged. One was right — a report by Brody et al. sitting at the link of Henneken et
+  al. 2006. The other was wrong: a PLoS ONE PDF prints "Björk" as "Bjo¨ rk", an accent set as a glyph
+  of its own. `Clean` now joins such accents (`ExtractorVersion` `pdfium/3`), which also makes the
+  name searchable, and the check ignores accents on both sides. After the fix: 1 flagged, correctly.
+- **Superscript citations, built and dropped.** Built as planned — digits set against the word
+  before, lists numbered "1 B. D. …" — and hand-checked on 40 random mentions: **33 right (82%)**,
+  under the 90% the plan set. The failures: author affiliation marks on page 1 ("Nilsson,¹ … Peres³"),
+  formula indices ("Fn1≥n2", "±qx1"), and entries holding two references. Reverted; each failure
+  has a fix to try with its own hand check (D23).
+- **From a real client** (Claude Code, headless; `VALIDATION.md`): it fetched, searched 13 times,
+  quoted seven papers with their pages, named the works a paper cites for its main claim with the
+  sentence, and used the download flag to find the misfiled PDF. Two gaps it hit are fixed:
+  `paper` takes the `fil_id` (it tried "Eysenbach-2006"), and `library_stats` lists the papers
+  without text (it could not see them).
 
 **Step 9 — citation context (ADR-015).** Every place a paper cites one of its references, found
 in its PDF while it is read, with the sentence: `mention` rows, and `cites.context` set to the

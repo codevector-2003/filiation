@@ -42,9 +42,15 @@ Start with library_stats to see what is there. add_paper adds a paper by DOI, ar
 ID, PMID, OpenAlex ID, link or title. expand_graph follows references outward,
 most-cited first. neighbours and find_path answer questions about the graph.
 
-Works marked stub: true are known only by ID — something cites them, but they have
-not been fetched. Never describe a stub as if its content were known. A missing
-reference list is usually the data, not a fault: it is common outside STEM.`
+The library also keeps the open-access PDFs of its papers, read and searchable.
+search_library finds passages by keyword, with their page: quote them rather than
+paraphrasing from memory. fetch_pdfs downloads more; most papers have no open PDF.
+get_paper tells everything about one paper, including why it has no PDF or text.
+neighbours gives the sentence a paper cites each reference in, when one was found.
+
+Works marked stub: true have not been fetched — something cites them; their title may
+be known, their abstract and references are not. Never describe a stub's content. A
+missing reference list is usually the data, not a fault: it is common outside STEM.`
 
 // New returns an MCP server exposing lib. version is the fil version, reported
 // to the client.
@@ -107,6 +113,7 @@ func New(lib *library.Library, version string) *mcp.Server {
 		Annotations: readOnly("Library stats"),
 	}, t.libraryStats)
 
+	addPaperTools(s, t, readOnly, grows)
 	return s
 }
 
@@ -246,10 +253,13 @@ type neighboursIn struct {
 }
 
 type neighboursOut struct {
-	Paper      Work   `json:"paper"`
-	References *Page  `json:"references,omitempty" jsonschema:"what the paper cites"`
-	CitedBy    *Page  `json:"cited_by,omitempty" jsonschema:"what in this library cites the paper — not a global count"`
-	Note       string `json:"note,omitempty"`
+	Paper      Work  `json:"paper"`
+	References *Page `json:"references,omitempty" jsonschema:"what the paper cites"`
+	CitedBy    *Page `json:"cited_by,omitempty" jsonschema:"what in this library cites the paper — not a global count"`
+	// Sentences are where the paper cites the references listed, found in
+	// its PDF: a few per reference.
+	Sentences []Sentence `json:"sentences,omitempty" jsonschema:"where the paper cites the references above, found in its PDF"`
+	Note      string     `json:"note,omitempty"`
 }
 
 func (t tools) neighbours(ctx context.Context, _ *mcp.CallToolRequest, in neighboursIn) (*mcp.CallToolResult, neighboursOut, error) {
@@ -271,6 +281,23 @@ func (t tools) neighbours(ctx context.Context, _ *mcp.CallToolRequest, in neighb
 	if dir != "cited_by" {
 		p := page(n.Cites, limit)
 		out.References = &p
+		contexts, err := t.lib.CitationContexts(ctx, n.Work.FilID)
+		if err != nil {
+			return nil, neighboursOut{}, toolError(err)
+		}
+		byID := map[string]model.Work{}
+		for _, c := range n.Cites {
+			byID[c.FilID] = c
+		}
+		for _, w := range p.Works {
+			for i, m := range contexts[w.FilID] {
+				if i == maxSentences {
+					break
+				}
+				out.Sentences = append(out.Sentences, Sentence{Cited: toWork(byID[w.FilID]), Page: m.Page,
+					Sentence: m.Sentence, Section: m.Section})
+			}
+		}
 	}
 	if dir != "cites" {
 		p := page(n.CitedBy, limit)
@@ -370,6 +397,7 @@ type DuplicateGroup struct {
 
 type statsOut struct {
 	stats
+	PDFs              *pdfState        `json:"pdfs,omitempty" jsonschema:"the library's PDFs and their text, when it has a folder for them"`
 	Duplicates        []DuplicateGroup `json:"duplicates,omitempty"`
 	DuplicatesOmitted int              `json:"duplicates_omitted,omitempty"`
 	Note              string           `json:"note,omitempty"`
@@ -383,6 +411,9 @@ func (t tools) libraryStats(ctx context.Context, _ *mcp.CallToolRequest, in stat
 	out := statsOut{stats: s}
 	if s.Works == 0 {
 		out.Note = "The library is empty. Add a paper with add_paper."
+	}
+	if out.PDFs, err = t.pdfState(ctx); err != nil {
+		return nil, statsOut{}, toolError(err)
 	}
 	if !in.IncludeDuplicates {
 		return nil, out, nil
