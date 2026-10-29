@@ -195,22 +195,21 @@ func (l *Library) importFile(ctx context.Context, file string, opts ImportOption
 	attempt := store.ImportAttempt{SHA256: hash, Path: l.displayPath(abs)}
 
 	// Bytes the library already holds.
-	same, err := l.db.FilesWithHash(ctx, hash)
-	if err != nil {
-		return out, 0, err
+	if dup, ok, err := l.duplicate(ctx, abs, hash, out); err != nil || ok {
+		return dup, 0, err
 	}
-	src, rel := l.sourceOf(abs)
-	for _, f := range same {
-		if src == fromPapers && f.Path == rel {
-			continue // this very file, already recorded
-		}
-		w, err := l.workWithAuthors(ctx, f.FilID)
+	// The library had these bytes once, and they were deleted: it is that
+	// paper's PDF again, and the record is restored rather than asked about.
+	if _, gone, err := l.sameBytes(ctx, abs, hash); err != nil {
+		return out, 0, err
+	} else if gone != nil {
+		w, err := l.workWithAuthors(ctx, gone.FilID)
 		if err != nil {
 			return out, 0, err
 		}
-		out.Outcome, out.Work = store.ImportDuplicate, w
-		out.Reason = "the library already has this file, for " + w.FilID + " (" + l.files.Abs(f.Path) + ")"
-		return out, 0, l.recordImport(ctx, attempt, out)
+		out.Clue = "the same file the library had before"
+		filed, err := l.fileWork(ctx, abs, data, hash, w, out)
+		return filed, 0, err
 	}
 
 	// Not identified before, and unchanged since: say so without asking
@@ -406,6 +405,9 @@ func (l *Library) ImportLocal(ctx context.Context, file, title string, year *int
 	if err != nil {
 		return ImportedFile{}, err
 	}
+	if dup, ok, err := l.duplicate(ctx, abs, hash, ImportedFile{File: abs}); err != nil || ok {
+		return dup, err
+	}
 	var fil string
 	if err := l.db.Tx(ctx, func(tx *store.Tx) error {
 		var err error
@@ -434,9 +436,53 @@ func (l *Library) readImport(file string) (string, []byte, string, error) {
 	return abs, data, hex.EncodeToString(sum[:]), nil
 }
 
+// sameBytes finds the library's records of these bytes, other than abs
+// itself: one still on disk, and one the researcher deleted.
+func (l *Library) sameBytes(ctx context.Context, abs, hash string) (present, gone *store.File, err error) {
+	same, err := l.db.FilesWithHash(ctx, hash)
+	if err != nil {
+		return nil, nil, err
+	}
+	src, rel := l.sourceOf(abs)
+	for i := range same {
+		f := &same[i]
+		switch {
+		case src == fromPapers && f.Path == rel:
+			// This very file, already recorded.
+		case f.Missing:
+			if gone == nil {
+				gone = f
+			}
+		case present == nil:
+			present = f
+		}
+	}
+	return present, gone, nil
+}
+
+// duplicate reports, and records, a file whose bytes the library already
+// holds on disk. It is checked before anything is created for the file:
+// a duplicate must not leave a new paper behind with no PDF.
+func (l *Library) duplicate(ctx context.Context, abs, hash string, out ImportedFile) (ImportedFile, bool, error) {
+	present, _, err := l.sameBytes(ctx, abs, hash)
+	if err != nil || present == nil {
+		return out, false, err
+	}
+	w, err := l.workWithAuthors(ctx, present.FilID)
+	if err != nil {
+		return out, false, err
+	}
+	out.Outcome, out.Work = store.ImportDuplicate, w
+	out.Reason = "the library already has this file, for " + w.FilID + " (" + l.files.Abs(present.Path) + ")"
+	return out, true, l.recordImport(ctx, store.ImportAttempt{SHA256: hash, Path: l.displayPath(abs)}, out)
+}
+
 // fileAs adds h as a seed the researcher uploaded, then files the PDF under
 // it.
 func (l *Library) fileAs(ctx context.Context, abs string, data []byte, hash string, h model.HydratedWork, out ImportedFile) (ImportedFile, error) {
+	if dup, ok, err := l.duplicate(ctx, abs, hash, out); err != nil || ok {
+		return dup, err
+	}
 	h.Source = model.SourceUpload
 	s, err := l.graph.AddSeedWork(ctx, h)
 	if err != nil {
@@ -458,16 +504,14 @@ func (l *Library) fileWork(ctx context.Context, abs string, data []byte, hash st
 	l.keepMu.Lock()
 	saved, err := func() (string, error) {
 		defer l.keepMu.Unlock()
-		same, err := l.db.FilesWithHash(ctx, hash)
+		present, gone, err := l.sameBytes(ctx, abs, hash)
 		if err != nil {
 			return "", err
 		}
-		for _, f := range same {
-			if !(src == fromPapers && f.Path == rel) {
-				out.Outcome = store.ImportDuplicate
-				out.Reason = "the library already has this file (" + l.files.Abs(f.Path) + ")"
-				return "", nil
-			}
+		if present != nil {
+			out.Outcome = store.ImportDuplicate
+			out.Reason = "the library already has this file (" + l.files.Abs(present.Path) + ")"
+			return "", nil
 		}
 		to := rel
 		if src != fromPapers {
@@ -512,9 +556,15 @@ func (l *Library) fileWork(ctx context.Context, abs string, data []byte, hash st
 		if info, err := os.Stat(l.files.Abs(to)); err == nil {
 			mtime = info.ModTime().Unix()
 		}
+		file := store.File{Path: to, FilID: w.FilID, SHA256: hash, Size: int64(len(data)),
+			ModTime: mtime, Origin: store.OriginImport}
 		err = l.db.Tx(ctx, func(tx *store.Tx) error {
-			return tx.PutFile(ctx, store.File{Path: to, FilID: w.FilID, SHA256: hash, Size: int64(len(data)),
-				ModTime: mtime, Origin: store.OriginImport})
+			if gone != nil {
+				// The deleted copy's record, restored at the new path.
+				file.Version, file.Origin = gone.Version, gone.Origin
+				return tx.MoveFile(ctx, gone.Path, file)
+			}
+			return tx.PutFile(ctx, file)
 		})
 		return to, err
 	}()

@@ -282,3 +282,64 @@ func TestExtractPicksUpTheInbox(t *testing.T) {
 		t.Errorf("Inbox/ = %+v; want the scan alone", inbox)
 	}
 }
+
+// A PDF the researcher deleted from the library and then imports again is
+// that paper's PDF again: its record is restored, not reported as a
+// duplicate of a file that is gone (found in review, PR #10).
+func TestImportRestoresADeletedCopy(t *testing.T) {
+	t.Parallel()
+	l, _ := openImportTest(t, maps.Clone(peerj))
+	ctx := t.Context()
+	pdf := pdftest.Make(seedFront(seedTitle))
+	putInInbox(t, l, "oa.pdf", pdf)
+	first, err := l.Import(ctx, ImportOptions{})
+	if err != nil || first.Files[0].Outcome != store.ImportImported {
+		t.Fatalf("first import = %+v, %v", first, err)
+	}
+	if err := os.Remove(first.Files[0].Saved); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := l.Scan(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	putInInbox(t, l, "oa again.pdf", pdf)
+	again, err := l.Import(ctx, ImportOptions{})
+	if err != nil || again.Files[0].Outcome != store.ImportImported {
+		t.Fatalf("the deleted copy imported again = %+v, %v; want imported", again.Files, err)
+	}
+	files, _ := l.db.FilesOf(ctx, first.Files[0].Work.FilID)
+	if len(files) != 1 || files[0].Missing || !strings.HasSuffix(files[0].Path, "oa again.pdf") {
+		t.Errorf("files = %+v; want one, present, at the new path", files)
+	}
+}
+
+// Bytes the library already holds are reported before anything is made for
+// them: --local and --as must not leave a paper with no PDF (found in
+// review, PR #10).
+func TestImportDuplicateMakesNoPaper(t *testing.T) {
+	t.Parallel()
+	l, _ := openImportTest(t, maps.Clone(peerj))
+	ctx := t.Context()
+	pdf := pdftest.Make(seedFront(seedTitle))
+	putInInbox(t, l, "oa.pdf", pdf)
+	if _, err := l.Import(ctx, ImportOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	before, _ := l.Stats(ctx)
+
+	copyOf := filepath.Join(t.TempDir(), "copy.pdf")
+	os.WriteFile(copyOf, pdf, 0o644)
+	local, err := l.ImportLocal(ctx, copyOf, "A title for the same bytes", nil)
+	if err != nil || local.Outcome != store.ImportDuplicate {
+		t.Errorf("--local on a duplicate = %+v, %v", local, err)
+	}
+	as, err := l.ImportAs(ctx, copyOf, "10.7717/peerj.4375", true)
+	if err != nil || as.Outcome != store.ImportDuplicate {
+		t.Errorf("--as on a duplicate = %+v, %v", as, err)
+	}
+	after, _ := l.Stats(ctx)
+	if after.Works != before.Works {
+		t.Errorf("works %d → %d: a duplicate made a paper", before.Works, after.Works)
+	}
+}
