@@ -284,6 +284,22 @@ CREATE TABLE IF NOT EXISTS work_text (
     read_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Schema v7 (ADR-014). What importing each PDF the user brought gave, by its
+-- hash: filed under a work, or why not — no identifier, one that did not match
+-- the text, not in OpenAlex. A file that could not be identified is not tried
+-- again, nor its title searched again (10 credits), until it changes or the
+-- user names it.
+CREATE TABLE IF NOT EXISTS import_attempt (
+    sha256     TEXT PRIMARY KEY NOT NULL,
+    path       TEXT NOT NULL,   -- where it was, relative to the library folder or absolute
+    outcome    TEXT NOT NULL,   -- imported | duplicate | unconfirmed | candidates | unidentified
+                                -- | not-in-openalex | unreadable
+    reason     TEXT,
+    fil_id     TEXT REFERENCES work(fil_id) ON DELETE SET NULL,
+    searched   INTEGER NOT NULL DEFAULT 0, -- a title search was spent on it
+    at         TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- ---------------------------------------------------------------- bookkeeping
 
 CREATE TABLE IF NOT EXISTS meta (
@@ -291,4 +307,4 @@ CREATE TABLE IF NOT EXISTS meta (
     value TEXT
 );
 
-INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '6');
+INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '7');
