@@ -13,7 +13,7 @@ import (
 )
 
 func (a *app) statsCommand() *cobra.Command {
-	var listDuplicates bool
+	var listDuplicates, why bool
 	cmd := &cobra.Command{
 		Use:   "stats",
 		Short: "Summarise your library",
@@ -22,17 +22,18 @@ func (a *app) statsCommand() *cobra.Command {
 			"It also reports works that share a title — usually one paper that OpenAlex\n" +
 			"keeps as two records. fil lists them but never merges them on its own: a book\n" +
 			"review, for one, carries the title of the book it reviews.",
-		Example: "  fil stats\n  fil stats --duplicates",
+		Example: "  fil stats\n  fil stats --duplicates\n  fil stats --why",
 		Args:    noArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return a.stats(cmd.Context(), listDuplicates)
+			return a.stats(cmd.Context(), listDuplicates, why)
 		},
 	}
 	cmd.Flags().BoolVar(&listDuplicates, "duplicates", false, "list works that share a title")
+	cmd.Flags().BoolVar(&why, "why", false, "list each paper whose PDF gave no text, with the reason")
 	return cmd
 }
 
-func (a *app) stats(ctx context.Context, listDuplicates bool) error {
+func (a *app) stats(ctx context.Context, listDuplicates, why bool) error {
 	cfg, err := a.loadConfig()
 	if err != nil {
 		return err
@@ -138,6 +139,9 @@ func (a *app) stats(ctx context.Context, listDuplicates bool) error {
 			}
 			fmt.Fprintln(w)
 		}
+	}
+	if why {
+		return a.printWithoutText(ctx, lib)
 	}
 	return nil
 }

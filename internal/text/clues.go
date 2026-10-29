@@ -182,12 +182,12 @@ func trimDOI(d string) string {
 // main title — the part before a colon — if that is long enough to be
 // telling, since subtitles are set apart or dropped.
 func Mentions(pages []string, title, surname string) bool {
-	text := identity.TitleKey(strings.Join(pages, " "))
-	key := identity.TitleKey(title)
+	text := identity.TitleKey(fold(strings.Join(pages, " ")))
+	key := identity.TitleKey(fold(title))
 	if len(key) < 10 || text == "" {
 		return false
 	}
-	s := identity.TitleKey(surname)
+	s := identity.TitleKey(fold(surname))
 	if s != "" && !hasWord(pages, s) {
 		return false
 	}
@@ -198,7 +198,7 @@ func Mentions(pages []string, title, surname string) bool {
 	// is also the start of other papers' titles — so it counts only with
 	// the first author's surname found too.
 	if main, _, ok := strings.Cut(title, ":"); ok && s != "" {
-		if k := identity.TitleKey(main); len(k) >= 20 {
+		if k := identity.TitleKey(fold(main)); len(k) >= 20 {
 			return strings.Contains(text, k)
 		}
 	}
@@ -214,7 +214,7 @@ func Mentions(pages []string, title, surname string) bool {
 func hasWord(pages []string, key string) bool {
 	for _, p := range pages {
 		for _, w := range letterWords(p) {
-			if identity.TitleKey(w) == key {
+			if identity.TitleKey(fold(w)) == key {
 				return true
 			}
 		}
@@ -238,14 +238,14 @@ const headLines = 12
 // where a paper's own title sits; a cited paper's title sits in the
 // references, further down. A title search's candidates get Mentions only.
 func Resembles(pages []string, title, surname string) bool {
-	s := identity.TitleKey(surname)
+	s := identity.TitleKey(fold(surname))
 	if len(pages) == 0 || s == "" || !hasWord(pages, s) {
 		return false
 	}
 	lines := strings.Split(pages[0], "\n")
 	head := map[string]bool{}
 	for _, w := range letterWords(strings.Join(lines[:min(headLines, len(lines))], " ")) {
-		head[strings.ToLower(w)] = true
+		head[fold(w)] = true
 	}
 	want, found := 0, 0
 	for _, w := range letterWords(title) {
@@ -253,7 +253,7 @@ func Resembles(pages []string, title, surname string) bool {
 			continue
 		}
 		want++
-		if head[strings.ToLower(w)] {
+		if head[fold(w)] {
 			found++
 		}
 	}

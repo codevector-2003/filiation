@@ -213,6 +213,8 @@ CREATE TABLE IF NOT EXISTS work_file (
     version  TEXT,              -- published | accepted | preprint; NULL if not known
     origin   TEXT NOT NULL,     -- download | import | found
     missing  INTEGER NOT NULL DEFAULT 0,
+    identity TEXT,              -- schema v9: match | mismatch — whether its first pages name the
+                                -- paper; checked for downloads. NULL: not checked
     added_at TEXT DEFAULT (datetime('now'))
 );
 
@@ -328,4 +330,4 @@ CREATE TABLE IF NOT EXISTS meta (
     value TEXT
 );
 
-INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '8');
+INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '9');

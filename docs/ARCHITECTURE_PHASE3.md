@@ -359,6 +359,10 @@ one of its references — page, the sentence and its offsets, section, the marke
 method (numeric, author-year) and a confidence. `cites.context`, `section` and `confidence` hold
 the first mention, for display. The store refuses a mention for an edge OpenAlex did not give.
 
+**v9 — download check, done with build step 10.** `work_file.identity`: `match` or `mismatch`,
+whether a downloaded PDF's first pages carry its paper's title and first author. Kept when the
+file moves, cleared when its bytes change; a mismatch is flagged, never deleted.
+
 ---
 
 ## 6. Spikes

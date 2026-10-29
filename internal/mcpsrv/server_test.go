@@ -210,13 +210,16 @@ func TestToolsAreListed(t *testing.T) {
 	for _, tool := range res.Tools {
 		names = append(names, tool.Name)
 		readOnly := tool.Annotations != nil && tool.Annotations.ReadOnlyHint
-		wantReadOnly := tool.Name != "add_paper" && tool.Name != "expand_graph"
+		// The tools that change the library — adding, expanding, fetching —
+		// are the only ones that are not read-only.
+		wantReadOnly := tool.Name != "add_paper" && tool.Name != "expand_graph" && tool.Name != "fetch_pdfs"
 		if readOnly != wantReadOnly {
 			t.Errorf("%s: readOnlyHint = %v, want %v", tool.Name, readOnly, wantReadOnly)
 		}
 	}
 	slices.Sort(names)
-	want := []string{"add_paper", "expand_graph", "find_path", "library_stats", "neighbours"}
+	want := []string{"add_paper", "expand_graph", "fetch_pdfs", "find_path", "get_paper", "library_stats",
+		"neighbours", "search_library"}
 	if !slices.Equal(names, want) {
 		t.Errorf("tools = %v, want %v", names, want)
 	}

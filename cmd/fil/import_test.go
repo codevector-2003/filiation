@@ -163,3 +163,49 @@ func TestNeighboursWithContext(t *testing.T) {
 		t.Errorf("stats:\n%s", out)
 	}
 }
+
+// fil list, fil show and fil stats --why: the front doors over what fetch,
+// import and reading recorded (M3 step 10).
+func TestListShowAndWhy(t *testing.T) {
+	h := newHarness(t, maps.Clone(peerj))
+	if code, _, errOut := h.run(false, "", "add", "10.7717/peerj.4375"); code != exitOK {
+		t.Fatalf("add: exit %d\n%s", code, errOut)
+	}
+	file := filepath.Join(t.TempDir(), "oa.pdf")
+	os.WriteFile(file, seedPage(seedTitle), 0o644)
+	if code, out, errOut := h.run(false, "", "import", file); code != exitOK {
+		t.Fatalf("import: exit %d\n%s\n%s", code, out, errOut)
+	}
+	scan := filepath.Join(t.TempDir(), "scan.pdf")
+	os.WriteFile(scan, pdftest.Make("", ""), 0o644)
+	if code, out, errOut := h.run(false, "", "import", scan, "--local", "Field notes on bees"); code != exitOK {
+		t.Fatalf("import --local: exit %d\n%s\n%s", code, out, errOut)
+	}
+
+	code, out, _ := h.run(false, "", "list", "--seeds")
+	if code != exitOK || !strings.Contains(out, "2018  The state of OA") || !strings.Contains(out, "Piwowar · PDF · searchable") ||
+		!strings.Contains(out, "Field notes on bees") || !strings.Contains(out, "no text layer") {
+		t.Errorf("list --seeds: exit %d\n%s", code, out)
+	}
+	_, out, _ = h.run(false, "", "list", "--json", "--limit", "1")
+	if !strings.HasPrefix(out, `{"fil_id":"F`) || !strings.Contains(out, `"pdf":true`) || !strings.Contains(out, `"text":"ok"`) {
+		t.Errorf("list --json:\n%s", out)
+	}
+
+	code, out, _ = h.run(false, "", "show", "10.7717/peerj.4375")
+	for _, want := range []string{"In the library:  added by you", "cites 54 works", "PDF:             ",
+		"oa.pdf (your copy)", "Text:            searchable, 1 page"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("show lacks %q:\n%s", want, out)
+		}
+	}
+	if code != exitOK {
+		t.Errorf("show: exit %d", code)
+	}
+
+	_, out, _ = h.run(false, "", "stats", "--why")
+	if !strings.Contains(out, "Papers whose PDF gave no searchable text, and why:") || !strings.Contains(out, "Field notes on bees") ||
+		!strings.Contains(out, "a scan with no text layer") {
+		t.Errorf("stats --why:\n%s", out)
+	}
+}
