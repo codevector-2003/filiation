@@ -174,7 +174,7 @@ func (a *app) extract(ctx context.Context, again bool) error {
 	}
 
 	w := a.stdout
-	if res.Total == 0 && runErr == nil {
+	if res.Total == 0 && res.Imported.Counts[library.ImportImported] == 0 && runErr == nil {
 		fmt.Fprintln(w, "Nothing to read: fil has read every PDF in papers/. fil extract --again reads\nthem all again.")
 	} else {
 		a.printRead(res)
@@ -198,6 +198,12 @@ func (a *app) readProgress(e library.Extracted) {
 // as the state of the files, not as a broken tool.
 func (a *app) printRead(res library.Extracted) {
 	w := a.stdout
+	if n := res.Imported.Counts[library.ImportImported]; n > 0 {
+		fmt.Fprintf(w, "Filed:      %s from Inbox/, identified by what is in them.\n", plural(n, "PDF", "PDFs"))
+	}
+	if res.Done == 0 {
+		return
+	}
 	fmt.Fprintf(w, "Read:       %s in %s — %s searchable (%s)",
 		plural(res.Done, "PDF", "PDFs"), res.Duration.Round(100*time.Millisecond),
 		thousands(res.Counts["ok"]), plural(res.Passages, "passage", "passages"))

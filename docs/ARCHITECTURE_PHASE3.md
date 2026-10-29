@@ -349,8 +349,12 @@ why, page and character counts, and the extractor version, so a changed file or 
 is read again. `chunk` gains `char_start` and `char_end`, byte offsets into its page's cleaned
 text: the first change to a table that already existed, made with `ALTER TABLE ADD COLUMN`.
 
-**Later steps, each landing with the code that uses it:**
-mentions (ADR-015), import state (ADR-014).
+**v7 — imports (ADR-014), done with build step 8.** `import_attempt`: each file the user brought,
+by hash — imported, a duplicate, unconfirmed, candidates to choose from, unidentified, not in
+OpenAlex, unreadable — with the reason, the work it was filed under, and whether a title search was
+spent on it. A local document is a `work` row with no `openalex_id`, `source = upload`.
+
+**Later steps, each landing with the code that uses it:** mentions (ADR-015).
 
 ---
 

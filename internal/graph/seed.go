@@ -80,7 +80,9 @@ func (g *Graph) AddSeed(ctx context.Context, id identity.ID) (Seeded, error) {
 func (g *Graph) AddSeedWork(ctx context.Context, h model.HydratedWork) (Seeded, error) {
 	h.Depth = model.Ptr(0)
 	h.IsSeed = true
-	h.Source = model.SourceSeed
+	if h.Source == "" {
+		h.Source = model.SourceSeed // an import says SourceUpload
+	}
 
 	var out Seeded
 	stored := h.OpenAlexID
@@ -128,6 +130,16 @@ func (g *Graph) AddSeedWork(ctx context.Context, h model.HydratedWork) (Seeded, 
 	}
 	out.Work = *w
 	return out, nil
+}
+
+// Resolve looks up the one work id names, writing nothing: import checks a
+// work against its PDF before adding it.
+func (g *Graph) Resolve(ctx context.Context, id identity.ID) (model.HydratedWork, error) {
+	h, err := g.src.Resolve(ctx, id)
+	if err != nil {
+		return model.HydratedWork{}, fmt.Errorf("resolve %s %s: %w", id.Kind, id.Value, err)
+	}
+	return h, nil
 }
 
 // isSeed reports whether id is in the library and marked as a seed.

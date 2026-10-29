@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/codevector-2003/filiation/internal/blobs"
 	"github.com/codevector-2003/filiation/internal/library"
 	"github.com/codevector-2003/filiation/internal/model"
 )
@@ -97,6 +98,10 @@ func (a *app) stats(ctx context.Context, listDuplicates bool) error {
 			}
 			if c, err := lib.TextCounts(ctx); err == nil {
 				printTextCounts(w, c)
+			}
+			if n, err := lib.InboxWaiting(); err == nil && n > 0 {
+				fmt.Fprintf(w, "Inbox:      %s waiting — fil import files them; Inbox/%s says why\n",
+					plural(n, "PDF", "PDFs"), blobs.ReportName)
 			}
 		}
 	}
