@@ -148,3 +148,48 @@ func TestUpgradeV7Library(t *testing.T) {
 		t.Errorf("mention after upgrade: %v", err)
 	}
 }
+
+// Folding a record into another keeps mentions and contexts consistent
+// with the edges that survive (found in review, PR #11): a mention that
+// became a self-citation goes, and an edge the survivor already had takes
+// the moved mention's sentence as its context.
+func TestMergeKeepsMentionsConsistent(t *testing.T) {
+	t.Parallel()
+	db := migrated(t)
+	ctx := t.Context()
+	for _, q := range []string{
+		`INSERT INTO work (fil_id, openalex_id, title, hydrated) VALUES
+			('F00000001', 'W1', 'Old record', 1), ('F00000002', 'W2', 'Survivor', 1), ('F00000003', 'W3', 'Cited', 1);`,
+		// The old record cites the survivor and W3; the survivor cites W3 too.
+		`INSERT INTO cites (from_work, to_work) VALUES ('F00000001', 'F00000002'), ('F00000001', 'F00000003'), ('F00000002', 'F00000003');`,
+		`INSERT INTO work_text (fil_id, path, sha256, status, extractor) VALUES ('F00000001', 'p', 's', 'ok', 'e');`,
+	} {
+		mustExec(t, db.write, q)
+	}
+	if err := db.Tx(ctx, func(tx *Tx) error {
+		return tx.PutMentions(ctx, "W1", []Mention{
+			{ToWork: "F00000002", Page: 1, Sentence: "As the survivor showed [1].", Marker: "[1]", Method: "numeric", Confidence: 0.9},
+			{ToWork: "F00000003", Page: 1, Start: 30, Sentence: "And W3 agrees [2].", Marker: "[2]", Method: "numeric", Confidence: 0.9},
+		})
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Tx(ctx, func(tx *Tx) error { return tx.MergeInto(ctx, "W1", "W2") }); err != nil {
+		t.Fatal(err)
+	}
+
+	var self int
+	db.read.QueryRow(`SELECT count(*) FROM mention WHERE from_work = to_work;`).Scan(&self)
+	if self != 0 {
+		t.Errorf("%d mention(s) of a paper by itself survived the merge", self)
+	}
+	var context string
+	db.read.QueryRow(`SELECT ifnull(context, '') FROM cites WHERE from_work = 'F00000002' AND to_work = 'F00000003';`).Scan(&context)
+	if context != "And W3 agrees [2]." {
+		t.Errorf("the survivor's edge to W3 has context %q; want the moved sentence", context)
+	}
+	c, err := db.ContextCounts(ctx)
+	if err != nil || c.WithContext != 1 || c.Mentions != 1 {
+		t.Errorf("ContextCounts = %+v, %v; want one edge, one mention", c, err)
+	}
+}

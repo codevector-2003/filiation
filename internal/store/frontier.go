@@ -253,6 +253,17 @@ func (tx *Tx) MergeInto(ctx context.Context, oldID, newID string) error {
 	if _, err := tx.tx.ExecContext(ctx, `DELETE FROM work WHERE fil_id = ?;`, oldFil); err != nil {
 		return fmt.Errorf("store: merge %s into %s: delete old record: %w", oldID, newID, err)
 	}
+	// Mentions moved with the record attach only to edges that still exist —
+	// one that became a self-citation does not — and the survivor's edges'
+	// contexts are set again from what they now hold (found in review, PR #11).
+	if _, err := tx.tx.ExecContext(ctx, `
+DELETE FROM mention WHERE (from_work = ?1 OR to_work = ?1)
+  AND NOT EXISTS (SELECT 1 FROM cites c WHERE c.from_work = mention.from_work AND c.to_work = mention.to_work);`, newFil); err != nil {
+		return fmt.Errorf("store: merge %s into %s: mentions: %w", oldID, newID, err)
+	}
+	if err := refreshContexts(ctx, tx.tx, newFil); err != nil {
+		return fmt.Errorf("store: merge %s into %s: contexts: %w", oldID, newID, err)
+	}
 	if _, err := tx.tx.ExecContext(ctx,
 		`INSERT OR REPLACE INTO work_alias (alias, fil_id) VALUES (?1, ?3), (?2, ?3);`,
 		oldFil, oldID, newFil); err != nil {

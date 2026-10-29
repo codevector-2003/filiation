@@ -143,16 +143,23 @@ WHERE EXISTS (SELECT 1 FROM cites WHERE from_work = ?1 AND to_work = ?2);`,
 			return fmt.Errorf("store: %s does not cite %s: a mention attaches to an edge, never makes one", from, m.ToWork)
 		}
 	}
-	_, err = tx.tx.ExecContext(ctx, `
+	if err := refreshContexts(ctx, tx.tx, fil); err != nil {
+		return fmt.Errorf("store: set contexts of %s: %w", from, err)
+	}
+	return nil
+}
+
+// refreshContexts sets the display context of every edge from or to fil to
+// its first mention, or to nothing when it has none: cites.context is only
+// ever a copy of what mention holds.
+func refreshContexts(ctx context.Context, e execer, fil string) error {
+	_, err := e.ExecContext(ctx, `
 UPDATE cites SET
   context    = (SELECT m.sentence   FROM mention m WHERE m.from_work = cites.from_work AND m.to_work = cites.to_work ORDER BY m.page, m.char_start LIMIT 1),
   section    = (SELECT m.section    FROM mention m WHERE m.from_work = cites.from_work AND m.to_work = cites.to_work ORDER BY m.page, m.char_start LIMIT 1),
   confidence = (SELECT max(m.confidence) FROM mention m WHERE m.from_work = cites.from_work AND m.to_work = cites.to_work)
-WHERE from_work = ?;`, fil)
-	if err != nil {
-		return fmt.Errorf("store: set contexts of %s: %w", from, err)
-	}
-	return nil
+WHERE from_work = ?1 OR to_work = ?1;`, fil)
+	return err
 }
 
 // MentionsOf returns the mentions in a paper, in reading order.
