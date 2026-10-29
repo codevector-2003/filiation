@@ -27,6 +27,17 @@ func TestListAndIdentity(t *testing.T) {
 		}
 	}
 
+	// Titles match Unicode-aware, accents or not (found in review, PR #12).
+	mustExec(t, db.write, `UPDATE work SET title = 'Étude des accès ouverts' WHERE fil_id = 'F00000003';`)
+	for _, q := range []string{"étude", "ÉTUDE", "etude acces"} {
+		if got, _ := db.List(ctx, ListQuery{Title: q}); len(got) != 1 || got[0].FilID != "F00000003" {
+			t.Errorf("List(title %q) = %+v", q, got)
+		}
+	}
+	if got, _ := db.List(ctx, ListQuery{Title: "open", Limit: 1}); len(got) != 1 {
+		t.Errorf("a title filter with a limit = %d rows", len(got))
+	}
+
 	// The identity flag follows the file when it moves, and is cleared when
 	// its bytes change.
 	path := "papers/a--F00000001/published.pdf"

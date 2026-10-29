@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"unicode"
+
+	"golang.org/x/text/unicode/norm"
 )
 
 // ListQuery filters and orders a listing of the library.
@@ -51,12 +54,15 @@ func (db *DB) List(ctx context.Context, q ListQuery) ([]ListRow, error) {
 		where = append(where, "EXISTS (SELECT 1 FROM collection_work cw JOIN collection c ON c.id = cw.collection_id WHERE cw.work_id = w.fil_id AND c.name = ?)")
 		args = append(args, q.Collection)
 	}
-	for _, word := range strings.Fields(q.Title) {
-		where = append(where, "lower(ifnull(w.title, '')) LIKE ?")
-		args = append(args, "%"+strings.ToLower(word)+"%")
+	// Title words are matched here in Go, not with SQL's lower() and LIKE,
+	// which fold only ASCII: "étude" must find "Étude", and "etude" too
+	// (found in review, PR #12). The limit then applies after the match.
+	words := strings.Fields(foldTitle(q.Title))
+	if len(words) > 0 {
+		where = append(where, "w.title IS NOT NULL")
 	}
 	limit := ""
-	if q.Limit > 0 {
+	if q.Limit > 0 && len(words) == 0 {
 		limit = fmt.Sprintf(" LIMIT %d", q.Limit)
 	}
 	rows, err := db.read.QueryContext(ctx, `
@@ -83,9 +89,35 @@ ORDER BY w.is_seed DESC, cited_by DESC, w.rowid`+limit+`;`, args...)
 			&r.CitedBy, &r.HasPDF, &r.TextStatus, &r.Contexts, &r.Mismatch); err != nil {
 			return nil, fmt.Errorf("store: list the library: %w", err)
 		}
+		if !hasAll(foldTitle(r.Title), words) {
+			continue
+		}
 		out = append(out, r)
+		if q.Limit > 0 && len(out) == q.Limit {
+			break
+		}
 	}
 	return out, rows.Err()
+}
+
+// foldTitle lower-cases a title and drops its accents, Unicode-aware.
+func foldTitle(s string) string {
+	var b strings.Builder
+	for _, r := range norm.NFD.String(s) {
+		if !unicode.Is(unicode.Mn, r) {
+			b.WriteRune(unicode.ToLower(r))
+		}
+	}
+	return b.String()
+}
+
+func hasAll(s string, words []string) bool {
+	for _, w := range words {
+		if !strings.Contains(s, w) {
+			return false
+		}
+	}
+	return true
 }
 
 // WithoutText lists the papers whose PDF gave no searchable text, with the
