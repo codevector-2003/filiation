@@ -223,3 +223,48 @@ func TestExtractNeedsAFolder(t *testing.T) {
 		t.Errorf("ExtractText on a database-only library: %v", err)
 	}
 }
+
+// M3 step 9, done when: a paper's citations carry the sentence they are made
+// in. The seed, read, cites two of its references author–year: both edges
+// get their sentence. Reading first gave the stubs their details — title,
+// year, first author — without recording their own references.
+func TestReadingAttachesCitationContext(t *testing.T) {
+	t.Parallel()
+	l, _, works := openFetchTest(t)
+	ctx := t.Context()
+	before, _ := l.Stats(ctx)
+	putPDF(t, l, works["seed"].FilID, "oa.pdf", pdftest.Make(
+		"Introduction\n"+
+			"Open access journals grew steadily for two decades (Laakso et al., 2011).\n"+
+			"Pirated copies are downloaded everywhere, rich countries included (Bohannon, 2016).\n"+
+			"Some claims stand alone without any citation at all, which is common.\n"+
+			"The open access citation advantage is debated (Smith et al., 1999), but not here."))
+
+	if _, err := l.ExtractText(ctx, ExtractOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	contexts, err := l.CitationContexts(ctx, works["seed"].FilID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var found []string
+	for _, ms := range contexts {
+		for _, m := range ms {
+			found = append(found, m.Sentence)
+			if m.Page != 1 || m.Method != "author-year" || m.Section != "introduction" {
+				t.Errorf("mention = %+v", m)
+			}
+		}
+	}
+	if len(contexts) != 2 || !strings.Contains(strings.Join(found, " "), "Pirated copies are downloaded everywhere") {
+		t.Errorf("contexts = %+v; want Laakso 2011 and Bohannon 2016, and nothing for Smith 1999, which the seed does not cite", contexts)
+	}
+	c, _ := l.ContextCounts(ctx)
+	if c.WithContext != 2 || c.Mentions != 2 {
+		t.Errorf("ContextCounts = %+v", c)
+	}
+	after, _ := l.Stats(ctx)
+	if after.Works != before.Works || after.Edges != before.Edges {
+		t.Errorf("reading grew the graph: %+v → %+v", before, after)
+	}
+}

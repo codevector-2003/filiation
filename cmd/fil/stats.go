@@ -99,6 +99,11 @@ func (a *app) stats(ctx context.Context, listDuplicates bool) error {
 			if c, err := lib.TextCounts(ctx); err == nil {
 				printTextCounts(w, c)
 			}
+			if c, err := lib.ContextCounts(ctx); err == nil && c.Citations > 0 {
+				fmt.Fprintf(w, "Context:    %s of %s made by papers with text carry the sentence they are in\n"+
+					"            (%s) — fil neighbours <paper> --context shows them\n",
+					thousands(c.WithContext), plural(c.Citations, "citation", "citations"), plural(c.Mentions, "mention", "mentions"))
+			}
 			if n, err := lib.InboxWaiting(); err == nil && n > 0 {
 				fmt.Fprintf(w, "Inbox:      %s waiting — fil import files them; Inbox/%s says why\n",
 					plural(n, "PDF", "PDFs"), blobs.ReportName)

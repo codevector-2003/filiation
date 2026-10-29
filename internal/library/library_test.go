@@ -32,6 +32,9 @@ type replay struct {
 	mu     sync.Mutex
 	routes map[string]string // key -> fixture file, "404", or a literal JSON body
 	calls  []string
+	// details answers the reference-details lookups reading makes, when
+	// they were not recorded (detailsAnswer).
+	details bool
 }
 
 func (r *replay) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -45,6 +48,12 @@ func (r *replay) RoundTrip(req *http.Request) (*http.Response, error) {
 	r.mu.Unlock()
 
 	status, body := 200, ""
+	if !ok && r.details {
+		if st, b, found := detailsAnswer(key); found {
+			return &http.Response{StatusCode: st, Header: http.Header{},
+				Body: io.NopCloser(strings.NewReader(b)), Request: req}, nil
+		}
+	}
 	switch {
 	case !ok:
 		r.t.Errorf("unexpected request %s", key)

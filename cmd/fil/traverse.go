@@ -1,10 +1,12 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -22,13 +24,16 @@ func (c exitCode) Error() string { return fmt.Sprintf("exit %d", int(c)) }
 
 func (a *app) neighboursCommand() *cobra.Command {
 	var limit int
+	var withContext bool
 	cmd := &cobra.Command{
 		Use:     "neighbours <paper>",
 		Aliases: []string{"neighbors"},
 		Short:   "Show what a paper cites and what in your library cites it",
 		Long: "Show a paper's references and the papers in your library that cite it.\n\n" +
 			"The paper must already be in your library; name it by DOI, arXiv ID, PMID,\n" +
-			"OpenAlex ID, link or title. \"Cited by\" counts only papers in your library.",
+			"OpenAlex ID, link or title. \"Cited by\" counts only papers in your library.\n\n" +
+			"With --context, each reference shows the sentence the paper cites it in, with\n" +
+			"its page, when fil has read the paper's PDF and found the citation.",
 		Example: "  fil neighbours 10.7717/peerj.4375\n  fil neighbours The state of OA --limit 0",
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
@@ -37,10 +42,11 @@ func (a *app) neighboursCommand() *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return a.neighbours(cmd.Context(), strings.Join(args, " "), limit)
+			return a.neighbours(cmd.Context(), strings.Join(args, " "), limit, withContext)
 		},
 	}
 	cmd.Flags().IntVar(&limit, "limit", 15, "most works to list on each side; 0 lists all")
+	cmd.Flags().BoolVar(&withContext, "context", false, "show the sentence each reference is cited in")
 	return cmd
 }
 
@@ -86,7 +92,7 @@ func (a *app) openExisting(ctx context.Context) (*library.Library, error) {
 	return library.Open(ctx, cfg, a.libOptions())
 }
 
-func (a *app) neighbours(ctx context.Context, input string, limit int) error {
+func (a *app) neighbours(ctx context.Context, input string, limit int, withContext bool) error {
 	lib, err := a.openExisting(ctx)
 	if err != nil {
 		return err
@@ -117,9 +123,17 @@ func (a *app) neighbours(ctx context.Context, input string, limit int) error {
 	case len(n.Cites) == 0:
 		fmt.Fprintln(w, "References: none in OpenAlex, so the graph cannot grow from here.")
 	default:
-		fmt.Fprintf(w, "Cites %s — %s fetched, %s known only by ID:\n",
+		fmt.Fprintf(w, "Cites %s — %s fetched, %s not fetched yet:\n",
 			plural(len(n.Cites), "work", "works"), thousands(fetched), thousands(len(n.Cites)-fetched))
-		listWorks(w, n.Cites, limit)
+		if withContext {
+			contexts, err := lib.CitationContexts(ctx, n.Work.FilID)
+			if err != nil {
+				return err
+			}
+			listWithContext(w, n.Cites, contexts, limit)
+		} else {
+			listWorks(w, n.Cites, limit)
+		}
 	}
 	fmt.Fprintln(w)
 	if len(n.CitedBy) == 0 {
@@ -129,6 +143,48 @@ func (a *app) neighbours(ctx context.Context, input string, limit int) error {
 		listWorks(w, n.CitedBy, limit)
 	}
 	return nil
+}
+
+// listWithContext lists references, each with up to two sentences it is
+// cited in; those cited in a sentence fil found come first.
+func listWithContext(w io.Writer, works []model.Work, contexts map[string][]library.Mention, limit int) {
+	sorted := slices.Clone(works)
+	slices.SortStableFunc(sorted, func(a, b model.Work) int {
+		return cmp.Compare(len(contexts[b.FilID]), len(contexts[a.FilID]))
+	})
+	found := 0
+	for _, wk := range works {
+		if len(contexts[wk.FilID]) > 0 {
+			found++
+		}
+	}
+	shown := sorted
+	if limit > 0 && len(sorted) > limit {
+		shown = sorted[:limit]
+	}
+	for _, wk := range shown {
+		fmt.Fprintf(w, "  • %s  %s\n", headline(wk), workIDs(wk))
+		for i, m := range contexts[wk.FilID] {
+			if i == 2 {
+				fmt.Fprintf(w, "      … and %d more\n", len(contexts[wk.FilID])-2)
+				break
+			}
+			where := fmt.Sprintf("p. %d", m.Page)
+			if m.Section != "" {
+				where += ", " + m.Section
+			}
+			writeWrapped(w, "      ", where+": “"+m.Sentence+"”", 78)
+		}
+	}
+	if len(shown) < len(sorted) {
+		fmt.Fprintf(w, "  … and %s more — pass --limit 0 to list all.\n", thousands(len(sorted)-len(shown)))
+	}
+	if found == 0 {
+		fmt.Fprintln(w, "  No citation sentences: fil has not read this paper's PDF, or found none of its\n"+
+			"  citations in it. fil fetch downloads and reads it; fil extract reads one you added.")
+	} else {
+		fmt.Fprintf(w, "  Sentences found for %s of %s.\n", thousands(found), plural(len(works), "reference", "references"))
+	}
 }
 
 func listWorks(w io.Writer, works []model.Work, limit int) {

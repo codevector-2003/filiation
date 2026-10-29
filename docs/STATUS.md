@@ -577,7 +577,7 @@ reworded), D18 (the library is a folder the user chooses; `papers/` with readabl
 | 6 | Downloading, `fil fetch` | **Done** — 24 Oct; the seed's own PDF arrives by import (step 8): no source has a PDF link for it |
 | 7 | `internal/text`, FTS5, `fil search` | **Done** — 28 Oct; the seed's own passage waits on its PDF (step 6) |
 | 8 | Import, `Inbox/`, local documents | **Done** — 29 Oct; live: 34 of 40 renamed PDFs filed, all correct, the other 6 with the right paper among the candidates |
-| 9 | Citation context | Not started |
+| 9 | Citation context | **Done** — 29 Oct; hand-checked: 50 of 50 mentions on a fresh sample tie to the right work |
 | 10 | `fil list`, `fil show`, full text in `fil stats`; MCP `search_library` and a fetch tool | Not started |
 | 11 | Validation run, docs, tag **v0.3** | Not started |
 
@@ -670,6 +670,51 @@ folder can be created, moved by hand and found again — is met in tests and was
 - **Found on the way:** the CLI test harness had no Documents override, so one test run created an
   empty library folder under the real Documents. It was removed at once; the harness now passes
   its own, and every test that loads settings does too.
+
+**Step 9 — citation context (ADR-015).** Every place a paper cites one of its references, found
+in its PDF while it is read, with the sentence: `mention` rows, and `cites.context` set to the
+first. Nothing read from a PDF creates, removes or redirects an edge — a mention for a work the
+paper does not cite in OpenAlex's list is refused by the store.
+
+- **Two routes** (`text.Contexts`). *Author–year* markers — "(Piwowar et al., 2018)", "Hajjem and
+  Harnad (2006)", "(Laakso & Björk, 2011; Sutton 2011)" — name the work, and are matched to the
+  references directly by first author and year, with no need for the reference list; two
+  references sharing both are never told apart. *Numeric* markers — `[12]`, `[3–5]`, `[1, 4, 7]`
+  — go through the numbered list: found after the last references heading, or, in physics layouts
+  with none, by entries numbered from 1 anywhere in the paper; split by their running numbers; each
+  entry matched by DOI, or by 70% of its title's words confirmed by year or surname, or — physics
+  styles print no titles — by the first author's surname at the entry's start plus the year, when
+  exactly one reference has both. A bare `(12)` counts only in a paper that never uses brackets.
+- **The sentence** runs back to the previous sentence end and on to its own, ignoring "et al.",
+  "Fig.", "Ref." and initials, stopping at a heading; capped at 600 characters round the marker.
+  The section is the heading above it.
+- **Details, not hydration, for cited stubs** (D23): reading first fetches title, year and authors
+  of the stubs the papers cite (`graph.DetailIDs`, one request per 100) without recording their
+  own references, so the graph does not grow and they stay on the frontier. A paper with a PDF
+  that is still a stub is hydrated first — it had no reference list at all.
+- **Schema v8, `mention`**; `ExtractorVersion` is `pdfium/2`, so libraries read before are read
+  once more. `fil neighbours <paper> --context` shows each reference's sentences with their page;
+  `fil stats` counts how many citations carry one.
+- **Live, on the 42 papers of the step 7 library still on disk** (the rest had been deleted from
+  the scratch folder by the system's temp cleaner — not by fil; all marked missing). First pass:
+  75 citations with a sentence. Three causes found and fixed: 34 papers downloaded as stubs had no
+  reference list (now hydrated before reading); physics reference lists print no titles (now
+  matched by surname and year); a Reviews of Modern Physics text layer had lost its parentheses,
+  and a collaboration paper's list sat before 1,000 author names (citation context and the list
+  search now cope). **1,208 mentions; 693 of 1,645 references (42%) carry a sentence — 63% in the 21
+  papers where any marker was found.**
+- **The hand check, the done-when.** 50 random mentions read against the cited work and, for
+  numeric ones, the list entry: **46 of 50 right** on the first sample. The four wrong ones each
+  had a cause, now fixed and kept as tests — a second author taken for the first ("Cornish and
+  Littenberg 2015"), an initial for a surname ("C."), one of several Abbott 2016 papers chosen by
+  luck, two columns interleaving entries ("9. 16. Peres"). **A fresh sample after the fixes: 50 of
+  50 right.** The sentence itself is clean in about 43 of 50; the rest carry layout debris — a
+  "PACS numbers:" line, a page number, formula fragments — around a correct citation.
+- **Superscripts, measured, not built** (the plan's choice): 14 of the 41 papers with references
+  cite only by superscript numbers ("tunnel junction,¹"), holding 377 of the 1,645 references
+  (23%). Worth building next: the text layer shows them as digits glued to the word before, and
+  their lists ("1 B. D. Josephson, …") need one more entry pattern. The sample was mostly physics,
+  because the temp cleaner left mostly physics PDFs; a mixed-field check belongs in step 11.
 
 **Step 8 — importing PDFs the researcher already has (ADR-014).** A PDF dropped into `Inbox/`,
 left loose in `papers/`, or named with `fil import <file>` is identified, checked and filed.

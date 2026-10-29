@@ -97,7 +97,7 @@ folders however you like; fil finds them again, and each folder you make becomes
 | --- | --- |
 | `fil add <paper>` | Add a paper, plus a record for everything it cites. Takes a DOI, arXiv ID, PMID, OpenAlex ID, a link to any of those, or a title. A title can match several papers, so fil lists them and asks; `--accept-first` is for scripts. |
 | `fil expand` | Fetch the works your library cites but doesn't have yet, most-cited first. `--max-nodes` (default 500) and `--max-depth` (default 3) bound the run. |
-| `fil neighbours <paper>` | What a paper cites, and what in your library cites it. |
+| `fil neighbours <paper>` | What a paper cites, and what in your library cites it. `--context` shows the sentence each reference is cited in, with its page, once fil has read the paper's PDF. |
 | `fil path <a> <b>` | The shortest chain of references from one paper to another. `--any-direction` allows citations either way. |
 | `fil stats` | The library at a glance, including reference coverage. `--duplicates` lists works that share a title. |
 | `fil export graphml` | The graph as GraphML for Gephi, Cytoscape, yEd, NetworkX or igraph. `--include-stubs` adds works known so far only by ID. |

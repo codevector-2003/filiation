@@ -13,6 +13,9 @@ type Result struct {
 	Pages  int
 	Chars  int     // visible characters, all pages
 	Chunks []Chunk // only when Status is ok: gibberish would pollute search
+	// Text is the cleaned pages, when Status is ok: what citation context is
+	// found in (Contexts), while the PDF is read.
+	Text []string
 }
 
 // Read extracts, cleans, judges and chunks one PDF.
@@ -45,6 +48,7 @@ func Read(ctx context.Context, ex Extractor, pdf []byte) (Result, error) {
 	res := Result{Verdict: Judge(pages), Pages: len(pages), Chars: chars}
 	if res.Status == StatusOK {
 		res.Chunks = Chunks(pages)
+		res.Text = pages
 	}
 	return res, nil
 }

@@ -23,7 +23,7 @@ func openImportTest(t *testing.T, routes map[string]string) (*Library, *replay) 
 	if err := cfg.UseFolder(filepath.Join(dir, "Lib")); err != nil {
 		t.Fatal(err)
 	}
-	r := &replay{t: t, routes: routes}
+	r := &replay{t: t, routes: routes, details: true}
 	l, err := Open(t.Context(), cfg, Options{CacheDir: filepath.Join(dir, "cache"), Transport: r})
 	if err != nil {
 		t.Fatal(err)

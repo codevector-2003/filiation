@@ -229,6 +229,9 @@ func (tx *Tx) MergeInto(ctx context.Context, oldID, newID string) error {
 		// Its text too, unless the survivor has its own: a paper's text is one
 		// reading of one PDF, never two mixed.
 		`DELETE FROM chunk WHERE work_id = ?2 AND EXISTS (SELECT 1 FROM work_text WHERE fil_id = ?1);`,
+		`DELETE FROM mention WHERE from_work = ?2 AND EXISTS (SELECT 1 FROM work_text WHERE fil_id = ?1);`,
+		`UPDATE mention SET from_work = ?1 WHERE from_work = ?2;`,
+		`UPDATE mention SET to_work = ?1 WHERE to_work = ?2;`,
 		`DELETE FROM work_text WHERE fil_id = ?2 AND EXISTS (SELECT 1 FROM work_text WHERE fil_id = ?1);`,
 		`UPDATE chunk SET work_id = ?1 WHERE work_id = ?2;`,
 		`UPDATE work_text SET fil_id = ?1 WHERE fil_id = ?2;`,
