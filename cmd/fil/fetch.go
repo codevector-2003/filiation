@@ -233,7 +233,7 @@ func (a *app) fetch(ctx context.Context, max int) error {
 				plural(failed, "paper", "papers"), reasons(res.Outcomes))
 		}
 	}
-	if res.Read.Total > 0 {
+	if res.Read.Total > 0 || res.Read.Imported.Counts[library.ImportImported] > 0 {
 		a.printRead(res.Read)
 	}
 	ctx = context.WithoutCancel(ctx)

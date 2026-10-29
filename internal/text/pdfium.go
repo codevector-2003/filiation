@@ -112,21 +112,34 @@ func initPool(cache wazero.CompilationCache) (pdfium.Pool, error) {
 // Extract returns the text of each page. When ctx ends — a time limit, or
 // the user cancelling — the extraction is stopped, not just abandoned, and
 // ctx's error is returned. A PDF PDFium cannot open is ErrUnreadable.
-func (p *PDFium) Extract(ctx context.Context, pdf []byte) (pages []string, err error) {
-	if err := p.start(); err != nil {
+func (p *PDFium) Extract(ctx context.Context, pdf []byte) ([]string, error) {
+	var pages []string
+	err := p.run(ctx, func(inst pdfium.Pdfium) (err error) {
+		pages, err = extractPages(inst, pdf)
+		return err
+	})
+	if err != nil {
 		return nil, err
+	}
+	return pages, nil
+}
+
+// run calls fn with an instance of its own, and ends the instance after.
+func (p *PDFium) run(ctx context.Context, fn func(pdfium.Pdfium) error) (err error) {
+	if err := p.start(); err != nil {
+		return err
 	}
 	inst, err := p.pool.GetInstanceWithContext(ctx)
 	if err != nil {
 		if ctx.Err() != nil {
-			return nil, ctx.Err()
+			return ctx.Err()
 		}
-		return nil, fmt.Errorf("text: PDFium instance: %w", err)
+		return fmt.Errorf("text: PDFium instance: %w", err)
 	}
 
 	// Exactly one of the two ends the instance: killed when ctx ends first,
-	// closed when the extraction does. Killed means already gone, and
-	// closing it as well would race Kill's own teardown.
+	// closed when the work does. Killed means already gone, and closing it
+	// as well would race Kill's own teardown.
 	var end sync.Once
 	done := make(chan struct{})
 	go func() {
@@ -142,14 +155,13 @@ func (p *PDFium) Extract(ctx context.Context, pdf []byte) (pages []string, err e
 		// A killed instance can fail or panic in the call it was in. Either
 		// way, what happened is that ctx ended.
 		if r := recover(); r != nil {
-			pages, err = nil, fmt.Errorf("text: PDFium: %v", r)
+			err = fmt.Errorf("text: PDFium: %v", r)
 		}
 		if ctx.Err() != nil {
-			pages, err = nil, ctx.Err()
+			err = ctx.Err()
 		}
 	}()
-
-	return extractPages(inst, pdf)
+	return fn(inst)
 }
 
 func extractPages(inst pdfium.Pdfium, pdf []byte) ([]string, error) {

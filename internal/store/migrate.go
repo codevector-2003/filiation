@@ -24,7 +24,8 @@ import (
 //	4  M3: work_pdf and work_location — open-access PDF links (ADR-013)
 //	5  M3: download_attempt — every download, and why it failed (ADR-013)
 //	6  M3: work_text, and chunk offsets — the text of each PDF, or why there is none
-const SchemaVersion = 6
+//	7  M3: import_attempt — what importing each of the user's PDFs gave (ADR-014)
+const SchemaVersion = 7
 
 // upgrades[v] moves a library from schema v to v+1. Each runs inside
 // Migrate's one transaction, after the ones before it, so a library several
@@ -35,6 +36,7 @@ var upgrades = map[int]func(ctx context.Context, db *DB, tx *sql.Tx) error{
 	3: upgradeV3ToV4,
 	4: upgradeV4ToV5,
 	5: upgradeV5ToV6,
+	6: upgradeV6ToV7,
 }
 
 // upgradeV2ToV3 adds the tables for the papers/ folder, upgradeV3ToV4 those
@@ -46,6 +48,9 @@ func upgradeV2ToV3(ctx context.Context, _ *DB, tx *sql.Tx) error { return addTab
 func upgradeV3ToV4(ctx context.Context, _ *DB, tx *sql.Tx) error { return addTables(ctx, tx, 4) }
 
 func upgradeV4ToV5(ctx context.Context, _ *DB, tx *sql.Tx) error { return addTables(ctx, tx, 5) }
+
+// upgradeV6ToV7 adds import_attempt, a new table.
+func upgradeV6ToV7(ctx context.Context, _ *DB, tx *sql.Tx) error { return addTables(ctx, tx, 7) }
 
 // upgradeV5ToV6 gives chunk its offsets — the one change so far to a table
 // that already exists, which CREATE ... IF NOT EXISTS would pass over — then

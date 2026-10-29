@@ -576,7 +576,7 @@ reworded), D18 (the library is a folder the user chooses; `papers/` with readabl
 | 5 | Legal PDF links: OpenAlex locations, Unpaywall if spike 9 justifies it | **Done** — 24 Oct (OpenAlex); Unpaywall not built (D21) |
 | 6 | Downloading, `fil fetch` | **Done** — 24 Oct; the seed's own PDF arrives by import (step 8): no source has a PDF link for it |
 | 7 | `internal/text`, FTS5, `fil search` | **Done** — 28 Oct; the seed's own passage waits on its PDF (step 6) |
-| 8 | Import, `Inbox/`, local documents | Not started |
+| 8 | Import, `Inbox/`, local documents | **Done** — 29 Oct; live: 34 of 40 renamed PDFs filed, all correct, the other 6 with the right paper among the candidates |
 | 9 | Citation context | Not started |
 | 10 | `fil list`, `fil show`, full text in `fil stats`; MCP `search_library` and a fetch tool | Not started |
 | 11 | Validation run, docs, tag **v0.3** | Not started |
@@ -670,6 +670,52 @@ folder can be created, moved by hand and found again — is met in tests and was
 - **Found on the way:** the CLI test harness had no Documents override, so one test run created an
   empty library folder under the real Documents. It was removed at once; the harness now passes
   its own, and every test that loads settings does too.
+
+**Step 8 — importing PDFs the researcher already has (ADR-014).** A PDF dropped into `Inbox/`,
+left loose in `papers/`, or named with `fil import <file>` is identified, checked and filed.
+
+- **Clues, free and local** (`text.Front`, `text.Clues`): the first two pages' text, the largest
+  type on page 1 (its title, usually), and the PDF's metadata. Identifiers are tried in order of
+  how telling they are: the arXiv stamp, an arXiv download's file name, a DOI labelled in page 1's
+  header or footer, the metadata, a labelled DOI elsewhere on page 1, a PMID, any DOI. A DOI broken
+  across lines is joined; Springer's invisible `(0123456789().,-volV)` after its DOIs and a bracket
+  set around one are cut off, while a DOI's own parentheses — The Lancet's `(20)` — are kept.
+- **Nothing is trusted until it checks out.** An identifier resolves with one free OpenAlex lookup,
+  and the work's title and first author's surname must be in the PDF (`text.Mentions`). For an
+  identifier found in the PDF itself a close match will do (`text.Resembles`): at least 60% of the
+  title's words in page 1's top lines, and the surname as a word — a preprint's title is often not
+  the published one ("2D" for "two-dimensional"). A title search's candidates get the exact check
+  only, and never file anything on their own (ADR-005); `--accept-first` takes the best only if it
+  checks out. Title searches cost 10 credits, at most 20 a run.
+- **Where files go:** from `Inbox/` into the paper's folder, under its own name; one in `papers/`
+  stays where the researcher put it; one from elsewhere is copied, the original untouched. The same
+  bytes twice are reported, not stored; an annotated second copy is kept beside the first. An
+  imported paper is a seed with `source = upload`; one OpenAlex does not know becomes a **local
+  document** (`--local`): a fil ID, its text searchable, no citations.
+- **Schema v7, `import_attempt`:** each file's outcome by hash, so `fil fetch` and `fil extract` —
+  which file whatever in `Inbox/` identifies itself for free, before reading — do not ask about an
+  unchanged file again. `Inbox/fil-report.txt` says why each PDF still there is waiting, for a
+  researcher who only looks at the folder. `fil import` asks at a terminal (`1`–`n`, `l` for a
+  local document); in a script it prints the `--as` command for each candidate. `fil stats` counts
+  what is waiting.
+- **Live, 40 PDFs from step 7's library renamed `paper-00.pdf`… into an empty library:** first
+  run, 26 filed, all correct, 14 waiting. Two causes found and fixed — a surname read with its
+  affiliation mark ("Alicea1"), and published titles that differ from the preprint's — then an
+  author line set in the title's size running on into the title query, and kerning that breaks a
+  word ("d evices") sinking a title search (now cut at the author list, and retried once on the
+  first six words). **Final: 34 of 40 filed automatically, every one correct; the other 6 all have
+  the right paper among their candidates, first for 5 of them.** 21 s; 9 title searches.
+- **Found on the way: a downloaded PDF can be a different edition from its record.** The one
+  "wrong" answer in the first run was right: the file was the 2020 edition of a Living Review,
+  which step 6 had saved under the 2016 record because that record's link serves the newest
+  edition. `fil fetch` never checked a download against its paper; the same title-and-author check
+  could, cheaply — noted for step 10.
+- **Found on the way:** dropping the seed's own PDF in needs the PDF, and PeerJ and Europe PMC
+  both answer scripts with a bot wall (403), as spike 9 measured — so the researcher downloads it in
+  a browser.
+- **A bug the tests caught:** a surname looked for inside the text with spaces removed let "Ma" —
+  first author of a different "Attention is all you need…" paper — match "parmar" and "models".
+  Surnames are now matched as whole words.
 
 **Step 7 — text and `fil search` (ADR-009, D20).** Every PDF in `papers/` is read with PDFium
 in WebAssembly, cleaned, checked, cut into passages and indexed with FTS5.

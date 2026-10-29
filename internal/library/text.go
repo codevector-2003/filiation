@@ -55,6 +55,10 @@ type Extracted struct {
 	Passages int
 	Duration time.Duration
 	Papers   []ExtractedPaper
+
+	// Imported is what was filed from Inbox/ first: PDFs dropped there that
+	// identify themselves (ADR-014).
+	Imported Imported
 }
 
 // ExtractedPaper is what reading one paper's PDF gave.
@@ -87,11 +91,17 @@ func (l *Library) ExtractText(ctx context.Context, opts ExtractOptions) (Extract
 }
 
 func (l *Library) extractAll(ctx context.Context, opts ExtractOptions) (Extracted, error) {
+	imported, err := l.importInbox(ctx)
+	if err != nil {
+		return Extracted{Counts: map[string]int{}, Imported: imported}, err
+	}
 	todo, err := l.db.PDFsToRead(ctx, text.ExtractorVersion, opts.Again)
 	if err != nil {
-		return Extracted{Counts: map[string]int{}}, err
+		return Extracted{Counts: map[string]int{}, Imported: imported}, err
 	}
-	return l.extract(ctx, todo, opts.Progress)
+	res, err := l.extract(ctx, todo, opts.Progress)
+	res.Imported = imported
+	return res, err
 }
 
 // ExtractOne reads the text of the paper input names. Naming a paper is
