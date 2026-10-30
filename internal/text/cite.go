@@ -19,6 +19,7 @@ type Ref struct {
 	Year    int
 	DOI     string
 	Surname string // first author's
+	Authors int    // how many authors; 0 when not known
 }
 
 // Mention is one place the paper cites one of its references: the sentence,
@@ -146,7 +147,8 @@ func Contexts(pages []string, refs []Ref) []Mention {
 		re := authorYear(r.Surname, r.Year)
 		for p := 1; p <= len(pages); p++ {
 			for _, loc := range re.FindAllStringIndex(pages[p-1], -1) {
-				if body(p, loc[0]) && citingContext(pages[p-1], loc[0], loc[1]) && !secondAuthor(pages[p-1], loc[0]) {
+				if body(p, loc[0]) && citingContext(pages[p-1], loc[0], loc[1]) && !secondAuthor(pages[p-1], loc[0]) &&
+					!(r.Authors >= 3 && soloMarker(pages[p-1][loc[0]:loc[1]])) {
 					add(p, loc[0], loc[1], pages[p-1][loc[0]:loc[1]], MethodAuthorYear, confAuthorYear, i)
 				}
 			}
@@ -223,6 +225,14 @@ func citingContext(page string, at, end int) bool {
 	}
 	next, _ := utf8.DecodeRuneInString(strings.TrimLeft(page[end:], " \n"))
 	return next == ';' || next == ',' || next == ')'
+}
+
+// soloMarker reports a marker naming one author alone: "Sachs (1995b". It
+// does not cite a paper of three authors or more, which is "Sachs et al." —
+// it cites the same author's own paper of that year, one OpenAlex did not
+// resolve, so the year looked unique (found in the M3 validation run).
+func soloMarker(m string) bool {
+	return !strings.Contains(m, "et al") && !strings.Contains(m, "&") && !strings.Contains(m, " and ")
 }
 
 // secondAuthor reports a surname that follows "and" or "&": "Cornish and
@@ -515,7 +525,7 @@ func isHeadingLine(page string, nl int) bool {
 var abbreviation = map[string]bool{
 	"al": true, "fig": true, "figs": true, "eq": true, "eqs": true, "ref": true, "refs": true,
 	"e.g": true, "i.e": true, "cf": true, "vs": true, "sec": true, "no": true, "vol": true,
-	"pp": true, "ed": true, "eds": true, "approx": true, "dr": true, "mr": true, "ms": true,
+	"p": true, "pp": true, "ch": true, "ed": true, "eds": true, "approx": true, "dr": true, "mr": true, "ms": true,
 }
 
 func wordStart(page string, i int) int {

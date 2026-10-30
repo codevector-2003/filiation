@@ -316,8 +316,10 @@ type Candidate struct {
 // seed a person typed and would not be for anything in a loop.
 func (c *Client) SearchByTitle(ctx context.Context, title string, limit int) ([]Candidate, error) {
 	// Commas separate filters and pipes mean OR, so neither may reach the
-	// filter value. Neither carries meaning in a title search.
-	q := strings.Join(strings.Fields(strings.NewReplacer(",", " ", "|", " ").Replace(title)), " ")
+	// filter value. * and ? are wildcards, which title.search refuses with a
+	// 400 — and a title ending in a question is common, as is a footnote
+	// mark read off a PDF ("Problems*"). None carries meaning in a title search.
+	q := strings.Join(strings.Fields(strings.NewReplacer(",", " ", "|", " ", "*", " ", "?", " ").Replace(title)), " ")
 	if q == "" {
 		return nil, fmt.Errorf("openalex: search: empty title: %w", errs.ErrInvalidInput)
 	}

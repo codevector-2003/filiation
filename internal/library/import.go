@@ -9,12 +9,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/codevector-2003/filiation/internal/blobs"
 	"github.com/codevector-2003/filiation/internal/errs"
+	"github.com/codevector-2003/filiation/internal/httpx"
 	"github.com/codevector-2003/filiation/internal/identity"
 	"github.com/codevector-2003/filiation/internal/model"
 	"github.com/codevector-2003/filiation/internal/store"
@@ -287,16 +289,27 @@ func (l *Library) importFile(ctx context.Context, file string, opts ImportOption
 				found, err = l.graph.SearchTitle(ctx, query, 5)
 			}
 		}
-		if err != nil {
-			if ctx.Err() != nil {
-				return out, spent, ctx.Err()
-			}
+		switch {
+		case err != nil && ctx.Err() != nil:
+			return out, spent, ctx.Err()
+		case refused(err):
+			// OpenAlex refused this one query — something in the title read
+			// off the PDF. The file waits; the rest of the import goes on.
+			out.Outcome, out.Candidates = store.ImportUnidentified, unconfirmed
+			out.Reason = fmt.Sprintf("no identifier, and OpenAlex refused a search for the title %q — name it with fil import <file> --as <DOI>", query)
+			return out, spent, l.recordImport(ctx, attempt, out)
+		case err != nil:
 			return out, spent, err
 		}
 		var cands []ImportCandidate
+		named := map[string]bool{}
 		for _, c := range found {
 			cands = append(cands, ImportCandidate{Work: c.Work.Work, hydrated: c.Work, Verified: verifies(front, c.Work)})
+			named[c.Work.Work.OpenAlexID] = true
 		}
+		// A work the PDF's identifier named and the search found too is one
+		// candidate, not two.
+		unconfirmed = slices.DeleteFunc(unconfirmed, func(c ImportCandidate) bool { return named[c.Work.OpenAlexID] })
 		// Verified candidates first; OpenAlex's order otherwise.
 		sort.SliceStable(cands, func(i, j int) bool { return cands[i].Verified && !cands[j].Verified })
 		if opts.AcceptFirst && len(cands) > 0 && cands[0].Verified {
@@ -610,6 +623,15 @@ func (l *Library) displayPath(abs string) string {
 		return rel
 	}
 	return abs
+}
+
+// refused reports OpenAlex refusing one query as malformed — 400, 414 or 422
+// — which is about the title read off this PDF. Anything else, a 401 or 403
+// refusing access, a rate limit, the network or the service failing, is
+// about every request and stops the run.
+func refused(err error) bool {
+	var se *httpx.StatusError
+	return errors.As(err, &se) && (se.StatusCode == 400 || se.StatusCode == 414 || se.StatusCode == 422)
 }
 
 // verifies reports whether the PDF's first pages carry h's title and its

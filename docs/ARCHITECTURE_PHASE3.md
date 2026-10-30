@@ -2,7 +2,7 @@
 
 **Covers:** milestone M3 · ships as **v0.3**
 **Language:** Go — see D8 in `DECISIONS.md`
-**Status:** Agreed 27 Sept 2026 — decisions D17, D18 and D19
+**Status:** Agreed 27 Sept 2026 — decisions D17, D18 and D19 · **Built:** complete 30 Oct 2026, v0.3 (validation in `VALIDATION.md`)
 **Date:** 27 September 2026
 
 This document is the detailed design for M3, in the same shape as

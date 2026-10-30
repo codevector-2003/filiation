@@ -445,7 +445,7 @@ func TestSearchByTitleCleansTheQuery(t *testing.T) {
 	c, _ := newTest(t, map[string]route{
 		"/works?filter=title.search:Cats dogs and more": {status: 200, body: `{"results":[]}`},
 	})
-	got, err := c.SearchByTitle(t.Context(), "  Cats,  dogs | and\tmore ", 5)
+	got, err := c.SearchByTitle(t.Context(), "  Cats,  dogs* | and\tmore? ", 5)
 	if err != nil {
 		t.Fatalf("SearchByTitle: %v", err)
 	}
@@ -453,7 +453,7 @@ func TestSearchByTitleCleansTheQuery(t *testing.T) {
 		t.Errorf("candidates = %v, want an empty non-nil slice", got)
 	}
 
-	if _, err := c.SearchByTitle(t.Context(), " , | ", 5); !errors.Is(err, errs.ErrInvalidInput) {
+	if _, err := c.SearchByTitle(t.Context(), " , | * ? ", 5);!errors.Is(err, errs.ErrInvalidInput) {
 		t.Errorf("empty search error = %v, want ErrInvalidInput", err)
 	}
 }

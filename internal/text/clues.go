@@ -188,7 +188,7 @@ func Mentions(pages []string, title, surname string) bool {
 		return false
 	}
 	s := identity.TitleKey(fold(surname))
-	if s != "" && !hasWord(pages, s) {
+	if s != "" && !hasWord(pages, surname) {
 		return false
 	}
 	if strings.Contains(text, key) {
@@ -205,21 +205,42 @@ func Mentions(pages []string, title, surname string) bool {
 	return false
 }
 
-// hasWord reports whether key — a TitleKey — is one of the words of pages.
-// A surname is looked for as a word: "Ma" is in "parmar" and "models", and
-// matching inside words would let any paper by Ma pass.
+// hasWord reports whether surname is among the words of pages. A surname is
+// looked for as a word: "Ma" is in "parmar" and "models", and matching
+// inside words would let any paper by Ma pass.
 //
 // Words are runs of letters: an affiliation mark set against a name
-// ("Alicea1", "Foster∗") does not hide it.
-func hasWord(pages []string, key string) bool {
+// ("Alicea1", "Foster∗") does not hide it. A surname of several words —
+// "Aspuru-Guzik", "Martínez-Cantín" — must be there as those words in a
+// row, whatever joins them: a hyphen of another kind, or a line break.
+func hasWord(pages []string, surname string) bool {
+	var want []string
+	for _, w := range letterWords(surname) {
+		if k := identity.TitleKey(fold(w)); k != "" {
+			want = append(want, k)
+		}
+	}
+	if len(want) == 0 {
+		return false
+	}
 	for _, p := range pages {
-		for _, w := range letterWords(p) {
-			if identity.TitleKey(fold(w)) == key {
+		words := letterWords(p)
+		for i := 0; i+len(want) <= len(words); i++ {
+			if inRow(words[i:i+len(want)], want) {
 				return true
 			}
 		}
 	}
 	return false
+}
+
+func inRow(words, want []string) bool {
+	for j, k := range want {
+		if identity.TitleKey(fold(words[j])) != k {
+			return false
+		}
+	}
+	return true
 }
 
 func letterWords(s string) []string {
@@ -239,7 +260,7 @@ const headLines = 12
 // references, further down. A title search's candidates get Mentions only.
 func Resembles(pages []string, title, surname string) bool {
 	s := identity.TitleKey(fold(surname))
-	if len(pages) == 0 || s == "" || !hasWord(pages, s) {
+	if len(pages) == 0 || s == "" || !hasWord(pages, surname) {
 		return false
 	}
 	lines := strings.Split(pages[0], "\n")
