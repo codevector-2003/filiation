@@ -16,6 +16,7 @@ type CitedRef struct {
 	Year    int    // 0 when not known
 	DOI     string
 	Surname string // the first author's, "" when not known
+	Authors int    // how many authors, 0 when not known
 }
 
 // RefsOf returns the works ref cites, as OpenAlex gave them.
@@ -27,7 +28,8 @@ func (db *DB) RefsOf(ctx context.Context, ref string) ([]CitedRef, error) {
 	rows, err := db.read.QueryContext(ctx, `
 SELECT w.fil_id, ifnull(w.title, ''), ifnull(w.year, 0), ifnull(w.doi, ''),
        ifnull((SELECT a.name FROM authorship s JOIN author a ON a.openalex_id = s.author_id
-               WHERE s.work_id = w.fil_id ORDER BY s.position LIMIT 1), '')
+               WHERE s.work_id = w.fil_id ORDER BY s.position LIMIT 1), ''),
+       (SELECT count(*) FROM authorship s WHERE s.work_id = w.fil_id)
 FROM cites c JOIN work w ON w.fil_id = c.to_work
 WHERE c.from_work = ?
 ORDER BY c.rowid;`, fil)
@@ -39,7 +41,7 @@ ORDER BY c.rowid;`, fil)
 	for rows.Next() {
 		var r CitedRef
 		var name string
-		if err := rows.Scan(&r.FilID, &r.Title, &r.Year, &r.DOI, &name); err != nil {
+		if err := rows.Scan(&r.FilID, &r.Title, &r.Year, &r.DOI, &name, &r.Authors); err != nil {
 			return nil, fmt.Errorf("store: read references of %s: %w", ref, err)
 		}
 		if f := strings.Fields(name); len(f) > 0 {

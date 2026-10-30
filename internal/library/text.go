@@ -251,7 +251,7 @@ func (l *Library) readOne(ctx context.Context, job store.ToRead) (ExtractedPaper
 		}
 		tr := make([]text.Ref, len(refs))
 		for i, c := range refs {
-			tr[i] = text.Ref{ID: c.FilID, Title: c.Title, Year: c.Year, DOI: c.DOI, Surname: c.Surname}
+			tr[i] = text.Ref{ID: c.FilID, Title: c.Title, Year: c.Year, DOI: c.DOI, Surname: c.Surname, Authors: c.Authors}
 		}
 		for _, m := range text.Contexts(r.Text, tr) {
 			mentions = append(mentions, store.Mention{ToWork: m.Ref, Page: m.Page, Start: m.Start, End: m.End,

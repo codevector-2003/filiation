@@ -131,6 +131,28 @@ func TestResembles(t *testing.T) {
 	}
 }
 
+// Found in the M3 validation run: a surname of two words was looked for as
+// one, so every paper by Aspuru-Guzik or Martínez-Cantín failed the check.
+func TestMentionsASurnameOfSeveralWords(t *testing.T) {
+	page := "Simulated Quantum Computation of Molecular Energies\nAlán Aspuru-Guzik*a, Anthony D. Dutoi*a and Peter J. Love\n" +
+		"Department of Chemistry, University of California, Berkeley"
+	tests := []struct {
+		name, surname string
+		want          bool
+	}{
+		{"OpenAlex's own hyphen, U+2010, against the PDF's", "Aspuru‐Guzik", true},
+		{"accents OpenAlex has and the PDF lacks", "Aspurú-Guzík", true},
+		{"half of the name alone", "Guzik", true},
+		{"both halves, but not in a row", "Aspuru-Love", false},
+		{"the halves the other way round", "Guzik-Aspuru", false},
+	}
+	for _, tt := range tests {
+		if got := Mentions([]string{page}, "Simulated Quantum Computation of Molecular Energies", tt.surname); got != tt.want {
+			t.Errorf("%s: Mentions = %v, want %v", tt.name, got, tt.want)
+		}
+	}
+}
+
 func TestFrontReadsTitleAndInfo(t *testing.T) {
 	pdf := pdftest.Doc{
 		Title: "Attention is all you need",

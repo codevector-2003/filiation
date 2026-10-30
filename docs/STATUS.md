@@ -1,6 +1,6 @@
 # Project status
 
-**Date:** 24 October 2026 · **Position:** **M2 complete — v0.2 released** · **M3 in progress** (steps 1–6 done)
+**Date:** 30 October 2026 · **Position:** **M3 complete — v0.3** · next: **M4**
 **Phase 1 target:** v0.1 by 14 November 2026
 
 > **In one line:** M0 is done, and M1's expander works live — `fil expand` grew one seed to 525
@@ -10,7 +10,10 @@
 > 20 of 20. Licensed Apache-2.0 (D15). **v0.1 released 25 Sept 2026** — M1 is complete.
 > **M2 complete, v0.2 released 25 Sept 2026:** `fil mcp` serves the library to AI assistants —
 > five tools, verified live over stdio and from a real client, with authors on every fetched work.
-> The schedule has slack: §10 planned the expander for 13–26 October.
+> **M3 complete, 30 Oct 2026:** the library is a folder of readable `papers/`; `fil fetch` downloads
+> the open-access PDFs, reads them and makes them searchable; `fil import` files the PDFs a
+> researcher already has; citations carry the sentence they are made in. The 20-seed run passed
+> 20 of 20, and the seed's own PDF is in `papers/` and searchable (`VALIDATION.md`).
 
 ---
 
@@ -28,7 +31,7 @@ protected for them.
 | 1 | M0 — skeleton, `fil add` writes one node | **Complete** — 24 Sept, verified live |
 | 1 | M1 — budgeted expansion, export, **first release** | **Complete** — 25 Sept, released as v0.1 |
 | 2 | M2 — MCP server | **Complete** — 25 Sept, released as v0.2 |
-| 3 | M3 — fil IDs, library folder, PDFs, text, citation context, FTS5 | **In progress** — design agreed 27 Sept ([`ARCHITECTURE_PHASE3.md`](ARCHITECTURE_PHASE3.md)) |
+| 3 | M3 — fil IDs, library folder, PDFs, text, citation context, FTS5 | **Complete** — 30 Oct, released as v0.3 ([`ARCHITECTURE_PHASE3.md`](ARCHITECTURE_PHASE3.md)) |
 | 4 | M4 — retrieval and answers | Not started |
 | 5 | M5 — web interface | Not started |
 | 6 | M6 — claim genealogy | Not started |
@@ -556,7 +559,7 @@ pointing at `add_paper`; the server exited 0 when the client closed stdin.
 fees. The model treated it as unknown, so `IsOpen` reported diamond papers closed. It is now
 `model.OADiamond`, and open.
 
-### M3, in progress — from 27 Sept 2026
+### M3, complete — v0.3, 30 Oct 2026
 
 *Done when:* `fil fetch` downloads the PDF of `10.7717/peerj.4375` into the library folder,
 `fil search` finds a passage in it with its page, some of its citations carry their sentence,
@@ -579,7 +582,7 @@ reworded), D18 (the library is a folder the user chooses; `papers/` with readabl
 | 8 | Import, `Inbox/`, local documents | **Done** — 29 Oct; live: 34 of 40 renamed PDFs filed, all correct, the other 6 with the right paper among the candidates |
 | 9 | Citation context | **Done** — 29 Oct; hand-checked: 50 of 50 mentions on a fresh sample tie to the right work |
 | 10 | `fil list`, `fil show`, full text in `fil stats`; MCP `search_library` and a fetch tool | **Done** — 29 Oct; checked from a real MCP client |
-| 11 | Validation run, docs, tag **v0.3** | Not started |
+| 11 | Validation run, docs, tag **v0.3** | **Done** — 30 Oct; 20 of 20 seeds, the seed's own PDF imported and searchable, 49 of 50 sentences right by hand; five bugs found and fixed |
 
 **Steps 1–2 — fil IDs, and the first migration.** Every work now has a fil ID
 (`F7K2M9QXA`): generated in `internal/identity` from `crypto/rand`, with at least one digit so
@@ -670,6 +673,37 @@ folder can be created, moved by hand and found again — is met in tests and was
 - **Found on the way:** the CLI test harness had no Documents override, so one test run created an
   empty library folder under the real Documents. It was removed at once; the harness now passes
   its own, and every test that loads settings does too.
+
+**Step 11 — the validation run** ([`VALIDATION.md`](VALIDATION.md#m3--20-seeds-5-fields-the-papers-on-disk-30-october-2026)).
+M1's 20 seeds again, each in a library folder of its own: expansion to 200 works, `fil fetch` of 25
+PDFs, a title search for every paper with text, an import check per field into an empty library,
+and 50 citation sentences checked by hand. Code: `spikes/12-validation-m3`.
+
+- **M3's definition of done, met.** The seed's own PDF, saved from PeerJ's page in a browser (PeerJ
+  refuses scripted downloads), was filed from `Inbox/` by the DOI in its header and read: 23 pages,
+  searchable, 28 of its 47 references with their sentence.
+- **20 of 20 seeds completed every step.** 226 PDFs from 476 papers tried — physics 72, humanities
+  14 — 219 of them searchable. 51% of citations made by papers with text carry their sentence:
+  62% in computer science, 32% in medicine, whose journals cite by superscript (D23's follow-up).
+  A paper's own title finds it in the first five papers 213 times in 219.
+- **The hand check: 49 of 50 right**, at least 9 of 10 per field. The wrong one was a one-name
+  marker, "Sachs (1995b)", given to a three-author paper of that year; that is now refused.
+- **Import into an empty library filed 15 of 40 PDFs, none wrongly**; for 15 more the right paper is
+  among the candidates. Step 8's 34 of 40 was measured where the papers were already in the library.
+- **The download check flagged 11 PDFs, 2 rightly**: a wrong file at an OpenAlex link, and an arXiv
+  copy under its preprint title. Seven of the nine false alarms are scans, front matter or
+  OpenAlex's own author order.
+- **Five bugs found and fixed, each with a regression test.** A `*` or `?` in a title read off a
+  PDF made OpenAlex refuse the search with a 400, and that stopped the whole import — wildcards are
+  now stripped (this also covers `fil add` by a title ending in a question), and a refused search
+  leaves only that file waiting. A work named by both a PDF's DOI and its title search was offered
+  twice. A two-word surname ("Aspuru-Guzik") was looked for as one word, failing the download
+  check. "Sachs (1995b)" was tied to Sachs, Tornell and Velasco. And "p." before a page number
+  ended a sentence. The last two change what reading stores, so the extractor version is
+  `pdfium/4` and every PDF is read again once.
+- **Not fixed, recorded:** two text layers the gibberish check passed (poor OCR; a font that
+  drops "c" and "ff"); NBER cover pages read as titles by import; an affiliation letter set
+  against a surname ("Buonannoa,b").
 
 **Step 10 — the front doors.** What steps 5–9 recorded, through every front door, each over one
 library function.
