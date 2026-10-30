@@ -95,6 +95,37 @@ func TestContextsAuthorYear(t *testing.T) {
 	}
 }
 
+// Found in the M3 validation run: "Sachs (1995b, 1995c)" cites Sachs's own
+// papers of 1995, which OpenAlex did not resolve, and was given to Sachs,
+// Tornell and Velasco (1995) — the one Sachs of 1995 it did.
+func TestContextsOneNameIsNotThreeAuthors(t *testing.T) {
+	refs := []Ref{
+		{ID: "F1", Title: "The collapse of the Mexican peso", Year: 1995, Surname: "Sachs", Authors: 3},
+		{ID: "F2", Title: "Economic growth in a cross section of countries", Year: 1991, Surname: "Barro", Authors: 1},
+	}
+	body := "Reform came late in most of them, as argued in Sachs (1995b, 1995c).\n" +
+		"The crisis is described by Sachs et al. (1995) in detail.\n" +
+		"Growth regressions go back to Barro (1991) and many since.\n"
+	got := byRef(Contexts([]string{body}, refs))
+	if m := got["F1"]; len(m) != 1 || !strings.Contains(m[0].Sentence, "Sachs et al.") {
+		t.Errorf("F1 = %+v; want only the \"et al.\" sentence", m)
+	}
+	if len(got["F2"]) != 1 {
+		t.Errorf("a one-name marker for a one-author paper: F2 = %+v", got["F2"])
+	}
+}
+
+// Found in the M3 validation run: a page reference cut the sentence short,
+// leaving "Grossman and Helpman (1994, p." as all there was.
+func TestContextsSentenceRunsPastAPageNumber(t *testing.T) {
+	refs := []Ref{{ID: "F1", Title: "Endogenous innovation in the theory of growth", Year: 1994, Surname: "Grossman", Authors: 2}}
+	body := "Earlier work is different. As Grossman and Helpman (1994, p. 23) put it, growth comes from innovation. Then more.\n"
+	got := byRef(Contexts([]string{body}, refs))
+	if m := got["F1"]; len(m) != 1 || m[0].Sentence != "As Grossman and Helpman (1994, p. 23) put it, growth comes from innovation." {
+		t.Errorf("F1 = %+v", m)
+	}
+}
+
 // Physics layouts end with numbered notes and no "References" heading
 // (spike 11): the list is found by its numbering.
 func TestContextsListWithNoHeading(t *testing.T) {

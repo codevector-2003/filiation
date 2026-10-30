@@ -12,7 +12,7 @@ tool does for papers: it reconstructs where a claim came from by following the c
 - Language: **Go** (see D8 in `docs/DECISIONS.md`)
 - Module: `github.com/codevector-2003/filiation`
 - Binary / CLI command: `fil`
-- Status: **M0 complete** (24 Sept 2026). **M1 complete — v0.1 released** (25 Sept 2026). Every command works and the 20-seed validation run passed 20 of 20 (`docs/VALIDATION.md`). Licensed Apache-2.0 (D15). **M2 complete — v0.2 released** (25 Sept 2026): `fil mcp` serves five tools to AI assistants (`docs/MCP.md`). **M3 in progress** (from 27 Sept 2026) — design in `docs/ARCHITECTURE_PHASE3.md`, decisions D17–D19; steps 1–10 done (fil IDs, the library folder and `papers/`, spikes 9–11, legal PDF links, `fil fetch`, text extraction and `fil search`, importing PDFs, citation context, `fil list`/`show` and three MCP tools for the PDFs). See `docs/STATUS.md`.
+- Status: **M0 complete** (24 Sept 2026). **M1 complete — v0.1 released** (25 Sept 2026). Every command works and the 20-seed validation run passed 20 of 20 (`docs/VALIDATION.md`). Licensed Apache-2.0 (D15). **M2 complete — v0.2 released** (25 Sept 2026): `fil mcp` serves five tools to AI assistants (`docs/MCP.md`). **M3 complete — v0.3** (30 Oct 2026): the library is a folder of readable `papers/`; `fil fetch` downloads open-access PDFs and makes them searchable (`fil search`); `fil import` files PDFs the user already has; citations carry their sentence; `fil list`/`show` and eight MCP tools. Design in `docs/ARCHITECTURE_PHASE3.md`, decisions D17–D23; the 20-seed run passed 20 of 20 (`docs/VALIDATION.md`). Next: **M4**. See `docs/STATUS.md`.
 
 ---
 
@@ -185,7 +185,7 @@ mistake. Be deliberate:
 - `docs/ARCHITECTURE_PHASE1.md` — detailed design for the core graph, with ADRs.
 - `docs/ARCHITECTURE_PHASE3.md` — detailed design for M3: fil IDs, the library folder, PDFs, text, import, citation context.
 - `docs/SPIKES.md` — measured answers. **Trust these over any documentation, including this file.**
-- `docs/VALIDATION.md` — live validation runs: M1 (20 seeds, 5 fields) and M2 (a real MCP client).
+- `docs/VALIDATION.md` — live validation runs: M1 and M3 (20 seeds, 5 fields), M2 and M3 step 10 (a real MCP client).
 - `docs/MCP.md` — the MCP server: client set-up, every tool, limits, troubleshooting.
 
 ## Data model
@@ -210,7 +210,7 @@ writes the graph for Gephi and NetworkX, read back cleanly by NetworkX. The 20-s
 validation run passed 20 of 20 (`docs/VALIDATION.md`), and GoReleaser plus a tag-triggered release
 workflow are in place. Licensed Apache-2.0 (D15). **M2 complete:** `fil mcp` exposes `add_paper`, `expand_graph`,
 `neighbours`, `find_path` and `library_stats` over stdio, verified live; `expand_graph` runs inside
-the call, bounded, with progress notifications (D16). Verified from a real client; authors now stored and returned. **Released as v0.2.** Next: **M3**. Dates assume learning Go alongside building;
+the call, bounded, with progress notifications (D16). Verified from a real client; authors now stored and returned. **Released as v0.2.** **M3 complete, released as v0.3 on 30 Oct 2026** — the 20-seed run passed 20 of 20, and the seed's own PDF is in `papers/` and searchable. Next: **M4**. Dates assume learning Go alongside building;
 Phase 1 carries two extra weeks for that.
 
 - [x] **M0 — Skeleton** (2–3 weeks). *Done 24 Sept 2026.* Module layout, config, embedded schema, `store` package,
@@ -222,7 +222,7 @@ Phase 1 carries two extra weeks for that.
       *Done when:* one seed gives a clean 500-node graph with no duplicates, opens in Gephi.
 - [x] **M2 — MCP server** (~1 week). Expose M1 as MCP tools. The differentiator.
       *Done 25 Sept 2026 — v0.2.*
-- [ ] **M3 — Papers on disk** (3–4 weeks). *In progress from 27 Sept 2026.* fil IDs, the library
+- [x] **M3 — Papers on disk** (3–4 weeks). *Done 30 Oct 2026 — v0.3.* fil IDs, the library
       as a folder the user chooses, OA PDF fetch into readable `papers/` folders, importing PDFs the
       user already has, text extraction, chunking, FTS5. **Capture citation context sentences
       here.** Design and build order: `docs/ARCHITECTURE_PHASE3.md`.

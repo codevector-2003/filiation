@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/codevector-2003/filiation/releases/tag/v0.2.0"><img src="https://img.shields.io/badge/release-v0.2.0-6366f1" alt="Release v0.2.0"></a>
+  <a href="https://github.com/codevector-2003/filiation/releases/tag/v0.3.0"><img src="https://img.shields.io/badge/release-v0.3.0-6366f1" alt="Release v0.3.0"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/licence-Apache--2.0-6366f1" alt="Licence: Apache-2.0"></a>
   <img src="https://img.shields.io/badge/go-1.26-00ADD8?logo=go&logoColor=white" alt="Go 1.26">
   <img src="https://img.shields.io/badge/platforms-Windows%20%C2%B7%20macOS%20%C2%B7%20Linux-64748b" alt="Windows, macOS, Linux">
@@ -178,8 +178,8 @@ Where books and chapters dominate, publishers rarely deposit reference lists, an
 | ✅ | **M0: Skeleton.** `fil add`: any identifier to a stored paper and its references | Done |
 | ✅ | **M1: The graph.** Budgeted expansion, dedup, `path`, `neighbours`, `stats`, GraphML export, cross-platform release | Done: **v0.1** |
 | ✅ | **M2: MCP server.** Let AI assistants query your library directly | Done: **v0.2** |
-| ⏳ | **M3: Papers on disk.** Open-access PDFs, full text, and the sentence around each citation | Next |
-| ⏳ | **M4: Retrieval and answers.** Search across everything you've read, answers with citations | |
+| ✅ | **M3: Papers on disk.** Open-access PDFs, full text, and the sentence around each citation | Done: **v0.3** |
+| ⏳ | **M4: Retrieval and answers.** Search across everything you've read, answers with citations | Next |
 | ⏳ | **M5: Web interface.** The same library for people who don't use a terminal | |
 | ⏳ | **M6: Claim genealogy.** Why each paper cites another, and tracing a claim to its earliest source | |
 

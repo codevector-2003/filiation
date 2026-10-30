@@ -12,6 +12,7 @@ import (
 	"github.com/codevector-2003/filiation/internal/config"
 	"github.com/codevector-2003/filiation/internal/model"
 	"github.com/codevector-2003/filiation/internal/store"
+	"github.com/codevector-2003/filiation/internal/text"
 	"github.com/codevector-2003/filiation/internal/text/pdftest"
 )
 
@@ -230,6 +231,99 @@ func TestImportByTitleSearch(t *testing.T) {
 	chosen, err := l.ImportChosen(ctx, file, f.Candidates[0])
 	if err != nil || chosen.Outcome != store.ImportImported || chosen.Work.OpenAlexID != "W2626778328" {
 		t.Errorf("chosen = %+v, %v", chosen, err)
+	}
+}
+
+// Found in the M3 validation run: OpenAlex refused one PDF's title search
+// (a footnote mark read as a wildcard), and the whole import stopped. A
+// refused search is that file's problem; the rest are still filed.
+func TestImportGoesOnWhenASearchIsRefused(t *testing.T) {
+	t.Parallel()
+	routes := maps.Clone(peerj)
+	pdf := pdftest.Doc{Title: "The Structure of Ill Structured Problems",
+		Pages: []string{"Herbert A. Simon\nThe boundary between well structured and ill structured problems\n" +
+			"is vague, fluid and not susceptible to formalization in any simple way."}}.Bytes()
+	front, err := text.Shared().Front(t.Context(), pdf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	routes["/works?filter=title.search:"+titleQuery(front)] = "400"
+	l, _ := openImportTest(t, routes)
+	ctx := t.Context()
+	putInInbox(t, l, "a-simon.pdf", pdf)
+	putInInbox(t, l, "b-seed.pdf", pdftest.Make(seedFront(seedTitle)))
+
+	res, err := l.Import(ctx, ImportOptions{})
+	if err != nil {
+		t.Fatalf("Import stopped: %v", err)
+	}
+	if len(res.Files) != 2 {
+		t.Fatalf("files = %+v; want both looked at", res.Files)
+	}
+	for _, f := range res.Files {
+		switch filepath.Base(f.File) {
+		case "a-simon.pdf":
+			if f.Outcome != store.ImportUnidentified || !strings.Contains(f.Reason, "refused") {
+				t.Errorf("refused search = %+v; want unidentified, saying why", f)
+			}
+		case "b-seed.pdf":
+			if f.Outcome != store.ImportImported {
+				t.Errorf("the seed = %+v; want it filed despite the other file", f)
+			}
+		}
+	}
+}
+
+// A refusal of access is not about one file's title: it stops the import
+// rather than leaving every title-only PDF marked unidentified (PR #13 review).
+func TestImportStopsWhenAccessIsRefused(t *testing.T) {
+	t.Parallel()
+	routes := maps.Clone(peerj)
+	pdf := pdftest.Doc{Title: "The Structure of Ill Structured Problems",
+		Pages: []string{"Herbert A. Simon\nThe boundary between well structured and ill structured problems\n" +
+			"is vague, fluid and not susceptible to formalization in any simple way."}}.Bytes()
+	front, err := text.Shared().Front(t.Context(), pdf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	routes["/works?filter=title.search:"+titleQuery(front)] = "403"
+	l, _ := openImportTest(t, routes)
+	putInInbox(t, l, "a-simon.pdf", pdf)
+
+	if _, err := l.Import(t.Context(), ImportOptions{}); err == nil {
+		t.Error("Import succeeded; want the 403 to stop it")
+	}
+}
+
+// Found in the M3 validation run: a work the PDF's identifier named, whose
+// title is not in the PDF, was offered twice when the title search found it
+// too.
+func TestImportOffersACandidateOnce(t *testing.T) {
+	t.Parallel()
+	routes := maps.Clone(peerj)
+	routes["/works/doi:10.1000/earlier.1"] = "404"
+	seedJSON, err := os.ReadFile(filepath.Join(fixtureDir, "work_W2741809807.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	pdf := pdftest.Doc{Title: "A field guide to the solitary bees of northern Europe",
+		Pages: []string{"PeerJ\nDOI 10.7717/peerj.4375\nHeather Piwowar, Jason Priem\n" +
+			"Solitary bees nest alone, in the ground or in hollow stems, and most fly for a few weeks a year."}}.Bytes()
+	front, err := text.Shared().Front(t.Context(), pdf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	routes["/works?filter=title.search:"+titleQuery(front)] = `{"results":[` + string(seedJSON) + `]}`
+	l, _ := openImportTest(t, routes)
+	putInInbox(t, l, "bees.pdf", pdf)
+
+	res, err := l.Import(t.Context(), ImportOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := res.Files[0]
+	if f.Outcome != store.ImportCandidates || len(f.Candidates) != 1 || f.Candidates[0].Work.OpenAlexID != "W2741809807" {
+		t.Errorf("candidates = %+v (%s); want the seed, once", f.Candidates, f.Outcome)
 	}
 }
 
