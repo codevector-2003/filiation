@@ -274,6 +274,27 @@ func TestImportGoesOnWhenASearchIsRefused(t *testing.T) {
 	}
 }
 
+// A refusal of access is not about one file's title: it stops the import
+// rather than leaving every title-only PDF marked unidentified (PR #13 review).
+func TestImportStopsWhenAccessIsRefused(t *testing.T) {
+	t.Parallel()
+	routes := maps.Clone(peerj)
+	pdf := pdftest.Doc{Title: "The Structure of Ill Structured Problems",
+		Pages: []string{"Herbert A. Simon\nThe boundary between well structured and ill structured problems\n" +
+			"is vague, fluid and not susceptible to formalization in any simple way."}}.Bytes()
+	front, err := text.Shared().Front(t.Context(), pdf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	routes["/works?filter=title.search:"+titleQuery(front)] = "403"
+	l, _ := openImportTest(t, routes)
+	putInInbox(t, l, "a-simon.pdf", pdf)
+
+	if _, err := l.Import(t.Context(), ImportOptions{}); err == nil {
+		t.Error("Import succeeded; want the 403 to stop it")
+	}
+}
+
 // Found in the M3 validation run: a work the PDF's identifier named, whose
 // title is not in the PDF, was offered twice when the title search found it
 // too.

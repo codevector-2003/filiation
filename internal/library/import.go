@@ -625,12 +625,13 @@ func (l *Library) displayPath(abs string) string {
 	return abs
 }
 
-// refused reports an error that is OpenAlex refusing one request — a 4xx
-// other than a rate limit — rather than the network or the service failing,
-// which stops the run.
+// refused reports OpenAlex refusing one query as malformed — 400, 414 or 422
+// — which is about the title read off this PDF. Anything else, a 401 or 403
+// refusing access, a rate limit, the network or the service failing, is
+// about every request and stops the run.
 func refused(err error) bool {
 	var se *httpx.StatusError
-	return errors.As(err, &se) && se.StatusCode >= 400 && se.StatusCode < 500 && se.StatusCode != 429
+	return errors.As(err, &se) && (se.StatusCode == 400 || se.StatusCode == 414 || se.StatusCode == 422)
 }
 
 // verifies reports whether the PDF's first pages carry h's title and its

@@ -24,6 +24,7 @@
 //
 //	go run ./spikes/12-validation-m3 -root <folder> > report.md
 //	go run ./spikes/12-validation-m3 -root <folder> -recheck-imports
+//	go run ./spikes/12-validation-m3 -root <folder> -recheck-search
 package main
 
 import (
@@ -131,6 +132,7 @@ type importResult struct {
 func main() {
 	root := flag.String("root", "", "folder for the libraries, the cache and the hand-check sample")
 	recheck := flag.Bool("recheck-imports", false, "only run the import check again, on a finished run under -root")
+	recheckTitles := flag.Bool("recheck-search", false, "only measure the title search again, on a finished run under -root")
 	flag.Parse()
 	if *root == "" {
 		fatal(fmt.Errorf("-root is required"))
@@ -138,6 +140,10 @@ func main() {
 	ctx := context.Background()
 	if *recheck {
 		recheckImports(ctx, *root)
+		return
+	}
+	if *recheckTitles {
+		recheckSearch(ctx, *root)
 		return
 	}
 	cache := filepath.Join(*root, "cache")
@@ -254,7 +260,8 @@ func run(ctx context.Context, dir, cache string, s seed) (result, library.Quota)
 
 // searchTitle searches the whole library for the four longest words of a
 // paper's title and records whether the paper is among the first five
-// papers the hits come from.
+// distinct papers whose passages have every word. A search that fell back
+// to passages with some of the words counts as a miss.
 func (r *result) searchTitle(ctx context.Context, lib *library.Library, row library.Listed) error {
 	q := titleQuery(row.Title)
 	if q == "" {
@@ -265,22 +272,24 @@ func (r *result) searchTitle(ctx context.Context, lib *library.Library, row libr
 		return err
 	}
 	r.searched++
-	var papers []string
-	for _, h := range got.Hits {
-		if len(papers) == 5 {
-			break
-		}
-		if len(papers) == 0 || papers[len(papers)-1] != h.Work.FilID {
-			papers = append(papers, h.Work.FilID)
-		}
-	}
-	for _, p := range papers {
-		if p == row.FilID {
-			r.found++
-			return nil
+	if !got.Partial {
+		seen := map[string]bool{}
+		for _, h := range got.Hits {
+			if h.Work.FilID == row.FilID {
+				r.found++
+				return nil
+			}
+			seen[h.Work.FilID] = true
+			if len(seen) == 5 {
+				break
+			}
 		}
 	}
-	r.misses = append(r.misses, fmt.Sprintf("%s %q — searched %q", row.FilID, short(row.Title), q))
+	why := "not in the first five papers"
+	if got.Partial {
+		why = "no passage has every word"
+	}
+	r.misses = append(r.misses, fmt.Sprintf("%s %q — searched %q: %s", row.FilID, short(row.Title), q, why))
 	return nil
 }
 

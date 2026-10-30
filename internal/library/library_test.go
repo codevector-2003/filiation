@@ -62,6 +62,8 @@ func (r *replay) RoundTrip(req *http.Request) (*http.Response, error) {
 		status = 404
 	case file == "400":
 		status, body = 400, `{"error":"Invalid query parameters error."}`
+	case file == "403":
+		status, body = 403, `{"error":"Forbidden"}`
 	case strings.HasPrefix(file, "{"):
 		body = file
 	default:

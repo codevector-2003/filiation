@@ -224,10 +224,11 @@ two a gibberish text layer — each with its reason in `fil stats --why`. Two la
 passed the gibberish check that should not have: an NBER scan with poor OCR, and a review whose
 font drops "c" and "ff" ("Dislo ations", "e e tive ux"). Both are searchable only in part.
 
-**Search finds a paper by its own title in 213 of 219 cases** (the first five papers, all-words
-match). Of the six misses, one is a wrong file (below); the others are short or common titles in a
-library where every paper shares the words — "The electronic properties of graphene" in a graphene
-library. That is ranking, which M4's retrieval takes over.
+**Search finds a paper by its own title in 211 of 219 cases** — among the first five distinct
+papers, with every word in one passage. Of the eight misses, five have no passage holding every
+word: a wrong file (below), two OCR'd or front-matter PDFs, and a title whose words the PDF splits
+or hyphenates. The other three are papers outranked in a library where many share the words —
+three gravitational-wave and graphene titles. That is ranking, which M4's retrieval takes over.
 
 **Citation sentences: 4,032 of 7,950 citations made by papers with text (51%).** Computer science
 62%, physics 50%, social sciences 45%, medicine 32%, humanities 20%. Medicine is low because The
@@ -266,30 +267,30 @@ offered twice.
 
 `go run ./spikes/12-validation-m3 -root <folder>`. Context and Silent are before the fixes above.
 *Context* is citations from papers with text that carry their sentence; *Silent*, papers with text
-in which no citation was found; *Title search*, papers found by their own title in the first five.
+in which no citation was found.
 
-| Field | Seed | With a PDF link | Tried | PDFs | Failed (why) | Text: ok / no text / gibberish | Context | Silent | Title search | Mismatch | Fetch time |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Medicine | 10.1056/NEJMoa2034577 — BNT162b2 vaccine trial, 2020 | 824 | 25 | 2 | network 1, not-a-pdf 5, refused 18 | 2 / 0 / 0 | 0 / 32 (0%) | 2 | 2 / 2 | 0 | 53s |
-| Medicine | 10.1016/S0140-6736(20)30183-5 — COVID-19 clinical features, Wuhan, 2020 | 947 | 25 | 7 | network 1, not-a-pdf 6, refused 11 | 7 / 0 / 0 | 62 / 161 (39%) | 3 | 7 / 7 | 0 | 1m5s |
-| Medicine | 10.1001/jama.2020.1585 — 138 hospitalised COVID-19 patients, 2020 | 823 | 25 | 7 | network 3, not-a-pdf 9, refused 9 | 7 / 0 / 0 | 44 / 101 (44%) | 2 | 7 / 7 | 1 | 1m7s |
-| Medicine | 10.1371/journal.pmed.0020124 — Why most published research findings are false, 2005 | 343 | 25 | 2 | refused 23 | 2 / 0 / 0 | 56 / 215 (26%) | 0 | 2 / 2 | 0 | 29s |
-| Physics | 10.1103/PhysRevLett.116.061102 — LIGO GW150914, 2016 | 1441 | 25 | 23 | http-error 2, not-a-pdf 3, refused 4 | 23 / 0 / 0 | 569 / 1012 (56%) | 0 | 21 / 23 | 1 | 48s |
-| Physics | 10.1103/PhysRev.47.777 — Einstein-Podolsky-Rosen, 1935 | 1 | 1 | 0 | refused 1 | 0 / 0 / 0 | — | 0 | — | 0 | 1s |
-| Physics | 10.1038/s41586-019-1666-5 — Quantum supremacy, 2019 | 1215 | 25 | 24 | refused 1 | 24 / 0 / 0 | 443 / 870 (51%) | 5 | 24 / 24 | 1 | 1m4s |
-| Physics | 10.1103/RevModPhys.81.109 — Electronic properties of graphene, 2009 | 793 | 25 | 25 | not-a-pdf 1, refused 4 | 25 / 0 / 0 | 479 / 1100 (44%) | 3 | 23 / 25 | 1 | 41s |
-| Computer Science | arXiv:1706.03762 — Attention is all you need, 2017 | 699 | 25 | 19 | http-error 1, not-a-pdf 2, refused 6 | 19 / 0 / 0 | 383 / 638 (60%) | 2 | 18 / 19 | 1 | 2m4s |
-| Computer Science | 10.1109/CVPR.2016.90 — Deep residual learning, 2016 | 357 | 25 | 17 | http-error 1, not-a-pdf 1, refused 4, timeout 2 | 17 / 0 / 0 | 496 / 651 (76%) | 0 | 17 / 17 | 0 | 3m2s |
-| Computer Science | 10.1038/nature14539 — Deep learning, 2015 | 386 | 25 | 14 | http-error 3, not-a-pdf 3, refused 9 | 13 / 0 / 1 | 318 / 618 (51%) | 1 | 13 / 13 | 0 | 1m18s |
-| Computer Science | 10.1145/3292500.3330701 — Optuna, 2019 | 607 | 25 | 17 | http-error 1, not-a-pdf 4, refused 3 | 17 / 0 / 0 | 370 / 628 (59%) | 1 | 17 / 17 | 1 | 1m57s |
-| Social Sciences | 10.7717/peerj.4375 — The state of OA, 2018 | 606 | 25 | 18 | not-a-pdf 2, refused 6 | 18 / 0 / 0 | 205 / 332 (62%) | 4 | 17 / 18 | 0 | 1m0s |
-| Social Sciences | 10.1086/225469 — The strength of weak ties, 1973 | 26 | 25 | 4 | not-a-pdf 8, not-found 1, refused 12, timeout 1 | 4 / 0 / 0 | 3 / 19 (16%) | 3 | 4 / 4 | 2 | 2m13s |
-| Social Sciences | 10.1126/science.aac4716 — Reproducibility of psychological science, 2015 | 264 | 25 | 12 | not-a-pdf 8, refused 8 | 11 / 0 / 1 | 391 / 816 (48%) | 1 | 11 / 11 | 0 | 47s |
-| Social Sciences | 10.1257/aer.91.5.1369 — Colonial origins of comparative development, 2001 | 251 | 25 | 21 | duplicate 1, http-error 1, refused 2 | 17 / 4 / 0 | 171 / 548 (31%) | 2 | 17 / 17 | 1 | 3m17s |
-| Arts and Humanities | 10.2307/412243 — Turn-taking for conversation, 1974 | 53 | 25 | 3 | network 1, not-a-pdf 7, refused 16, timeout 2 | 3 / 0 / 0 | 1 / 3 (33%) | 2 | 3 / 3 | 0 | 2m21s |
-| Arts and Humanities | 10.1177/030631289019003001 — Boundary objects, 1989 | 196 | 25 | 3 | http-error 1, not-a-pdf 5, refused 17 | 3 / 0 / 0 | 5 / 52 (10%) | 2 | 3 / 3 | 1 | 1m38s |
-| Arts and Humanities | 10.1098/rspb.1979.0086 — The spandrels of San Marco, 1979 | 201 | 25 | 5 | http-error 1, not-a-pdf 6, refused 16 | 4 / 1 / 0 | 16 / 53 (30%) | 2 | 4 / 4 | 1 | 1m17s |
-| Arts and Humanities | W2266294403 — Meeting the Universe Halfway, 2007 | 137 | 25 | 3 | http-error 7, refused 17 | 3 / 0 / 0 | 20 / 101 (20%) | 1 | 3 / 3 | 0 | 36s |
+| Field | Seed | With a PDF link | Tried | PDFs | Failed (why) | Text: ok / no text / gibberish | Context | Silent | Mismatch | Fetch time |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Medicine | 10.1056/NEJMoa2034577 — BNT162b2 vaccine trial, 2020 | 824 | 25 | 2 | network 1, not-a-pdf 5, refused 18 | 2 / 0 / 0 | 0 / 32 (0%) | 2 | 0 | 53s |
+| Medicine | 10.1016/S0140-6736(20)30183-5 — COVID-19 clinical features, Wuhan, 2020 | 947 | 25 | 7 | network 1, not-a-pdf 6, refused 11 | 7 / 0 / 0 | 62 / 161 (39%) | 3 | 0 | 1m5s |
+| Medicine | 10.1001/jama.2020.1585 — 138 hospitalised COVID-19 patients, 2020 | 823 | 25 | 7 | network 3, not-a-pdf 9, refused 9 | 7 / 0 / 0 | 44 / 101 (44%) | 2 | 1 | 1m7s |
+| Medicine | 10.1371/journal.pmed.0020124 — Why most published research findings are false, 2005 | 343 | 25 | 2 | refused 23 | 2 / 0 / 0 | 56 / 215 (26%) | 0 | 0 | 29s |
+| Physics | 10.1103/PhysRevLett.116.061102 — LIGO GW150914, 2016 | 1441 | 25 | 23 | http-error 2, not-a-pdf 3, refused 4 | 23 / 0 / 0 | 569 / 1012 (56%) | 0 | 1 | 48s |
+| Physics | 10.1103/PhysRev.47.777 — Einstein-Podolsky-Rosen, 1935 | 1 | 1 | 0 | refused 1 | 0 / 0 / 0 | — | 0 | 0 | 1s |
+| Physics | 10.1038/s41586-019-1666-5 — Quantum supremacy, 2019 | 1215 | 25 | 24 | refused 1 | 24 / 0 / 0 | 443 / 870 (51%) | 5 | 1 | 1m4s |
+| Physics | 10.1103/RevModPhys.81.109 — Electronic properties of graphene, 2009 | 793 | 25 | 25 | not-a-pdf 1, refused 4 | 25 / 0 / 0 | 479 / 1100 (44%) | 3 | 1 | 41s |
+| Computer Science | arXiv:1706.03762 — Attention is all you need, 2017 | 699 | 25 | 19 | http-error 1, not-a-pdf 2, refused 6 | 19 / 0 / 0 | 383 / 638 (60%) | 2 | 1 | 2m4s |
+| Computer Science | 10.1109/CVPR.2016.90 — Deep residual learning, 2016 | 357 | 25 | 17 | http-error 1, not-a-pdf 1, refused 4, timeout 2 | 17 / 0 / 0 | 496 / 651 (76%) | 0 | 0 | 3m2s |
+| Computer Science | 10.1038/nature14539 — Deep learning, 2015 | 386 | 25 | 14 | http-error 3, not-a-pdf 3, refused 9 | 13 / 0 / 1 | 318 / 618 (51%) | 1 | 0 | 1m18s |
+| Computer Science | 10.1145/3292500.3330701 — Optuna, 2019 | 607 | 25 | 17 | http-error 1, not-a-pdf 4, refused 3 | 17 / 0 / 0 | 370 / 628 (59%) | 1 | 1 | 1m57s |
+| Social Sciences | 10.7717/peerj.4375 — The state of OA, 2018 | 606 | 25 | 18 | not-a-pdf 2, refused 6 | 18 / 0 / 0 | 205 / 332 (62%) | 4 | 0 | 1m0s |
+| Social Sciences | 10.1086/225469 — The strength of weak ties, 1973 | 26 | 25 | 4 | not-a-pdf 8, not-found 1, refused 12, timeout 1 | 4 / 0 / 0 | 3 / 19 (16%) | 3 | 2 | 2m13s |
+| Social Sciences | 10.1126/science.aac4716 — Reproducibility of psychological science, 2015 | 264 | 25 | 12 | not-a-pdf 8, refused 8 | 11 / 0 / 1 | 391 / 816 (48%) | 1 | 0 | 47s |
+| Social Sciences | 10.1257/aer.91.5.1369 — Colonial origins of comparative development, 2001 | 251 | 25 | 21 | duplicate 1, http-error 1, refused 2 | 17 / 4 / 0 | 171 / 548 (31%) | 2 | 1 | 3m17s |
+| Arts and Humanities | 10.2307/412243 — Turn-taking for conversation, 1974 | 53 | 25 | 3 | network 1, not-a-pdf 7, refused 16, timeout 2 | 3 / 0 / 0 | 1 / 3 (33%) | 2 | 0 | 2m21s |
+| Arts and Humanities | 10.1177/030631289019003001 — Boundary objects, 1989 | 196 | 25 | 3 | http-error 1, not-a-pdf 5, refused 17 | 3 / 0 / 0 | 5 / 52 (10%) | 2 | 1 | 1m38s |
+| Arts and Humanities | 10.1098/rspb.1979.0086 — The spandrels of San Marco, 1979 | 201 | 25 | 5 | http-error 1, not-a-pdf 6, refused 16 | 4 / 1 / 0 | 16 / 53 (30%) | 2 | 1 | 1m17s |
+| Arts and Humanities | W2266294403 — Meeting the Universe Halfway, 2007 | 137 | 25 | 3 | http-error 7, refused 17 | 3 / 0 / 0 | 20 / 101 (20%) | 1 | 0 | 36s |
 
 ### By field
 
@@ -299,7 +300,8 @@ in which no citation was found; *Title search*, papers found by their own title 
 | Physics | 72 | 16 | 72 | 0 | 1,491 / 2,982 (50%) | 68 / 72 | 10 / 10 | 3 (3) / 4 / 1 |
 | Computer Science | 67 | 40 | 66 | 1 | 1,567 / 2,535 (62%) | 65 / 66 | 10 / 10 | 4 (4) / 4 / 0 |
 | Social Sciences | 55 | 50 | 50 | 5 | 770 / 1,715 (45%) | 49 / 50 | 9 / 10 | 2 (2) / 2 / 4 |
-| Arts and Humanities | 14 | 96 | 13 | 1 | 42 / 209 (20%) | 13 / 13 | 10 / 10 | 2 (2) / 1 / 5 |
+| Arts and Humanities | 14 | 96 | 13 | 1 | 42 / 209 (20%) | 11 / 13 | 10 / 10 | 2 (2) / 1 / 5 |
 
-The import column is from `-recheck-imports`, after the fixes: the first run's humanities import
-stopped at the wildcard bug with nothing filed.
+The title search column is from `-recheck-search`, and the import column from `-recheck-imports`,
+both after the fixes and the review of this PR: the first run's humanities import stopped at the
+wildcard bug with nothing filed.

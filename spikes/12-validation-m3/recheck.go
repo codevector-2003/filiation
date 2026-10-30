@@ -141,3 +141,44 @@ func hashOf(path string) string {
 	sum := sha256.Sum256(b)
 	return hex.EncodeToString(sum[:])
 }
+
+// recheckSearch measures the title search again on a finished run's
+// libraries: local, no network.
+func recheckSearch(ctx context.Context, root string) {
+	cache := filepath.Join(root, "cache")
+	fmt.Println("| Field | Title search in top 5 |")
+	fmt.Println("| --- | --- |")
+	var misses []string
+	for _, f := range fields(seedResults()) {
+		var r result
+		for i, s := range seeds {
+			if s.field != f {
+				continue
+			}
+			lib, err := openAt(ctx, filepath.Join(root, fmt.Sprintf("lib%02d", i)), cache)
+			if err != nil {
+				fatal(err)
+			}
+			rows, err := lib.List(ctx, library.ListOptions{WithPDF: true})
+			if err != nil {
+				fatal(err)
+			}
+			for _, row := range rows {
+				if row.TextStatus == "ok" {
+					if err := r.searchTitle(ctx, lib, row); err != nil {
+						fatal(err)
+					}
+				}
+			}
+			lib.Close()
+		}
+		fmt.Printf("| %s | %s |\n", f, ratio(r.found, r.searched))
+		for _, m := range r.misses {
+			misses = append(misses, f+": "+m)
+		}
+	}
+	fmt.Println()
+	for _, m := range misses {
+		fmt.Println("- " + m)
+	}
+}

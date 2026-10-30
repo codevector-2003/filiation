@@ -16,7 +16,7 @@ first; this directory is for re-running a measurement when you doubt it.
 | `go run ./spikes/9-pdf-availability -dir <dir>` | How many works have a PDF we can actually download, and does Unpaywall add any? Set `FIL_SPIKE_UNPAYWALL_EMAIL` to include Unpaywall; the address is never written down |
 | `cd spikes/10-pdf-text && go run . -pdfs <dir>/pdfs -pdftotext <path> -out <dir>` | Which PDF text extractor? Its own module, so the candidates stay out of fil's `go.mod` |
 | `go run ./spikes/11-reference-matching -text <dir>/text -cache <dir>/cache` | Can a PDF's reference list be split and matched to real works? |
-| `go run ./spikes/12-validation-m3 -root <dir>` | The M3 validation run: the same 20 seeds, now with PDFs, text, search, citation sentences and import. `-recheck-imports` repeats only the import check. `<dir>` should not be a temporary folder — the hand check reads it afterwards |
+| `go run ./spikes/12-validation-m3 -root <dir>` | The M3 validation run: the same 20 seeds, now with PDFs, text, search, citation sentences and import. `-recheck-imports` and `-recheck-search` repeat only the import check or the title search. `<dir>` should not be a temporary folder — the hand check reads it afterwards |
 
 Spike 7 (cross-compilation) has no program — it is three `go build` invocations, recorded in
 `docs/SPIKES.md`.

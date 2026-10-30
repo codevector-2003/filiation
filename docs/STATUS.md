@@ -685,7 +685,7 @@ and 50 citation sentences checked by hand. Code: `spikes/12-validation-m3`.
 - **20 of 20 seeds completed every step.** 226 PDFs from 476 papers tried — physics 72, humanities
   14 — 219 of them searchable. 51% of citations made by papers with text carry their sentence:
   62% in computer science, 32% in medicine, whose journals cite by superscript (D23's follow-up).
-  A paper's own title finds it in the first five papers 213 times in 219.
+  A paper's own title finds it in the first five papers 211 times in 219.
 - **The hand check: 49 of 50 right**, at least 9 of 10 per field. The wrong one was a one-name
   marker, "Sachs (1995b)", given to a three-author paper of that year; that is now refused.
 - **Import into an empty library filed 15 of 40 PDFs, none wrongly**; for 15 more the right paper is
