@@ -92,9 +92,14 @@ jobs:
         if: runner.os == 'Linux' && matrix.shell == 'wails3'
         run: |
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-          rm -f r.json
-          SPIKE_RESULT="$PWD/r.json" SPIKE_AUTOQUIT=1 perl -e 'alarm shift @ARGV; exec @ARGV' 90 xvfb-run -a ./spike > run.log 2>&1 || echo "exit $?"
-          if [ -f r.json ]; then cat r.json; else echo "no result"; grep -v -E '^(r[0-9a-z]+|[a-z]{2,6}) +0x' run.log | head -30 || true; fi
+          # The runner has no accessibility bus; GTK waits for it until D-Bus
+          # times out (25 s). A desktop has one. The second pair skips it.
+          for a11y in on on off off; do
+            rm -f r.json
+            if [ $a11y = off ]; then export GTK_A11Y=none NO_AT_BRIDGE=1; fi
+            SPIKE_RESULT="$PWD/r.json" SPIKE_AUTOQUIT=1 perl -e 'alarm shift @ARGV; exec @ARGV' 90 xvfb-run -a ./spike > run.log 2>&1 || echo "exit $?"
+            echo "a11y bridge $a11y:"; if [ -f r.json ]; then cat r.json; echo; else echo "no result"; grep -v -E '^(r[0-9a-z]+|[a-z]{2,6}) +0x' run.log | head -30 || true; fi
+          done
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=1
 
       - name: "Wails v3 on Linux: built on GTK 3 and WebKitGTK 4.1"
