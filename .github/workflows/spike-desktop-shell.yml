@@ -80,18 +80,33 @@ jobs:
           for i in 1 2 3; do
             rm -f r.json
             SPIKE_RESULT="$PWD/r.json" SPIKE_AUTOQUIT=1 perl -e 'alarm shift @ARGV; exec @ARGV' 90 $wrap $bin > run.log 2>&1 || echo "exit $?"
-            if [ -f r.json ]; then cat r.json; echo; else echo "no result"; grep -v -E '^(r[0-9a-z]+|[a-z]{2,6}) +0x' run.log | head -40; fi
+            if [ -f r.json ]; then cat r.json; echo; else echo "no result"; grep -v -E "^(r[0-9a-z]+|[a-z]{2,6}) +0x" run.log | head -40 || true; fi
             [ -f r.json ] && cp r.json "r$i.json"
           done
-          # Linux without a GPU: GTK 4 and WebKitGTK 6.0 may need their software renderers.
-          if [ "$RUNNER_OS" = Linux ] && [ ! -f r1.json ]; then
-            echo "--- again, with software rendering"
-            for i in 1 2 3; do
-              rm -f r.json
-              GSK_RENDERER=cairo WEBKIT_DISABLE_DMABUF_RENDERER=1 SPIKE_RESULT="$PWD/r.json" SPIKE_AUTOQUIT=1 perl -e 'alarm shift @ARGV; exec @ARGV' 90 $wrap $bin > run.log 2>&1 || echo "exit $?"
-              if [ -f r.json ]; then cat r.json; echo; cp r.json "r$i.json"; else echo "no result"; grep -v -E '^(r[0-9a-z]+|[a-z]{2,6}) +0x' run.log | head -40; fi
-            done
-          fi
+          true
+
+      # WebKitGTK 6.0 always sandboxes its web process with bubblewrap, which
+      # needs unprivileged user namespaces; Ubuntu 24.04 restricts them. Two
+      # ways round it, measured: allow them, or build Wails v3 on GTK 3.
+      - name: "Wails v3 on Linux: with user namespaces allowed"
+        if: runner.os == 'Linux' && matrix.shell == 'wails3'
+        run: |
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          rm -f r.json
+          SPIKE_RESULT="$PWD/r.json" SPIKE_AUTOQUIT=1 perl -e 'alarm shift @ARGV; exec @ARGV' 90 xvfb-run -a ./spike > run.log 2>&1 || echo "exit $?"
+          if [ -f r.json ]; then cat r.json; else echo "no result"; grep -v -E '^(r[0-9a-z]+|[a-z]{2,6}) +0x' run.log | head -30 || true; fi
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=1
+
+      - name: "Wails v3 on Linux: built on GTK 3 and WebKitGTK 4.1"
+        if: runner.os == 'Linux' && matrix.shell == 'wails3'
+        run: |
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+          go build -tags gtk3 -ldflags "-s -w" -o spike-gtk3 . && ldd spike-gtk3 | grep -E 'webkit|gtk'
+          for i in 1 2; do
+            rm -f r.json
+            SPIKE_RESULT="$PWD/r.json" SPIKE_AUTOQUIT=1 perl -e 'alarm shift @ARGV; exec @ARGV' 90 xvfb-run -a ./spike-gtk3 > run.log 2>&1 || echo "exit $?"
+            if [ -f r.json ]; then cat r.json; echo; else echo "no result"; grep -v -E '^(r[0-9a-z]+|[a-z]{2,6}) +0x' run.log | head -30 || true; fi
+          done
 
       - name: Summary
         if: always()
