@@ -119,5 +119,5 @@ jobs:
           {
             echo "### ${{ matrix.shell }} on ${{ matrix.os }}"
             echo "build: ${BUILD_SECONDS:-?} s"
-            for f in r1.json r2.json r3.json; do [ -f "$f" ] && tr -d '\n ' < "$f" && echo; done
+            for f in r1.json r2.json r3.json; do if [ -f "$f" ]; then tr -d '\n ' < "$f"; echo; fi; done
           } >> "$GITHUB_STEP_SUMMARY"

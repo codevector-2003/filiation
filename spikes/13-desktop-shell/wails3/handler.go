@@ -14,23 +14,24 @@ type result struct {
 	Shell     string `json:"shell"`
 	OS        string `json:"os"`
 	Arch      string `json:"arch"`
-	StartupMS int64  `json:"startup_ms"` // process start to the page's first script running
+	StartupMS int64  `json:"startup_ms"` // process start to the page's first script running, by the wall clock
 	APIMS     int64  `json:"api_ms"`     // the page's round trip to a Go handler, as the page timed it
 	Binary    int64  `json:"binary_bytes"`
 }
 
-// page is the window's whole content: it times a call to the Go side, then
-// reports that it is up. fil's interface would be served the same way.
+// page is the window's whole content: it notes when its script started,
+// times a call to the Go side, then reports both. fil's interface would be served the same way.
 const page = `<!doctype html><html><head><meta charset="utf-8"><title>Filiation spike</title></head>
 <body style="font-family:system-ui;padding:24px"><h1>Filiation desktop shell spike</h1><p id="s">loading</p>
 <script>
+const scriptStart = Date.now();
 (async () => {
   const t0 = performance.now();
   const r = await fetch('/api/ping');
   await r.json();
   const api = Math.round(performance.now() - t0);
   document.getElementById('s').textContent = 'API round trip ' + api + ' ms';
-  await fetch('/api/ready?api=' + api, {method: 'POST'});
+  await fetch('/api/ready?api=' + api + '&script=' + scriptStart, {method: 'POST'});
 })();
 </script></body></html>`
 
@@ -50,8 +51,12 @@ func newHandler(start time.Time, shell string, quit func()) http.Handler {
 	mux.HandleFunc("POST /api/ready", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 		once.Do(func() {
-			res := result{Shell: shell, OS: runtime.GOOS, Arch: runtime.GOARCH,
-				StartupMS: time.Since(start).Milliseconds()}
+			// The page reports when its script started, so the round trip it
+			// times next, and this request, are not counted as start-up.
+			res := result{Shell: shell, OS: runtime.GOOS, Arch: runtime.GOARCH}
+			var script int64
+			json.Unmarshal([]byte(r.URL.Query().Get("script")), &script)
+			res.StartupMS = script - start.UnixMilli()
 			json.Unmarshal([]byte(r.URL.Query().Get("api")), &res.APIMS)
 			if exe, err := os.Executable(); err == nil {
 				if fi, err := os.Stat(exe); err == nil {
