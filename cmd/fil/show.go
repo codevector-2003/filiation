@@ -39,6 +39,7 @@ func (a *app) listCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.Title, "title", "", "only papers whose title has all these words")
 	cmd.Flags().IntVar(&opts.Limit, "limit", 50, "most papers to list; 0 lists all")
 	cmd.Flags().BoolVar(&asJSON, "json", false, "print JSON, one object per paper, for scripts")
+	cmd.Flags().BoolVar(&a.pickMode, "pick", false, "move through the papers with the arrow keys; Enter for details, o to open a PDF")
 	return cmd
 }
 
@@ -61,6 +62,13 @@ func (a *app) list(ctx context.Context, opts library.ListOptions, asJSON bool) e
 			}
 		}
 		return nil
+	}
+	if a.pickMode && a.canPick() && len(rows) > 0 {
+		picks := make([]pickRow, len(rows))
+		for i, r := range rows {
+			picks[i] = listRow(r)
+		}
+		return a.pick(ctx, lib, "Papers", picks)
 	}
 	if len(rows) == 0 {
 		fmt.Fprintln(w, "No papers match.")
