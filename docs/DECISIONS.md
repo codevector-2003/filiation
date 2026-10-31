@@ -624,7 +624,7 @@ shell uses is the desktop app's first step to decide.
 
 The shell (D24) uses **Wails v2**. It is the only candidate that ran on every platform: Windows
 (x86-64 and Arm64), macOS and Ubuntu 24.04 (x86-64 and Arm64). Its Linux start is the fastest
-measured, about 0.15 s warm. Wails v3 does not run on a stock Ubuntu 24.04: WebKitGTK 6.0 always
+measured, about 0.2 s warm. Wails v3 does not run on a stock Ubuntu 24.04: WebKitGTK 6.0 always
 sandboxes its web content with bubblewrap, which Ubuntu restricts, and even when allowed it took
 17–26 s to start. Its tray and multi-window support are not needed for the designed screens.
 

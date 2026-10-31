@@ -259,7 +259,7 @@ documentation, including this file's own history.
 | 9 | How many works have a PDF fil can get? *(24 Oct 2026)* | **~1 in 8**: 46% physics → <1% humanities. Publishers 403, arXiv always works. **Unpaywall adds nothing** (28 Oct) — not built (D21) |
 | 10 | Which PDF text extractor? | **PDFium in WebAssembly**: 0.985 word F1 vs pdftotext, no cgo (D20) |
 | 11 | Can references be matched from PDF text? | 97% precise, 44% recall — finding the list is the hard part (D22) |
-| 13 | Which webview for the desktop shell? *(31 Oct 2026)* | **Wails v2**: runs on all five platforms, 0.15 s warm start on Linux. Wails v3 crashes on stock Ubuntu 24.04 (WebKitGTK 6.0 sandbox) (D25) |
+| 13 | Which webview for the desktop shell? *(31 Oct 2026)* | **Wails v2**: runs on all five platforms, about 0.2 s warm start on Linux. Wails v3 crashes on stock Ubuntu 24.04 (WebKitGTK 6.0 sandbox) (D25) |
 
 **Two gotchas the store package must handle**, both from spike 5:
 

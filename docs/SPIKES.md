@@ -504,17 +504,22 @@ tried: its last change was in August 2024. Code: `spikes/13-desktop-shell`. It r
 maintainer's Windows 11 machine and in CI (`.github/workflows/spike-desktop-shell.yml`) on Windows,
 macOS (Apple silicon), and Ubuntu 24.04 x86-64 and Arm64.
 
-*Start* is process start to the page's first script running: first run / the next two.
+*Start* is process start to the page's first script running, by the wall clock: first run / the
+next two. A first run includes the system checking a freshly built program; on the maintainer's
+machine antivirus scanning made Wails v3's first two runs 16.5 s and 6.2 s, and its next four
+0.59–0.66 s.
 
 | Platform | Wails v2: size | v2: start | Wails v3: size | v3: start |
 | --- | --- | --- | --- | --- |
-| Windows 11, maintainer's machine | 11.8 MB | 1.57 s / 0.74 s | 12.6 MB | 1.27 s / 0.70–0.81 s |
-| Windows, CI | 11.3 MB | 3.15 s / 0.51–0.55 s | 12.1 MB | 3.15 s / 0.51–0.55 s |
-| macOS 26, Apple silicon, CI | 7.8 MB | 3.18 s / 1.73 s | 10.4 MB | 0.87 s / 1.32–1.42 s |
-| Ubuntu 24.04 x86-64, CI | 8.7 MB | 1.93 s / 0.15 s | 11.6 MB | **crashes**; 17–25 s with the sandbox let through |
-| Ubuntu 24.04 Arm64, CI | 8.1 MB | 1.63 s / 0.17–0.18 s | 10.9 MB | **crashes**; 18–26 s with the sandbox let through |
+| Windows 11, maintainer's machine | 11.8 MB | 0.97 s / 0.58–0.62 s | 12.6 MB | 0.59–0.66 s warm |
+| Windows, CI | 11.3 MB | 8.25 s / 0.51–0.55 s | 12.1 MB | 8.12 s / 0.59–0.64 s |
+| macOS 26, Apple silicon, CI | 7.8 MB | 4.34 s / 1.93–2.24 s | 10.4 MB | 2.87 s / 1.78–1.83 s |
+| Ubuntu 24.04 x86-64, CI | 8.7 MB | 2.63 s / 0.20–0.21 s | 11.6 MB | **aborts**; 17–25 s with the sandbox let through |
+| Ubuntu 24.04 Arm64, CI | 8.1 MB | 0.48 s / 0.17 s | 10.9 MB | **aborts**; 18–26 s with the sandbox let through |
 
-The page's round trip to the Go side was 11–30 ms everywhere. Sizes are stripped (`-s -w`).
+The page's round trip to the Go side was 8–60 ms once warm (up to 155 ms on macOS). Sizes are
+stripped (`-s -w`). The first measurement counted that round trip as start-up; a review caught it,
+and these figures time the page's first script instead.
 
 - **Both build without cgo on Windows.** Wails drives WebView2 from pure Go there, so the Windows
   shell can still be cross-built, for arm64 too (checked).
@@ -523,18 +528,18 @@ The page's round trip to the Go side was 11–30 ms everywhere. Sizes are stripp
   Ubuntu 24.04 restricts by default: `bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted`,
   then the app aborts. Allowing them (`kernel.apparmor_restrict_unprivileged_userns=0`) lets it
   start, but only after 17–26 s, a fixed wait that switching off the accessibility bus did not
-  remove. Building v3 on GTK 3 (`-tags gtk3`) also took about 25 s. Not worth chasing: Wails v2
+  remove. Building v3 on GTK 3 (`-tags gtk3`) took 7.9–26 s. Not worth chasing: Wails v2
   starts in 0.15 s on the same machines.
 - **Wails v2 on Linux uses GTK 3 and WebKitGTK 4.1**, where the sandbox is optional. It needs
   `libwebkit2gtk-4.1` at run time (Ubuntu 22.04+, Debian 12+, Fedora), and the `webkit2_41` build
   tag.
 - **Wails v2 on macOS needs one linker flag with the Xcode 26 SDK:** it does not link
   `UniformTypeIdentifiers` itself, so `CGO_LDFLAGS="-framework UniformTypeIdentifiers"`.
-- **macOS start-up is the slowest** (about 1.7 s warm for v2), which is WebKit's own start on the
-  CI runner; v3 was faster there.
+- **macOS start-up is the slowest** (about 2 s warm for v2, 1.8 s for v3), which is WebKit's own
+  start on the CI runner.
 
 **Decision: Wails v2** (D25). It is the only one that ran on every platform, it is mature, and its
-Linux start is the fastest of all. Wails v3's tray and multi-window support are not needed for the
+Linux start is the fastest of all, about 0.2 s warm. Wails v3's tray and multi-window support are not needed for the
 designed screens. Revisit v3 when its Linux build starts quickly under the WebKitGTK 6.0 sandbox.
 
 ---
