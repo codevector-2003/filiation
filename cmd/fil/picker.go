@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -40,6 +41,9 @@ type card struct {
 	pdfOK, pdfWarn                                                 bool
 	pdfPath, folder                                                string
 	canFetch                                                       bool
+	// web is the paper's page on the web: its DOI's, an open copy's landing
+	// page, or its OpenAlex page.
+	web string
 }
 
 // pickActions is what the picker asks of the library and the computer; a
@@ -50,6 +54,7 @@ type pickActions interface {
 	fetch(id string) (string, error)
 	openFile(path string) error
 	openFolder(path string) error
+	openURL(u string) error
 	copyText(s string) error
 }
 
@@ -183,7 +188,7 @@ func (m picker) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.filterIn.CursorEnd()
 	case "enter", "right", "l":
 		m.openCard()
-	case "o", "f", "c", "n":
+	case "o", "f", "c", "n", "w":
 		// The same keys work on the row as on its card.
 		m.openCard()
 		if m.card != nil {
@@ -220,7 +225,7 @@ func (m picker) updateCard(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "esc", "backspace", "left", "h", "q":
 		m.card, m.status = nil, ""
 		return m, nil
-	case "o", "f", "c", "n", "g":
+	case "o", "f", "c", "n", "g", "w":
 		return m.cardAction(k, false)
 	}
 	return m, nil
@@ -256,6 +261,16 @@ func (m picker) cardAction(key string, fromList bool) (tea.Model, tea.Cmd) {
 			m.say("Could not open the folder: "+err.Error(), true)
 		} else {
 			m.say("Opened its folder", false)
+		}
+	case "w":
+		if c.web == "" {
+			m.say("No web page is known for this paper.", true)
+			return done()
+		}
+		if err := m.act.openURL(c.web); err != nil {
+			m.say("Could not open the web page: "+err.Error(), true)
+		} else {
+			m.say("Opened "+c.web+" in your browser", false)
 		}
 	case "c":
 		if c.doi == "" {
@@ -355,7 +370,7 @@ func (m picker) viewList() string {
 	for i := end - start; i < rows; i++ {
 		b.WriteString("\n")
 	}
-	b.WriteString(m.footer("↑↓ move · Enter details · o open PDF · f folder · c copy DOI · n neighbours · / filter · Esc back"))
+	b.WriteString(m.footer("↑↓ move · Enter details · o open PDF · w website · f folder · c copy DOI · n neighbours · / filter · Esc back"))
 	return b.String()
 }
 
@@ -380,6 +395,9 @@ func (m picker) viewCard() string {
 	}
 	row("About", c.kind)
 	row("DOI", c.doi)
+	if c.web != "" {
+		row("Web", p.accent(clip(c.web, inner-9)))
+	}
 	row("IDs", p.id(c.id)+p.dim(strings.TrimPrefix(c.ids, c.id)))
 	row("Graph", c.graph)
 	switch {
@@ -400,13 +418,16 @@ func (m picker) viewCard() string {
 		}
 		return p.accent("["+k+"]") + " " + what
 	}
-	actions := []string{key("o", "Open PDF", c.pdfPath != ""), key("f", "Open folder", c.folder != ""),
-		key("c", "Copy DOI", c.doi != ""), key("n", "Neighbours", true)}
+	// Two short lines rather than one long one, so a narrow terminal never
+	// splits a key from its label.
+	open := []string{key("o", "Open PDF", c.pdfPath != ""), key("w", "Website", c.web != ""),
+		key("f", "Open folder", c.folder != ""), key("c", "Copy DOI", c.doi != "")}
+	more := []string{key("n", "Neighbours", true)}
 	if c.canFetch {
-		actions = append(actions, key("g", "Get the PDF", true))
+		more = append(more, key("g", "Get the PDF", true))
 	}
-	lines = append(lines, strings.Join(actions, "   "))
-	lines = append(lines, key("Esc", "Back to the list", true))
+	more = append(more, key("Esc", "Back to the list", true))
+	lines = append(lines, strings.Join(open, "   "), strings.Join(more, "   "))
 
 	return box.Render(strings.Join(lines, "\n")) + "\n" + m.footer("")
 }
@@ -506,6 +527,43 @@ func (a libActions) openFolder(path string) error {
 
 func (a libActions) copyText(s string) error { return clipboard.WriteAll(s) }
 
+// openURL opens a web page in the default browser: only an http or https
+// address, so a stored link can never open a local file or run anything.
+func (a libActions) openURL(u string) error {
+	if !webAddress(u) {
+		return fmt.Errorf("%s is not a web address", u)
+	}
+	return openWithSystem(u)
+}
+
+// webAddress reports an absolute http or https address with a host.
+func webAddress(u string) bool {
+	p, err := url.Parse(u)
+	return err == nil && (p.Scheme == "http" || p.Scheme == "https") && p.Host != "" && !strings.ContainsAny(u, " \t\r\n\"")
+}
+
+// webPage is the best page on the web for a paper: where its DOI resolves,
+// the landing page of an open copy, the link OpenAlex gives, or OpenAlex's
+// own page for it.
+func webPage(p library.Paper) string {
+	w := p.Work
+	if w.DOI != nil && *w.DOI != "" {
+		return "https://doi.org/" + *w.DOI
+	}
+	for _, l := range p.PDF.Links {
+		if webAddress(l.LandingURL) {
+			return l.LandingURL
+		}
+	}
+	if w.OAURL != nil && webAddress(*w.OAURL) {
+		return *w.OAURL
+	}
+	if w.OpenAlexID != "" {
+		return "https://openalex.org/" + w.OpenAlexID
+	}
+	return ""
+}
+
 // inLibrary refuses anything outside the library's folder: the picker opens
 // the library's own files, never a path from anywhere else.
 func (a libActions) inLibrary(path string) error {
@@ -531,7 +589,7 @@ func within(root, path string) bool {
 // cardFrom lays out what Show knows about a paper.
 func cardFrom(p library.Paper) card {
 	w := p.Work
-	c := card{id: w.FilID, title: w.DisplayTitle(), byline: byline(w), folder: p.Folder}
+	c := card{id: w.FilID, title: w.DisplayTitle(), byline: byline(w), folder: p.Folder, web: webPage(p)}
 	var kind []string
 	if w.Year != nil {
 		kind = append(kind, fmt.Sprint(*w.Year))

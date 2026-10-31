@@ -20,6 +20,7 @@ type fakeActions struct {
 	opened    []string
 	folders   []string
 	copied    []string
+	urls      []string
 	fetched   []string
 	neighbour []pickRow
 }
@@ -44,12 +45,14 @@ func (f *fakeActions) fetch(id string) (string, error) {
 func (f *fakeActions) openFile(p string) error   { f.opened = append(f.opened, p); return nil }
 func (f *fakeActions) openFolder(p string) error { f.folders = append(f.folders, p); return nil }
 func (f *fakeActions) copyText(s string) error   { f.copied = append(f.copied, s); return nil }
+func (f *fakeActions) openURL(u string) error    { f.urls = append(f.urls, u); return nil }
 
 func pickerFixture() (*fakeActions, picker) {
 	act := &fakeActions{
 		cards: map[string]card{
 			"F45ZSWF64": {id: "F45ZSWF64", title: "The state of OA", doi: "10.7717/peerj.4375", pdfOK: true,
-				pdfPath: "/lib/papers/Piwowar/oa.pdf", folder: "/lib/papers/Piwowar", pdf: "oa.pdf (your copy)"},
+				pdfPath: "/lib/papers/Piwowar/oa.pdf", folder: "/lib/papers/Piwowar", pdf: "oa.pdf (your copy)",
+				web: "https://doi.org/10.7717/peerj.4375"},
 			"FW08M2BQ1": {id: "FW08M2BQ1", title: "Citation Advantage of Open Access Articles", pdf: "none: no open copy",
 				canFetch: true},
 		},
@@ -296,5 +299,65 @@ func TestCardOffersFetchOnlyWithAFolder(t *testing.T) {
 		if c.canFetch != tt.fetch {
 			t.Errorf("%s: canFetch = %v, want %v", tt.name, c.canFetch, tt.fetch)
 		}
+	}
+}
+
+func TestPickerOpensTheWebsite(t *testing.T) {
+	act, m := pickerFixture()
+	m = press(m, "enter")
+	if !strings.Contains(m.View(), "https://doi.org/10.7717/peerj.4375") || !strings.Contains(m.View(), "[w] Website") {
+		t.Errorf("the card does not show the web page:\n%s", m.View())
+	}
+	m = press(m, "w")
+	if !slices.Equal(act.urls, []string{"https://doi.org/10.7717/peerj.4375"}) || !strings.Contains(m.status, "in your browser") {
+		t.Errorf("w opened %v, status %q", act.urls, m.status)
+	}
+	// From the list too; and a paper with no page says so.
+	m = press(m, "esc", "down", "w")
+	if len(act.urls) != 1 || !strings.Contains(m.status, "No web page") {
+		t.Errorf("w with no page: opened %v, status %q", act.urls, m.status)
+	}
+}
+
+func TestWebPage(t *testing.T) {
+	doi, oa := "10.7717/peerj.4375", "https://example.org/oa"
+	tests := []struct {
+		name string
+		p    library.Paper
+		want string
+	}{
+		{"the DOI first", library.Paper{Work: model.Work{DOI: &doi, OpenAlexID: "W1", OAURL: &oa}}, "https://doi.org/10.7717/peerj.4375"},
+		{"then an open copy's landing page", library.Paper{Work: model.Work{OpenAlexID: "W1", OAURL: &oa},
+			PDF: model.PDFLinks{Links: []model.Location{{LandingURL: "javascript:alert(1)"}, {LandingURL: "https://arxiv.org/abs/1"}}}}, "https://arxiv.org/abs/1"},
+		{"then OpenAlex's link", library.Paper{Work: model.Work{OpenAlexID: "W1", OAURL: &oa}}, oa},
+		{"then OpenAlex's page", library.Paper{Work: model.Work{OpenAlexID: "W2741809807"}}, "https://openalex.org/W2741809807"},
+		{"a local document has none", library.Paper{Work: model.Work{FilID: "F1"}}, ""},
+	}
+	for _, tt := range tests {
+		if got := webPage(tt.p); got != tt.want {
+			t.Errorf("%s: %q, want %q", tt.name, got, tt.want)
+		}
+	}
+}
+
+// Only web addresses open: never a file, a script or anything with a
+// space a command line could split.
+func TestWebAddress(t *testing.T) {
+	for u, want := range map[string]bool{
+		"https://doi.org/10.7717/peerj.4375": true,
+		"http://arxiv.org/abs/1706.03762":    true,
+		"file:///C:/Windows/System32/x.exe":  false,
+		"javascript:alert(1)":                false,
+		`C:\Users\me\a.pdf`:                  false,
+		"https://":                           false,
+		"https://a.org/x y":                  false,
+		`https://a.org/"x`:                   false,
+	} {
+		if got := webAddress(u); got != want {
+			t.Errorf("webAddress(%q) = %v, want %v", u, got, want)
+		}
+	}
+	if err := (libActions{}).openURL("file:///etc/passwd"); err == nil {
+		t.Error("openURL opened a file address")
 	}
 }
