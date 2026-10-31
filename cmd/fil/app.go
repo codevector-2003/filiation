@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -43,10 +44,21 @@ type app struct {
 
 	lines *bufio.Reader
 
+	// stdoutFile and stderrFile are the real files behind stdout and stderr,
+	// which decide whether output is a terminal and gets colour; nil in tests.
+	stdoutFile, stderrFile *os.File
+	// outPaint and errPaint colour stdout and stderr; plain unless a terminal.
+	outPaint, errPaint paint
+	// rawStdout is stdout before styling, for output a program reads: --json,
+	// GraphML.
+	rawStdout io.Writer
+	status    status
+
 	// flags shared by every command
 	dbFlag      string
 	libraryFlag string
 	noCache     bool
+	plain       bool
 
 	// configPath is the file to name when the fix is to edit it. Set as soon
 	// as config has been located, so an error after that point can point at it.
@@ -117,11 +129,44 @@ func (a *app) rootCommand() *cobra.Command {
 	root.PersistentFlags().StringVar(&a.libraryFlag, "library", "", "use this library, by name or folder, instead of the default")
 	root.PersistentFlags().StringVar(&a.dbFlag, "db", "", "use the database at this path, with no library folder")
 	root.PersistentFlags().BoolVar(&a.noCache, "no-cache", false, "fetch from OpenAlex even if a response is cached")
+	root.PersistentFlags().BoolVar(&a.plain, "plain", false, "no colour, even in a terminal")
+	root.PersistentPreRun = func(*cobra.Command, []string) { a.setUpColour() }
 
 	root.AddCommand(a.addCommand(), a.expandCommand(), a.neighboursCommand(), a.pathCommand(),
 		a.statsCommand(), a.listCommand(), a.showCommand(), a.fetchCommand(), a.importCommand(), a.extractCommand(), a.searchCommand(), a.exportCommand(), a.libraryCommand(), a.mcpCommand(), a.whereCommand(),
-		a.versionCommand(), a.cacheCommand())
+		a.versionCommand(), a.cacheCommand(), a.themeCommand())
 	return root
+}
+
+// raw is stdout without colour, for output a program reads.
+func (a *app) raw() io.Writer {
+	if a.rawStdout != nil {
+		return a.rawStdout
+	}
+	return a.stdout
+}
+
+// setUpColour decides, once flags are read, whether stdout and stderr get the
+// theme's colours, and routes stdout through the styling. It does nothing
+// for output that is not a terminal, which is every test.
+func (a *app) setUpColour() {
+	if a.rawStdout != nil {
+		return // already set up: a session runs many commands
+	}
+	a.rawStdout = a.stdout
+	if a.stdoutFile == nil && a.stderrFile == nil {
+		return
+	}
+	cfg := a.themeSettings()
+	a.outPaint = paintFor(a.stdoutFile, a.plain, cfg.Theme, cfg.ThemeBackground)
+	a.errPaint = paintFor(a.stderrFile, a.plain, cfg.Theme, cfg.ThemeBackground)
+	if a.outPaint.on {
+		a.stdout = styled{w: a.stdout, p: a.outPaint}
+		titles = a.outPaint
+	}
+	if a.errPaint.on {
+		a.stderr = styled{w: a.stderr, p: a.errPaint}
+	}
 }
 
 func (a *app) addCommand() *cobra.Command {
@@ -411,6 +456,10 @@ func (a *app) readLine() (string, error) {
 	return strings.TrimSpace(line), err
 }
 
+// titles makes paper titles stand out where fil prints them. setUpColour
+// gives it stdout's paint; it is plain everywhere else, tests included.
+var titles paint
+
 // headline is a work as one line: title, year and type.
 func headline(w model.Work) string {
 	var extra []string
@@ -421,9 +470,9 @@ func headline(w model.Work) string {
 		extra = append(extra, string(w.Type))
 	}
 	if len(extra) == 0 {
-		return w.DisplayTitle()
+		return titles.title(w.DisplayTitle())
 	}
-	return fmt.Sprintf("%s (%s)", w.DisplayTitle(), strings.Join(extra, ", "))
+	return fmt.Sprintf("%s (%s)", titles.title(w.DisplayTitle()), strings.Join(extra, ", "))
 }
 
 // identifiers is the line under a headline: how to find the work again, and
