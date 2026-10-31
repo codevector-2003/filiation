@@ -150,8 +150,8 @@ on 31 Oct 2026 and made a desktop app instead (D24, D25). `fil` serves the inter
 server inside the binary (`//go:embed`); a thin desktop shell, Wails v2 in `desktop/`, shows it in a
 native window on Windows, macOS and Linux, and `fil` can still open it in a browser without the
 shell. Library, search, citation map, the inbox for PDFs you have, and connecting AI assistants;
-the reader and notes follow M4's notes. Designs: the canvas linked from `STATUS.md`. Release
-numbering follows the order the milestones ship in.
+the reader and notes follow M4's notes. Release numbering follows the order the milestones ship
+in.
 
 **Success:** three people who cannot code install it and add a paper **without messaging you for
 help**. Watch one of them do it over a call and say nothing for ten minutes. It will be painful
