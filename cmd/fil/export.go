@@ -58,7 +58,7 @@ func (a *app) exportGraphML(ctx context.Context, out string, includeStubs bool) 
 	opts := library.ExportOptions{IncludeStubs: includeStubs}
 	var got library.Exported
 	if out == "" {
-		got, err = lib.ExportGraphML(ctx, a.stdout, opts)
+		got, err = lib.ExportGraphML(ctx, a.raw(), opts)
 	} else {
 		got, err = writeFileAtomically(out, func(w io.Writer) (library.Exported, error) {
 			return lib.ExportGraphML(ctx, w, opts)

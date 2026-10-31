@@ -75,14 +75,14 @@ func (a *app) expand(ctx context.Context, maxNodes, maxDepth int) error {
 	opts := library.ExpandOptions{MaxNodes: maxNodes, MaxDepth: maxDepth}
 	if a.interactive {
 		opts.Progress = func(r model.ExpansionResult) {
-			fmt.Fprintf(a.stderr, "\r  fetched %s of up to %s · %s citations recorded ",
-				thousands(r.Hydrated), thousands(budget), thousands(r.Edges))
+			a.setStatus(fmt.Sprintf("fetched %s of up to %s · %s citations recorded",
+				thousands(r.Hydrated), thousands(budget), thousands(r.Edges)))
 		}
 	}
 
 	res, runErr := lib.Expand(ctx, opts)
 	if a.interactive && res.Hydrated > 0 {
-		fmt.Fprintln(a.stderr)
+		a.endStatus()
 	}
 
 	_, configuredDepth := lib.Budget()

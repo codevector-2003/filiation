@@ -54,7 +54,7 @@ func (a *app) list(ctx context.Context, opts library.ListOptions, asJSON bool) e
 	}
 	w := a.stdout
 	if asJSON {
-		enc := json.NewEncoder(w)
+		enc := json.NewEncoder(a.raw())
 		for _, r := range rows {
 			if err := enc.Encode(listJSON(r)); err != nil {
 				return err
@@ -79,7 +79,7 @@ func (a *app) list(ctx context.Context, opts library.ListOptions, asJSON bool) e
 		if r.Seed {
 			mark = "*"
 		}
-		fmt.Fprintf(w, "%s %s  %s  %s\n", mark, r.FilID, year, short(title))
+		fmt.Fprintf(w, "%s %s  %s  %s\n", mark, r.FilID, year, titles.title(short(title)))
 		var state []string
 		if r.Author != "" {
 			state = append(state, lastName(r.Author))
@@ -241,7 +241,7 @@ func (a *app) show(ctx context.Context, input string) error {
 		fmt.Fprintf(w, "Citations:       %s of %s carry the sentence they are cited in:\n",
 			thousands(p.Contexts), plural(p.Cites, "reference", "references"))
 		for _, c := range p.Sample {
-			fmt.Fprintf(w, "  • %s\n", short(c.Work.DisplayTitle()))
+			fmt.Fprintf(w, "  • %s\n", titles.title(short(c.Work.DisplayTitle())))
 			writeWrapped(w, "      ", fmt.Sprintf("p. %d: “%s”", c.Page, c.Sentence), 78)
 		}
 		if p.Contexts > len(p.Sample) {
