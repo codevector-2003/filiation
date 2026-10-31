@@ -1,0 +1,87 @@
+# Spike 13: builds and runs the two candidate desktop shells (Wails v2, Wails
+# v3) on every platform, opens a real window, and records how long the page
+# took to come up. Runs only when the spike changes, or by hand. D24.
+name: spike-desktop-shell
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "spikes/13-desktop-shell/**"
+      - ".github/workflows/spike-desktop-shell.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  shell:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-24.04, ubuntu-24.04-arm]
+        shell: [wails2, wails3]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: spikes/13-desktop-shell/${{ matrix.shell }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: spikes/13-desktop-shell/${{ matrix.shell }}/go.mod
+          cache-dependency-path: spikes/13-desktop-shell/${{ matrix.shell }}/go.sum
+
+      - name: Linux libraries
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev xvfb
+
+      - name: Build
+        run: |
+          tags=""
+          if [ "${{ matrix.shell }}" = wails2 ]; then
+            tags="desktop,production"
+            [ "$RUNNER_OS" = Linux ] && tags="$tags,webkit2_41"
+          fi
+          cgo=1
+          ldflags="-s -w"
+          if [ "$RUNNER_OS" = Windows ]; then cgo=0; ldflags="$ldflags -H windowsgui"; fi
+          start=$(date +%s)
+          CGO_ENABLED=$cgo go build -tags "$tags" -ldflags "$ldflags" -o spike .
+          echo "BUILD_SECONDS=$(( $(date +%s) - start ))" >> "$GITHUB_ENV"
+          ls -l spike*
+
+      - name: Windows arm64, cross-built
+        if: runner.os == 'Windows'
+        run: |
+          tags=""; [ "${{ matrix.shell }}" = wails2 ] && tags="desktop,production"
+          CGO_ENABLED=0 GOARCH=arm64 go build -tags "$tags" -ldflags "-s -w -H windowsgui" -o spike-arm64.exe . && ls -l spike-arm64.exe
+
+      - name: Shared libraries it needs
+        if: runner.os != 'Windows'
+        run: |
+          if [ "$RUNNER_OS" = Linux ]; then ldd spike | awk '{print $1}' | sort | tee libs.txt | grep -E 'webkit|gtk|soup' ; echo "total $(wc -l < libs.txt)"
+          else otool -L spike; fi
+
+      - name: Run three times
+        run: |
+          bin=./spike
+          if [ "$RUNNER_OS" = Windows ]; then mv spike spike.exe; bin=./spike.exe; fi
+          wrap=""; [ "$RUNNER_OS" = Linux ] && wrap="xvfb-run -a"
+          # macOS has no GNU timeout; perl's alarm does the same.
+          for i in 1 2 3; do
+            rm -f r.json
+            SPIKE_RESULT="$PWD/r.json" SPIKE_AUTOQUIT=1 perl -e 'alarm shift @ARGV; exec @ARGV' 90 $wrap $bin > run.log 2>&1 || echo "exit $?"
+            if [ -f r.json ]; then cat r.json; echo; else echo "no result"; tail -20 run.log; fi
+            [ -f r.json ] && cp r.json "r$i.json"
+          done
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### ${{ matrix.shell }} on ${{ matrix.os }}"
+            echo "build: ${BUILD_SECONDS:-?} s"
+            for f in r1.json r2.json r3.json; do [ -f "$f" ] && tr -d '\n ' < "$f" && echo; done
+          } >> "$GITHUB_STEP_SUMMARY"
