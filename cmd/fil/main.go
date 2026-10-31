@@ -17,11 +17,6 @@ import (
 var Version = "0.0.0-dev"
 
 func main() {
-	// Ctrl-C cancels the context rather than killing the process, so a write in
-	// flight rolls back and the library is never left half-written.
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer stop()
-
 	a := &app{
 		stdin:       os.Stdin,
 		stdout:      os.Stdout,
@@ -30,6 +25,17 @@ func main() {
 		stdoutFile:  os.Stdout,
 		stderrFile:  os.Stderr,
 	}
+
+	// fil on its own, in a terminal, stays open: a session. It handles
+	// Ctrl+C per command itself, so a stopped command does not end it.
+	if len(os.Args) == 1 && a.interactive {
+		os.Exit(a.session(context.Background()))
+	}
+
+	// Ctrl-C cancels the context rather than killing the process, so a write in
+	// flight rolls back and the library is never left half-written.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
 	os.Exit(a.run(ctx, os.Args[1:]))
 }
 

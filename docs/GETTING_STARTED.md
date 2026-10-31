@@ -40,6 +40,9 @@ fil search "citation advantage"             # find passages, with their paper an
 fil show 10.7717/peerj.4375                 # everything about one paper
 ```
 
+Or keep fil open: run `fil` on its own, and type one command after another at its prompt
+(`/` lists them).
+
 ## Where your library lives
 
 On the first run fil asks where to keep your library: a folder you can see, `Documents/Filiation/My

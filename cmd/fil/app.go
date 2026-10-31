@@ -51,8 +51,14 @@ type app struct {
 	outPaint, errPaint paint
 	// rawStdout is stdout before styling, for output a program reads: --json,
 	// GraphML.
-	rawStdout io.Writer
+	rawStdout, rawStderr io.Writer
+	// colourFor decides a stream's paint; nil means paintFor. Tests stand in
+	// a terminal with it.
+	colourFor func(f *os.File, plain bool, themeName, background string) paint
 	status    status
+	// prompter reads a session's next line; nil means the terminal prompt.
+	// Tests feed lines through it.
+	prompter func(history []string) (string, bool, error)
 
 	// flags shared by every command
 	dbFlag      string
@@ -119,7 +125,9 @@ func (a *app) rootCommand() *cobra.Command {
 		Use:   "fil",
 		Short: "A citation graph and retrieval engine you run yourself",
 		Long: "fil builds a map of what cites what, starting from papers you give it,\n" +
-			"and keeps it in a library on your own machine.",
+			"and keeps it in a library on your own machine.\n\n" +
+			"Run fil on its own in a terminal to keep it open: a session that runs one\n" +
+			"command after another, with / for the list of commands.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
@@ -149,17 +157,26 @@ func (a *app) raw() io.Writer {
 // setUpColour decides, once flags are read, whether stdout and stderr get the
 // theme's colours, and routes stdout through the styling. It does nothing
 // for output that is not a terminal, which is every test.
+//
+// It runs before every command, from the unstyled streams each time, so in a
+// session a command's own --plain holds for that command alone, and a theme
+// just chosen with fil theme shows from the next command on.
 func (a *app) setUpColour() {
-	if a.rawStdout != nil {
-		return // already set up: a session runs many commands
+	if a.rawStdout == nil {
+		a.rawStdout, a.rawStderr = a.stdout, a.stderr
 	}
-	a.rawStdout = a.stdout
+	a.stdout, a.stderr = a.rawStdout, a.rawStderr
+	a.outPaint, a.errPaint, titles = paint{}, paint{}, paint{}
 	if a.stdoutFile == nil && a.stderrFile == nil {
 		return
 	}
+	colour := a.colourFor
+	if colour == nil {
+		colour = paintFor
+	}
 	cfg := a.themeSettings()
-	a.outPaint = paintFor(a.stdoutFile, a.plain, cfg.Theme, cfg.ThemeBackground)
-	a.errPaint = paintFor(a.stderrFile, a.plain, cfg.Theme, cfg.ThemeBackground)
+	a.outPaint = colour(a.stdoutFile, a.plain, cfg.Theme, cfg.ThemeBackground)
+	a.errPaint = colour(a.stderrFile, a.plain, cfg.Theme, cfg.ThemeBackground)
 	if a.outPaint.on {
 		a.stdout = styled{w: a.stdout, p: a.outPaint}
 		titles = a.outPaint
