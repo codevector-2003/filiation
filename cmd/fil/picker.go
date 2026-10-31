@@ -436,6 +436,8 @@ func clip(s string, n int) string {
 type libActions struct {
 	ctx context.Context
 	lib *library.Library
+	// limit caps each side of a neighbours list; 0 lists all.
+	limit int
 }
 
 func (a libActions) card(id string) (card, error) {
@@ -443,7 +445,10 @@ func (a libActions) card(id string) (card, error) {
 	if err != nil {
 		return card{}, err
 	}
-	return cardFrom(p), nil
+	c := cardFrom(p)
+	// A library that is only a database has nowhere to put a PDF.
+	c.canFetch = c.canFetch && a.lib.Folder() != ""
+	return c, nil
 }
 
 func (a libActions) neighbours(id string) (string, []pickRow, error) {
@@ -452,13 +457,21 @@ func (a libActions) neighbours(id string) (string, []pickRow, error) {
 		return "", nil, err
 	}
 	var rows []pickRow
-	for _, w := range n.Cites {
+	for _, w := range capped(n.Cites, a.limit) {
 		rows = append(rows, workRow(w, "it cites"))
 	}
-	for _, w := range n.CitedBy {
+	for _, w := range capped(n.CitedBy, a.limit) {
 		rows = append(rows, workRow(w, "cites it"))
 	}
 	return "Neighbours of " + clip(n.Work.DisplayTitle(), 50), rows, nil
+}
+
+// capped is the first limit works, or all of them when limit is 0.
+func capped(ws []model.Work, limit int) []model.Work {
+	if limit > 0 && len(ws) > limit {
+		return ws[:limit]
+	}
+	return ws
 }
 
 func (a libActions) fetch(id string) (string, error) {
@@ -623,11 +636,16 @@ func (a *app) canPick() bool {
 
 // pick runs the picker over rows until the person leaves it.
 func (a *app) pick(ctx context.Context, lib *library.Library, heading string, rows []pickRow) error {
+	return a.pickWith(libActions{ctx: ctx, lib: lib}, heading, rows)
+}
+
+// pickWith runs the picker with the given actions.
+func (a *app) pickWith(act libActions, heading string, rows []pickRow) error {
 	if len(rows) == 0 {
 		fmt.Fprintln(a.stdout, "Nothing to show.")
 		return nil
 	}
-	m := newPicker(libActions{ctx: ctx, lib: lib}, a.outPaint, heading, rows)
+	m := newPicker(act, a.outPaint, heading, rows)
 	_, err := tea.NewProgram(m, tea.WithAltScreen(), tea.WithOutput(a.raw())).Run()
 	return err
 }

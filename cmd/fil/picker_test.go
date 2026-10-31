@@ -243,3 +243,58 @@ func TestPickFlagOffATerminal(t *testing.T) {
 		t.Errorf("list --pick off a terminal differs:\n%s\nvs\n%s", picked, plain)
 	}
 }
+
+func TestCapped(t *testing.T) {
+	ws := []model.Work{{FilID: "F1"}, {FilID: "F2"}, {FilID: "F3"}}
+	if got := capped(ws, 2); len(got) != 2 {
+		t.Errorf("capped to 2 = %d", len(got))
+	}
+	if got := capped(ws, 0); len(got) != 3 {
+		t.Errorf("--limit 0 must keep all, got %d", len(got))
+	}
+}
+
+// --context asks for the sentences, which only the printed list shows, so
+// the session does not swap it for the picker (PR #19 review).
+func TestWithPickLeavesContextPrinted(t *testing.T) {
+	args, _ := sessionArgs("neighbours F45ZSWF64 --context")
+	if got := withPick(args); slices.Contains(got, "--pick") {
+		t.Errorf("withPick added --pick to %q", got)
+	}
+}
+
+// [g] Get the PDF is offered only where a PDF can be kept: a library that is
+// only a database has no folder for one (PR #19 review).
+func TestCardOffersFetchOnlyWithAFolder(t *testing.T) {
+	h := newHarness(t, peerj)
+	db := filepath.Join(t.TempDir(), "only.db")
+	if code, _, errOut := h.run(false, "", "--db", db, "add", "10.7717/peerj.4375"); code != exitOK {
+		t.Fatalf("add with --db: %d %s", code, errOut)
+	}
+	if code, _, errOut := h.run(false, "", "add", "10.7717/peerj.4375"); code != exitOK {
+		t.Fatalf("add to a folder library: %d %s", code, errOut)
+	}
+	for _, tt := range []struct {
+		name  string
+		db    string
+		fetch bool
+	}{{"database only", db, false}, {"library folder", "", true}} {
+		a := &app{configDir: h.configDir, cacheDir: h.cacheDir, documentsDir: h.documentsDir, transport: h.replay, dbFlag: tt.db}
+		cfg, err := a.loadConfig()
+		if err != nil {
+			t.Fatal(err)
+		}
+		lib, err := library.Open(t.Context(), cfg, a.libOptions())
+		if err != nil {
+			t.Fatal(err)
+		}
+		c, err := libActions{ctx: t.Context(), lib: lib}.card("10.7717/peerj.4375")
+		lib.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if c.canFetch != tt.fetch {
+			t.Errorf("%s: canFetch = %v, want %v", tt.name, c.canFetch, tt.fetch)
+		}
+	}
+}

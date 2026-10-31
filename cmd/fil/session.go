@@ -148,7 +148,7 @@ func withPick(args []string) []string {
 	}
 	for _, a := range args[1:] {
 		switch a {
-		case "--json", "--help", "-h", "--pick", "--pick=false", "--pick=true":
+		case "--json", "--help", "-h", "--context", "--pick", "--pick=false", "--pick=true":
 			return args
 		}
 	}

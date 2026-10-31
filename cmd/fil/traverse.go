@@ -104,12 +104,14 @@ func (a *app) neighbours(ctx context.Context, input string, limit int, withConte
 	if err != nil {
 		return a.explainFind(err)
 	}
-	if a.pickMode && a.canPick() {
-		heading, rows, err := libActions{ctx: ctx, lib: lib}.neighbours(n.Work.FilID)
+	// --context asks for the sentences, which only the printed list has.
+	if a.pickMode && a.canPick() && !withContext {
+		act := libActions{ctx: ctx, lib: lib, limit: limit}
+		heading, rows, err := act.neighbours(n.Work.FilID)
 		if err != nil {
 			return err
 		}
-		return a.pick(ctx, lib, heading, rows)
+		return a.pickWith(act, heading, rows)
 	}
 
 	w := a.stdout
