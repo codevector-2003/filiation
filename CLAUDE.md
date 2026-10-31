@@ -46,9 +46,12 @@ than plain search.
    graph. Fall back to parsing only for works with no DOI and no index entry, and only later.
 3. **Do not build an LLM-extracted knowledge graph.** Our citation edges are ground truth.
    Adding guessed entities and relations on top makes the graph worse and costs a lot.
-4. **No cgo.** The entire value of choosing Go is one static binary the user double-clicks.
-   A dependency that needs cgo breaks cross-compilation and the whole distribution story.
-   If a library requires it, find another way.
+4. **No cgo in `fil`.** The entire value of choosing Go is one static binary the user
+   double-clicks. A dependency that needs cgo breaks cross-compilation and the whole distribution
+   story; CI and GoReleaser build `fil` with `CGO_ENABLED=0`, so it fails the build. If a library
+   requires it, find another way. **One exception (D24):** the desktop app shell in `desktop/`,
+   a Go module of its own, may use cgo for a native window. It only shows the interface `fil`
+   serves; nothing in `fil` may import it.
 5. **One writer goroutine.** SQLite allows a single writer. Go makes it trivially easy to
    violate this by accident — see "Concurrency" below. This is the most likely source of
    `database is locked` bugs in this codebase.
@@ -77,6 +80,7 @@ than plain search.
 | HTTP client | stdlib `net/http` + `golang.org/x/time/rate` | `rate.Limiter` is exactly the token bucket ADR-004 needs |
 | MCP | `modelcontextprotocol/go-sdk` | Official, maintained with Google |
 | Web server | stdlib `net/http` + `//go:embed` | **The SPA compiles into the binary.** No separate assets to ship |
+| Desktop window | A native webview, in `desktop/` (its own module) | **The one place cgo is allowed** (D24). A thin shell around the interface `fil` serves; built per OS. Library chosen in M5's first step |
 | Embeddings | Ollama HTTP | See ADR-008. The cost of choosing Go |
 | Answers | Ollama, or user-supplied API key | Free path must exist |
 | PDF text | PDFium as WebAssembly (`go-pdfium/webassembly`) | No cgo; ~10 MB on the binary; needs Go 1.26. Spike 10, D20 |
@@ -125,6 +129,7 @@ filiation/
 │   ├── mcpsrv/                MCP tool definitions, M2
 │   └── web/                   handlers + //go:embed of the built SPA, M5
 ├── web/ui/                    SPA source, built into internal/web/dist
+├── desktop/                   the desktop app shell: own go.mod, cgo allowed (D24), M5
 └── docs/
 ```
 

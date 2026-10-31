@@ -170,6 +170,9 @@ choice.
 **This is a standing constraint on every future dependency**, not a one-time choice. If a library
 needs cgo, find another way or do without.
 
+**Amended 31 Oct 2026 by D24:** this holds for `fil`, which stays one cgo-free binary. The desktop
+app shell, a separate module in `desktop/`, may use cgo for a native window.
+
 Detail in ADR-007.
 
 ---
@@ -580,3 +583,35 @@ list there is nothing to find.
 in papers read; built in step 10 and hand-checked at 82% precision (33 of 40), under the 90% bar,
 so reverted. Affiliation marks, formula indices and two-reference entries were the failures; each
 needs its own fix and its own hand check before superscripts come back.
+
+---
+
+## D24 — `fil` stays cgo-free; the desktop app shell may use cgo (amends D9)
+
+**Decided:** 31 Oct 2026, planning the desktop app (M5)
+
+A desktop window is what non-coding researchers expect, and every mature way to give a Go program
+a native window on macOS and Linux (Wails, the webview library) needs cgo. D9 forbade that
+everywhere. Removing it everywhere would make `fil` itself need a per-OS build, and on Linux need
+WebKitGTK installed, so it could no longer run on a server or in a container — the CLI, the MCP
+server and the planned server mode would all pay for a window they do not use.
+
+**So the rule is narrowed, not dropped:**
+
+- **`fil` stays cgo-free.** The CLI, the MCP server, the library and the web interface it serves
+  (`internal/web`) remain one static binary per platform, cross-built from one machine. CI and
+  GoReleaser already build it with `CGO_ENABLED=0`, so a dependency needing cgo fails the build.
+- **The desktop app shell may use cgo.** It lives in `desktop/`, a Go module of its own, so its
+  dependencies never enter `fil`'s `go.mod`. It is thin: a native window showing the same
+  interface `fil` serves, so the interface is written once. Nothing in `fil` imports it.
+- **The shell is built per OS** in CI, on each platform's own runner, and shipped beside `fil`.
+- **Without the shell, the interface still works:** `fil` can open it in a browser's app-mode
+  window, for Linux systems without WebKitGTK and anyone who only installs `fil`.
+
+**Rejected:** removing the rule for everything (above); and keeping the rule with only an
+app-mode browser window — no native menus, file dialogs or drop target, and macOS and Linux would
+depend on a Chromium-based browser being installed.
+
+**Costs accepted:** the release pipeline gains per-OS jobs for the shell; on Linux the shell needs
+WebKitGTK at run time; contributors to `desktop/` need a C toolchain. Which webview library the
+shell uses is the desktop app's first step to decide.
