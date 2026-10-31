@@ -494,6 +494,51 @@ title's words.
 
 ---
 
+## Spike 13 — the desktop app shell · **Wails v2** · 31 Oct 2026
+
+**Question.** Which native webview should the desktop app shell use (D24)? Candidates: Wails
+v2.17.0 and Wails v3.0.0, each as the same tiny shell. It opens a native window whose page is
+served by a plain Go `http.Handler` in the same process, which is how fil's interface would be
+shown. The page times a call to the Go side, then reports that it is up. `webview_go` was not
+tried: its last change was in August 2024. Code: `spikes/13-desktop-shell`. It ran on the
+maintainer's Windows 11 machine and in CI (`.github/workflows/spike-desktop-shell.yml`) on Windows,
+macOS (Apple silicon), and Ubuntu 24.04 x86-64 and Arm64.
+
+*Start* is process start to the page's first script running: first run / the next two.
+
+| Platform | Wails v2: size | v2: start | Wails v3: size | v3: start |
+| --- | --- | --- | --- | --- |
+| Windows 11, maintainer's machine | 11.8 MB | 1.57 s / 0.74 s | 12.6 MB | 1.27 s / 0.70–0.81 s |
+| Windows, CI | 11.3 MB | 3.15 s / 0.51–0.55 s | 12.1 MB | 3.15 s / 0.51–0.55 s |
+| macOS 26, Apple silicon, CI | 7.8 MB | 3.18 s / 1.73 s | 10.4 MB | 0.87 s / 1.32–1.42 s |
+| Ubuntu 24.04 x86-64, CI | 8.7 MB | 1.93 s / 0.15 s | 11.6 MB | **crashes**; 17–25 s with the sandbox let through |
+| Ubuntu 24.04 Arm64, CI | 8.1 MB | 1.63 s / 0.17–0.18 s | 10.9 MB | **crashes**; 18–26 s with the sandbox let through |
+
+The page's round trip to the Go side was 11–30 ms everywhere. Sizes are stripped (`-s -w`).
+
+- **Both build without cgo on Windows.** Wails drives WebView2 from pure Go there, so the Windows
+  shell can still be cross-built, for arm64 too (checked).
+- **Wails v3 does not run on a stock Ubuntu 24.04.** It uses GTK 4 and WebKitGTK 6.0, which always
+  runs web content in a bubblewrap sandbox. The sandbox needs unprivileged user namespaces, which
+  Ubuntu 24.04 restricts by default: `bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted`,
+  then the app aborts. Allowing them (`kernel.apparmor_restrict_unprivileged_userns=0`) lets it
+  start, but only after 17–26 s, a fixed wait that switching off the accessibility bus did not
+  remove. Building v3 on GTK 3 (`-tags gtk3`) also took about 25 s. Not worth chasing: Wails v2
+  starts in 0.15 s on the same machines.
+- **Wails v2 on Linux uses GTK 3 and WebKitGTK 4.1**, where the sandbox is optional. It needs
+  `libwebkit2gtk-4.1` at run time (Ubuntu 22.04+, Debian 12+, Fedora), and the `webkit2_41` build
+  tag.
+- **Wails v2 on macOS needs one linker flag with the Xcode 26 SDK:** it does not link
+  `UniformTypeIdentifiers` itself, so `CGO_LDFLAGS="-framework UniformTypeIdentifiers"`.
+- **macOS start-up is the slowest** (about 1.7 s warm for v2), which is WebKit's own start on the
+  CI runner; v3 was faster there.
+
+**Decision: Wails v2** (D25). It is the only one that ran on every platform, it is mature, and its
+Linux start is the fastest of all. Wails v3's tray and multi-window support are not needed for the
+designed screens. Revisit v3 when its Linux build starts quickly under the WebKitGTK 6.0 sandbox.
+
+---
+
 ## Consequences for the build
 
 - **`go.mod` moved to `go 1.25.0`.** `go get` bumped it: `go-sqlite3-wasm/v3` requires it. CLAUDE.md

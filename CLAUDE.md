@@ -80,7 +80,7 @@ than plain search.
 | HTTP client | stdlib `net/http` + `golang.org/x/time/rate` | `rate.Limiter` is exactly the token bucket ADR-004 needs |
 | MCP | `modelcontextprotocol/go-sdk` | Official, maintained with Google |
 | Web server | stdlib `net/http` + `//go:embed` | **The SPA compiles into the binary.** No separate assets to ship |
-| Desktop window | A native webview, in `desktop/` (its own module) | **The one place cgo is allowed** (D24). A thin shell around the interface `fil` serves; built per OS. Library chosen in M5's first step |
+| Desktop window | Wails v2, in `desktop/` (its own module) | **The one place cgo is allowed** (D24). A thin shell showing the interface `fil` serves, in the same process; built per OS. Only candidate that ran everywhere (spike 13, D25) |
 | Embeddings | Ollama HTTP | See ADR-008. The cost of choosing Go |
 | Answers | Ollama, or user-supplied API key | Free path must exist |
 | PDF text | PDFium as WebAssembly (`go-pdfium/webassembly`) | No cgo; ~10 MB on the binary; needs Go 1.26. Spike 10, D20 |
@@ -242,7 +242,7 @@ Phase 1 carries two extra weeks for that.
 
 ---
 
-## Spikes — 1–7 run 30 Aug 2026, 9–11 run 24 Oct 2026
+## Spikes — 1–7 run 30 Aug 2026, 9–11 run 24 Oct 2026, 13 run 31 Oct 2026
 
 **Results and evidence: `docs/SPIKES.md`. Code: `spikes/`.** Trust those numbers over any
 documentation, including this file's own history.
@@ -259,6 +259,7 @@ documentation, including this file's own history.
 | 9 | How many works have a PDF fil can get? *(24 Oct 2026)* | **~1 in 8**: 46% physics → <1% humanities. Publishers 403, arXiv always works. **Unpaywall adds nothing** (28 Oct) — not built (D21) |
 | 10 | Which PDF text extractor? | **PDFium in WebAssembly**: 0.985 word F1 vs pdftotext, no cgo (D20) |
 | 11 | Can references be matched from PDF text? | 97% precise, 44% recall — finding the list is the hard part (D22) |
+| 13 | Which webview for the desktop shell? *(31 Oct 2026)* | **Wails v2**: runs on all five platforms, 0.15 s warm start on Linux. Wails v3 crashes on stock Ubuntu 24.04 (WebKitGTK 6.0 sandbox) (D25) |
 
 **Two gotchas the store package must handle**, both from spike 5:
 
