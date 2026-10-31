@@ -196,7 +196,7 @@ Where books and chapters dominate, publishers rarely deposit reference lists, an
 
 Issues and pull requests are welcome. Before a larger change, read [`docs/STATUS.md`](docs/STATUS.md) and the hard rules in [`CLAUDE.md`](CLAUDE.md). A few are non-negotiable:
 
-- no cgo;
+- no cgo in `fil` itself (the desktop app shell is the one exception, D24);
 - no paywalled full text, ever;
 - no reference parsing;
 - no network access in unit tests.
