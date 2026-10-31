@@ -64,12 +64,12 @@ func (a *app) locate(ctx context.Context, max int) error {
 	opts := library.LocateOptions{Max: max}
 	if a.interactive {
 		opts.Progress = func(l library.Located) {
-			fmt.Fprintf(a.stderr, "\r  looked up %s papers ", thousands(l.Checked))
+			a.setStatus(fmt.Sprintf("looked up %s papers", thousands(l.Checked)))
 		}
 	}
 	res, runErr := lib.LocatePDFs(ctx, opts)
 	if a.interactive && res.Checked > 0 {
-		fmt.Fprintln(a.stderr)
+		a.endStatus()
 	}
 
 	w := a.stdout
@@ -194,20 +194,20 @@ func (a *app) fetch(ctx context.Context, max int) error {
 		downloading := false // a download progress line is on screen
 		opts.Progress = func(f library.Fetched) {
 			downloading = true
-			fmt.Fprintf(a.stderr, "\r  %s of up to %s papers tried · %s downloaded · %s ",
-				thousands(f.Tried), thousands(budget), thousands(f.Downloaded), megabytes(f.Bytes))
+			a.setStatus(fmt.Sprintf("%s of up to %s papers tried · %s downloaded · %s",
+				thousands(f.Tried), thousands(budget), thousands(f.Downloaded), megabytes(f.Bytes)))
 		}
 		opts.ReadProgress = func(e library.Extracted) {
 			if downloading {
 				downloading = false
-				fmt.Fprintln(a.stderr) // reading gets a line of its own
+				a.endStatus() // reading gets a line of its own
 			}
 			a.readProgress(e)
 		}
 	}
 	res, runErr := lib.Fetch(ctx, opts)
 	if a.interactive && (res.Tried > 0 || res.Read.Done > 0) {
-		fmt.Fprintln(a.stderr)
+		a.endStatus()
 	}
 	if errors.Is(runErr, library.ErrNoFolder) {
 		return a.explainNoFolder(runErr)

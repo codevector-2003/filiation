@@ -27,6 +27,8 @@ func main() {
 		stdout:      os.Stdout,
 		stderr:      os.Stderr,
 		interactive: isTerminal(os.Stdin) && isTerminal(os.Stdout),
+		stdoutFile:  os.Stdout,
+		stderrFile:  os.Stderr,
 	}
 	os.Exit(a.run(ctx, os.Args[1:]))
 }

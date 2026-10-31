@@ -1,7 +1,8 @@
 # Commands
 
 Every command has `--help`. Exit codes are distinct per outcome (not found, ambiguous, network, and
-so on), so scripts can branch on them. `--library <name>` picks a library for any command.
+so on), so scripts can branch on them. `--library <name>` picks a library for any command, and
+`--plain` turns colour off.
 
 ## Building the graph
 
@@ -37,4 +38,5 @@ so on), so scripts can branch on them. `--library <name>` picks a library for an
 | --- | --- |
 | `fil library` | Your library folder and what is in `papers/`. `library folder <paper>` prints a paper's folder, making it if needed; `library scan` finds papers you moved, renamed or deleted; `library new` and `library move` make another library or move this one. |
 | `fil where` | Where your library, settings and cache live. |
+| `fil theme [name]` | Show the colour schemes, or choose one: `lineage` (the default), `manuscript`, `graph`, or `plain`. `--background dark` or `light` if fil guesses your terminal's background wrong. Colour only reaches a terminal: piped output, `--json` and files stay plain, as does everything when `NO_COLOR` is set. `FIL_THEME` overrides the choice for one run. |
 | `fil cache clear` | Empty the cache of OpenAlex responses. Your library isn't touched. |

@@ -79,6 +79,12 @@ type Config struct {
 	// nothing. Absent, Warnings says so once and the tool runs.
 	ContactEmail string
 
+	// Theme is the colour scheme fil uses in a terminal: a name the CLI knows,
+	// or empty for its default. ThemeBackground is "dark", "light", or empty
+	// to guess from the terminal. Neither changes anything but colours.
+	Theme           string
+	ThemeBackground string
+
 	MaxNodes       int
 	MaxDepth       int
 	MaxRefsPerWork int
@@ -142,8 +148,10 @@ type Options struct {
 // mention max_nodes must leave the default alone, while max_nodes = 0 is a
 // mistake worth reporting.
 type globalFile struct {
-	ContactEmail   *string `toml:"contact_email,omitempty"`
-	DefaultLibrary *string `toml:"default_library,omitempty"`
+	ContactEmail    *string `toml:"contact_email,omitempty"`
+	DefaultLibrary  *string `toml:"default_library,omitempty"`
+	Theme           *string `toml:"theme,omitempty"`
+	ThemeBackground *string `toml:"theme_background,omitempty"`
 
 	// DBPath is a v0.1 or v0.2 library: a database with no folder. While it is
 	// set and default_library is not, it is the library fil opens.
@@ -248,6 +256,12 @@ func Load(opts Options) (*Config, error) {
 	cfg.Libraries = append(cfg.Libraries, g.Libraries...)
 	if g.ContactEmail != nil {
 		cfg.ContactEmail = *g.ContactEmail
+	}
+	if g.Theme != nil {
+		cfg.Theme = *g.Theme
+	}
+	if g.ThemeBackground != nil {
+		cfg.ThemeBackground = *g.ThemeBackground
 	}
 	applyBudgets(cfg, g.MaxNodes, g.MaxDepth, g.MaxRefsPerWork)
 
@@ -636,15 +650,40 @@ func (c *Config) Save() error {
 		}
 	}
 
-	header := "# Filiation settings for this computer.\n" +
-		"# Written by fil; edit freely. Delete a line to return it to its default.\n" +
-		"# Each library folder has its own filiation.toml for its name and budgets.\n\n"
-	if err := writeTOML(c.ConfigPath, header, g); err != nil {
+	if err := writeTOML(c.ConfigPath, globalHeader, g); err != nil {
 		return err
 	}
 	c.global = g
 	c.Libraries = append(c.Libraries[:0], g.Libraries...)
 	c.FirstRun = false
+	return nil
+}
+
+// globalHeader opens the global settings file.
+const globalHeader = "# Filiation settings for this computer.\n" +
+	"# Written by fil; edit freely. Delete a line to return it to its default.\n" +
+	"# Each library folder has its own filiation.toml for its name and budgets.\n\n"
+
+// SaveTheme records the colour scheme, and the terminal background when
+// background is not "", in the global settings, and nothing else: no
+// library is created or listed, so it works before the first one exists.
+func (c *Config) SaveTheme(name, background string) error {
+	if c.ConfigPath == "" {
+		return fmt.Errorf("no config path set: %w", errs.ErrInvalidConfig)
+	}
+	g := c.global
+	g.Theme = &name
+	if background != "" {
+		g.ThemeBackground = &background
+	}
+	if err := writeTOML(c.ConfigPath, globalHeader, g); err != nil {
+		return err
+	}
+	c.global = g
+	c.Theme = name
+	if background != "" {
+		c.ThemeBackground = background
+	}
 	return nil
 }
 

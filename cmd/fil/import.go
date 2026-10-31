@@ -106,12 +106,12 @@ func (a *app) importFiles(ctx context.Context, files []string, as, local string,
 	}
 	if a.interactive {
 		opts.Progress = func(f library.ImportedFile) {
-			fmt.Fprintf(a.stderr, "\r  %s ", short(filepath.Base(f.File)))
+			a.setStatus(short(filepath.Base(f.File)))
 		}
 	}
 	res, runErr := lib.Import(ctx, opts)
 	if a.interactive && len(res.Files) > 0 {
-		fmt.Fprintln(a.stderr)
+		a.endStatus()
 	}
 	if errors.Is(runErr, library.ErrNoFolder) {
 		return a.explainNoFolder(runErr)

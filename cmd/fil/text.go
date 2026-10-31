@@ -167,7 +167,7 @@ func (a *app) extract(ctx context.Context, again bool) error {
 	}
 	res, runErr := lib.ExtractText(ctx, opts)
 	if a.interactive && res.Done > 0 {
-		fmt.Fprintln(a.stderr)
+		a.endStatus()
 	}
 	if errors.Is(runErr, library.ErrNoFolder) {
 		return a.explainNoFolder(runErr)
@@ -190,7 +190,7 @@ func (a *app) extract(ctx context.Context, again bool) error {
 }
 
 func (a *app) readProgress(e library.Extracted) {
-	fmt.Fprintf(a.stderr, "\r  read %s of %s PDFs ", thousands(e.Done), thousands(e.Total))
+	a.setStatus(fmt.Sprintf("read %s of %s PDFs", thousands(e.Done), thousands(e.Total)))
 }
 
 // printRead says what reading the PDFs gave, and names every paper left
