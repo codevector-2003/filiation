@@ -53,6 +53,9 @@ type app struct {
 	// GraphML.
 	rawStdout io.Writer
 	status    status
+	// prompter reads a session's next line; nil means the terminal prompt.
+	// Tests feed lines through it.
+	prompter func(history []string) (string, bool, error)
 
 	// flags shared by every command
 	dbFlag      string
@@ -119,7 +122,9 @@ func (a *app) rootCommand() *cobra.Command {
 		Use:   "fil",
 		Short: "A citation graph and retrieval engine you run yourself",
 		Long: "fil builds a map of what cites what, starting from papers you give it,\n" +
-			"and keeps it in a library on your own machine.",
+			"and keeps it in a library on your own machine.\n\n" +
+			"Run fil on its own in a terminal to keep it open: a session that runs one\n" +
+			"command after another, with / for the list of commands.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
