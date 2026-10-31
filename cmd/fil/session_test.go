@@ -95,6 +95,57 @@ func TestSessionRunsCommandsUntilExit(t *testing.T) {
 	}
 }
 
+// In a session, --plain holds for its own command only, and a theme chosen
+// with fil theme colours the commands after it (PR #18 review).
+func TestSessionColourFollowsEachCommand(t *testing.T) {
+	h := newHarness(t, nil)
+	var out, errOut bytes.Buffer
+	// Stand in a terminal: colour on in the saved theme unless --plain.
+	term := func(_ *os.File, plain bool, name, _ string) paint {
+		if plain {
+			return paint{}
+		}
+		th, ok := themeNamed(name)
+		if !ok {
+			th = themes[0]
+		}
+		return paint{on: true, p: th.dark, depth: 24}
+	}
+	fake, err := os.CreateTemp(t.TempDir(), "tty")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer fake.Close()
+	a := &app{stdin: strings.NewReader(""), stdout: &out, stderr: &errOut, configDir: h.configDir,
+		cacheDir: h.cacheDir, documentsDir: h.documentsDir, transport: h.replay,
+		stdoutFile: fake, stderrFile: fake, colourFor: term,
+		prompter: lines("where --plain", "where", "theme graph", "where")}
+	a.session(t.Context())
+
+	chunks := strings.Split(out.String(), "Settings:")
+	if len(chunks) != 4 {
+		t.Fatalf("expected three where outputs:\n%q", out.String())
+	}
+	label := func(th theme) string {
+		return paint{on: true, p: th.dark, depth: 24}.label("Settings:")
+	}
+	got := out.String()
+	plainWhere := chunks[0][strings.LastIndex(chunks[0], "\n")+1:]
+	if strings.Contains(plainWhere, "\x1b[") {
+		t.Errorf("--plain was coloured: %q", plainWhere)
+	}
+	if !strings.Contains(got, label(themes[0])) {
+		t.Error("the second where was not in the default theme")
+	}
+	graph, _ := themeNamed("graph")
+	if !strings.Contains(got, label(graph)) {
+		t.Error("the where after theme graph was not in graph's colours")
+	}
+	if a.plain || !a.outPaint.on || a.outPaint.p != graph.dark {
+		t.Errorf("the session ended plain %v, paint %+v", a.plain, a.outPaint.on)
+	}
+}
+
 func key(k tea.KeyType) tea.KeyMsg { return tea.KeyMsg{Type: k} }
 
 func typeIn(m promptModel, s string) promptModel {

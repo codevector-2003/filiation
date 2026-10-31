@@ -66,6 +66,9 @@ func (a *app) session(ctx context.Context) int {
 			continue
 		}
 		a.runInSession(ctx, args)
+		// A command's --plain was its own; a theme it chose is the session's.
+		a.plain = false
+		a.setUpColour()
 		fmt.Fprintln(a.stdout)
 	}
 }
