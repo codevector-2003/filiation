@@ -67,6 +67,8 @@ fil fetch                           # download the open-access PDFs, and read th
 fil search "citation advantage"     # find passages, with their paper and page
 ```
 
+Or run `fil` on its own to keep it open and type one command after another, with `/` for the list.
+
 Building from source, where your library lives, and the next steps: **[Getting started](docs/GETTING_STARTED.md)**. Every command and option: **[Commands](docs/COMMANDS.md)**.
 
 ## Use it from an AI assistant

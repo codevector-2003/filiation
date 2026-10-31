@@ -1,5 +1,11 @@
 # Commands
 
+Run `fil` on its own in a terminal to keep it open: a session shows your library's numbers and a
+prompt, and runs one command after another. Type a command with or without the leading `/`
+(`search citation advantage`), or `/` alone for a menu of commands; Tab completes, the arrow keys
+walk the menu or your history, and Ctrl+C stops a running command without leaving. `help` lists
+examples and `exit` leaves.
+
 Every command has `--help`. Exit codes are distinct per outcome (not found, ambiguous, network, and
 so on), so scripts can branch on them. `--library <name>` picks a library for any command, and
 `--plain` turns colour off.
