@@ -361,7 +361,7 @@ the client's config for a `--library` or `--db` argument.
 
 **`expand_graph` stops early.** Read `stopped_because`. `frontier-empty` with few works usually
 means the papers have no reference lists, which is common in the humanities (see
-[the coverage table](../README.md#know-this-before-you-start)). `max-depth` means raising
+[the coverage table](HOW_IT_WORKS.md#know-this-before-you-start)). `max-depth` means raising
 `max_depth` will go further.
 
 **A paper has no `authors`.** It is a stub (not fetched yet), or it was fetched by fil v0.1, which

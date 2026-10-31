@@ -235,8 +235,9 @@ Phase 1 carries two extra weeks for that.
       retrieval, answers with citations. **Pre-filtering by graph and FTS5 is load-bearing, not an
       optimisation** — the vector stage is a brute-force scan, so it must never see the whole
       library. Build candidate generation before semantic search (D13).
-- [ ] **M5 — Web interface** (2–3 weeks). Shorter than planned: `//go:embed` puts the SPA inside
-      the binary, so there is nothing to package separately.
+- [ ] **M5 — The desktop app** (2–3 weeks). *In progress from 31 Oct 2026, ahead of M4.* `fil`
+      serves the interface (`//go:embed`); a thin Wails v2 shell in `desktop/` shows it in a native
+      window on all three platforms (D24, D25). Step 1, the shell spike, is done.
 - [ ] **M6 — Claim genealogy** (3–4 weeks). Citation intent, weighted edges, tracing a claim to
       its earliest source. **The differentiator.**
 

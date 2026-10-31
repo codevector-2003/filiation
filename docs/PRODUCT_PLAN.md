@@ -143,11 +143,15 @@ earning its place. Fix edge weighting before adding features.
 
 ---
 
-### Phase 5 — The web interface · 8 Mar – 5 Apr 2027 → **v0.5 beta**
+### Phase 5 — The desktop app · started 31 Oct 2026, ahead of M4
 
-Milestone **M5**. Running the binary starts a local server and opens a browser. Graph view,
-search, reader, notes. Shorter than originally planned: `//go:embed` compiles the SPA into the
-binary, so there is nothing to package or serve separately.
+Milestone **M5**. Planned for 8 Mar – 5 Apr 2027 as a web interface in the browser; brought forward
+on 31 Oct 2026 and made a desktop app instead (D24, D25). `fil` serves the interface from a local
+server inside the binary (`//go:embed`); a thin desktop shell, Wails v2 in `desktop/`, shows it in a
+native window on Windows, macOS and Linux, and `fil` can still open it in a browser without the
+shell. Library, search, citation map, the inbox for PDFs you have, and connecting AI assistants;
+the reader and notes follow M4's notes. Release numbering follows the order the milestones ship
+in.
 
 **Success:** three people who cannot code install it and add a paper **without messaging you for
 help**. Watch one of them do it over a call and say nothing for ten minutes. It will be painful
