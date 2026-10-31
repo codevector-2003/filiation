@@ -615,3 +615,30 @@ depend on a Chromium-based browser being installed.
 **Costs accepted:** the release pipeline gains per-OS jobs for the shell; on Linux the shell needs
 WebKitGTK at run time; contributors to `desktop/` need a C toolchain. Which webview library the
 shell uses is the desktop app's first step to decide.
+
+---
+
+## D25 — The desktop app shell is Wails v2, showing fil's interface in the same process
+
+**Decided:** 31 Oct 2026, M5 step 1 · measured in spike 13 (`SPIKES.md`)
+
+The shell (D24) uses **Wails v2**. It is the only candidate that ran on every platform: Windows
+(x86-64 and Arm64), macOS and Ubuntu 24.04 (x86-64 and Arm64). Its Linux start is the fastest
+measured, about 0.2 s warm. Wails v3 does not run on a stock Ubuntu 24.04: WebKitGTK 6.0 always
+sandboxes its web content with bubblewrap, which Ubuntu restricts, and even when allowed it took
+17–26 s to start. Its tray and multi-window support are not needed for the designed screens.
+
+**How it shows the interface:** in the same process. The window's page is served by the
+`http.Handler` that `internal/web` provides, the same one `fil` serves, so the interface is written
+once and no local port is opened for the window. The `desktop/` module requires fil's module
+through a `replace` to the repository root.
+
+**What each platform needs:**
+
+- **Windows:** no cgo, so it stays cross-buildable; WebView2, present on Windows 10 and 11.
+- **macOS:** cgo, built on a macOS runner, with `CGO_LDFLAGS="-framework UniformTypeIdentifiers"`
+  for the Xcode 26 SDK.
+- **Linux:** cgo, built on a Linux runner of each architecture with the `webkit2_41` tag;
+  `libwebkit2gtk-4.1` at run time.
+
+**Revisit** Wails v3 when its Linux build starts quickly under the WebKitGTK 6.0 sandbox.

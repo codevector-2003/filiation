@@ -1,0 +1,123 @@
+# Spike 13: builds and runs the two candidate desktop shells (Wails v2, Wails
+# v3) on every platform, opens a real window, and records how long the page
+# took to come up. Runs only when the spike changes, or by hand. D24.
+name: spike-desktop-shell
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "spikes/13-desktop-shell/**"
+      - ".github/workflows/spike-desktop-shell.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  shell:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-24.04, ubuntu-24.04-arm]
+        shell: [wails2, wails3]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: spikes/13-desktop-shell/${{ matrix.shell }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: spikes/13-desktop-shell/${{ matrix.shell }}/go.mod
+          cache-dependency-path: spikes/13-desktop-shell/${{ matrix.shell }}/go.sum
+
+      - name: Linux libraries
+        if: runner.os == 'Linux'
+        # Wails v2 uses GTK 3 and WebKitGTK 4.1; Wails v3 defaults to GTK 4 and WebKitGTK 6.0.
+        run: |
+          sudo apt-get update
+          if [ "${{ matrix.shell }}" = wails2 ]; then pkgs="libgtk-3-dev libwebkit2gtk-4.1-dev"
+          else pkgs="libgtk-4-dev libwebkitgtk-6.0-dev"; fi
+          sudo apt-get install -y $pkgs xvfb
+
+      - name: Build
+        run: |
+          tags=""
+          if [ "${{ matrix.shell }}" = wails2 ]; then
+            tags="desktop,production"
+            [ "$RUNNER_OS" = Linux ] && tags="$tags,webkit2_41"
+          fi
+          cgo=1
+          ldflags="-s -w"
+          if [ "$RUNNER_OS" = Windows ]; then cgo=0; ldflags="$ldflags -H windowsgui"; fi
+          # Wails v2 does not link UniformTypeIdentifiers, which the Xcode 26 SDK needs.
+          if [ "$RUNNER_OS" = macOS ] && [ "${{ matrix.shell }}" = wails2 ]; then export CGO_LDFLAGS="-framework UniformTypeIdentifiers"; fi
+          start=$(date +%s)
+          CGO_ENABLED=$cgo go build -tags "$tags" -ldflags "$ldflags" -o spike .
+          echo "BUILD_SECONDS=$(( $(date +%s) - start ))" >> "$GITHUB_ENV"
+          ls -l spike*
+
+      - name: Windows arm64, cross-built
+        if: runner.os == 'Windows'
+        run: |
+          tags=""; [ "${{ matrix.shell }}" = wails2 ] && tags="desktop,production"
+          CGO_ENABLED=0 GOARCH=arm64 go build -tags "$tags" -ldflags "-s -w -H windowsgui" -o spike-arm64.exe . && ls -l spike-arm64.exe
+
+      - name: Shared libraries it needs
+        if: runner.os != 'Windows'
+        run: |
+          if [ "$RUNNER_OS" = Linux ]; then ldd spike | awk '{print $1}' | sort | tee libs.txt | grep -E 'webkit|gtk|soup' ; echo "total $(wc -l < libs.txt)"
+          else otool -L spike; fi
+
+      - name: Run three times
+        run: |
+          bin=./spike
+          if [ "$RUNNER_OS" = Windows ]; then mv spike spike.exe; bin=./spike.exe; fi
+          wrap=""; [ "$RUNNER_OS" = Linux ] && wrap="xvfb-run -a"
+          # macOS has no GNU timeout; perl's alarm does the same.
+          for i in 1 2 3; do
+            rm -f r.json
+            SPIKE_RESULT="$PWD/r.json" SPIKE_AUTOQUIT=1 perl -e 'alarm shift @ARGV; exec @ARGV' 90 $wrap $bin > run.log 2>&1 || echo "exit $?"
+            if [ -f r.json ]; then cat r.json; echo; else echo "no result"; grep -v -E "^(r[0-9a-z]+|[a-z]{2,6}) +0x" run.log | head -40 || true; fi
+            [ -f r.json ] && cp r.json "r$i.json"
+          done
+          true
+
+      # WebKitGTK 6.0 always sandboxes its web process with bubblewrap, which
+      # needs unprivileged user namespaces; Ubuntu 24.04 restricts them. Two
+      # ways round it, measured: allow them, or build Wails v3 on GTK 3.
+      - name: "Wails v3 on Linux: with user namespaces allowed"
+        if: runner.os == 'Linux' && matrix.shell == 'wails3'
+        run: |
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          # The runner has no accessibility bus; GTK waits for it until D-Bus
+          # times out (25 s). A desktop has one. The second pair skips it.
+          for a11y in on on off off; do
+            rm -f r.json
+            if [ $a11y = off ]; then export GTK_A11Y=none NO_AT_BRIDGE=1; fi
+            SPIKE_RESULT="$PWD/r.json" SPIKE_AUTOQUIT=1 perl -e 'alarm shift @ARGV; exec @ARGV' 90 xvfb-run -a ./spike > run.log 2>&1 || echo "exit $?"
+            echo "a11y bridge $a11y:"; if [ -f r.json ]; then cat r.json; echo; else echo "no result"; grep -v -E '^(r[0-9a-z]+|[a-z]{2,6}) +0x' run.log | head -30 || true; fi
+          done
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=1
+
+      - name: "Wails v3 on Linux: built on GTK 3 and WebKitGTK 4.1"
+        if: runner.os == 'Linux' && matrix.shell == 'wails3'
+        run: |
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+          go build -tags gtk3 -ldflags "-s -w" -o spike-gtk3 . && ldd spike-gtk3 | grep -E 'webkit|gtk'
+          for i in 1 2; do
+            rm -f r.json
+            SPIKE_RESULT="$PWD/r.json" SPIKE_AUTOQUIT=1 perl -e 'alarm shift @ARGV; exec @ARGV' 90 xvfb-run -a ./spike-gtk3 > run.log 2>&1 || echo "exit $?"
+            if [ -f r.json ]; then cat r.json; echo; else echo "no result"; grep -v -E '^(r[0-9a-z]+|[a-z]{2,6}) +0x' run.log | head -30 || true; fi
+          done
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### ${{ matrix.shell }} on ${{ matrix.os }}"
+            echo "build: ${BUILD_SECONDS:-?} s"
+            for f in r1.json r2.json r3.json; do if [ -f "$f" ]; then tr -d '\n ' < "$f"; echo; fi; done
+          } >> "$GITHUB_STEP_SUMMARY"
