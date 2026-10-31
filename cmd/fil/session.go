@@ -65,6 +65,9 @@ func (a *app) session(ctx context.Context) int {
 			fmt.Fprint(a.stdout, "\x1b[2J\x1b[H")
 			continue
 		}
+		if a.canPick() {
+			args = withPick(args)
+		}
 		a.runInSession(ctx, args)
 		// A command's --plain was its own; a theme it chose is the session's.
 		a.plain = false
@@ -133,6 +136,23 @@ func sessionArgs(line string) ([]string, error) {
 		return nil, errors.New("nothing to run")
 	}
 	return args, nil
+}
+
+// withPick asks list, search and neighbours to show their papers in the
+// picker, unless the line wants something else: JSON, help, or already says.
+func withPick(args []string) []string {
+	switch args[0] {
+	case "list", "search", "neighbours":
+	default:
+		return args
+	}
+	for _, a := range args[1:] {
+		switch a {
+		case "--json", "--help", "-h", "--pick", "--pick=false", "--pick=true":
+			return args
+		}
+	}
+	return append(args, "--pick")
 }
 
 // remember adds line to the end of history, moving it there if it was

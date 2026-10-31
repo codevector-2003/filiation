@@ -48,6 +48,7 @@ func (a *app) searchCommand() *cobra.Command {
 	cmd.Flags().IntVar(&opts.Limit, "limit", 0, fmt.Sprintf("most passages to show (default %d)", library.DefaultSearchLimit))
 	cmd.Flags().StringVar(&opts.Paper, "paper", "", "search only this paper (fil ID, DOI, OpenAlex ID or title)")
 	cmd.Flags().BoolVar(&opts.References, "references", false, "search reference lists too")
+	cmd.Flags().BoolVar(&a.pickMode, "pick", false, "move through the results with the arrow keys; Enter for the paper, o to open its PDF")
 	return cmd
 }
 
@@ -60,6 +61,16 @@ func (a *app) search(ctx context.Context, words string, opts library.SearchOptio
 	res, err := lib.Search(ctx, words, opts)
 	if err != nil {
 		return a.explainFind(err)
+	}
+
+	if a.pickMode && a.canPick() && len(res.Hits) > 0 {
+		picks := make([]pickRow, len(res.Hits))
+		for i, h := range res.Hits {
+			r := workRow(h.Work, fmt.Sprintf("page %d", h.Page))
+			r.good = true
+			picks[i] = r
+		}
+		return a.pick(ctx, lib, "Passages for "+words, picks)
 	}
 
 	w := a.stdout
