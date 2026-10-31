@@ -80,9 +80,18 @@ jobs:
           for i in 1 2 3; do
             rm -f r.json
             SPIKE_RESULT="$PWD/r.json" SPIKE_AUTOQUIT=1 perl -e 'alarm shift @ARGV; exec @ARGV' 90 $wrap $bin > run.log 2>&1 || echo "exit $?"
-            if [ -f r.json ]; then cat r.json; echo; else echo "no result"; tail -20 run.log; fi
+            if [ -f r.json ]; then cat r.json; echo; else echo "no result"; grep -v -E '^(r[0-9a-z]+|[a-z]{2,6}) +0x' run.log | head -40; fi
             [ -f r.json ] && cp r.json "r$i.json"
           done
+          # Linux without a GPU: GTK 4 and WebKitGTK 6.0 may need their software renderers.
+          if [ "$RUNNER_OS" = Linux ] && [ ! -f r1.json ]; then
+            echo "--- again, with software rendering"
+            for i in 1 2 3; do
+              rm -f r.json
+              GSK_RENDERER=cairo WEBKIT_DISABLE_DMABUF_RENDERER=1 SPIKE_RESULT="$PWD/r.json" SPIKE_AUTOQUIT=1 perl -e 'alarm shift @ARGV; exec @ARGV' 90 $wrap $bin > run.log 2>&1 || echo "exit $?"
+              if [ -f r.json ]; then cat r.json; echo; cp r.json "r$i.json"; else echo "no result"; grep -v -E '^(r[0-9a-z]+|[a-z]{2,6}) +0x' run.log | head -40; fi
+            done
+          fi
 
       - name: Summary
         if: always()
