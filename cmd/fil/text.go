@@ -66,7 +66,7 @@ func (a *app) search(ctx context.Context, words string, opts library.SearchOptio
 	if a.pickMode && a.canPick() && len(res.Hits) > 0 {
 		picks := make([]pickRow, len(res.Hits))
 		for i, h := range res.Hits {
-			r := workRow(h.Work, fmt.Sprintf("page %d", h.Page))
+			r := workRow(h.Work, hitPlace(h))
 			r.good = true
 			picks[i] = r
 		}
@@ -89,11 +89,7 @@ func (a *app) search(ctx context.Context, words string, opts library.SearchOptio
 		if i > 0 {
 			fmt.Fprintln(w)
 		}
-		where := fmt.Sprintf("page %d", h.Page)
-		if h.Section != "" {
-			where += ", reference list"
-		}
-		fmt.Fprintf(w, "%d. %s — %s\n", i+1, headline(h.Work), where)
+		fmt.Fprintf(w, "%d. %s — %s\n", i+1, headline(h.Work), hitPlace(h))
 		meta := workIDs(h.Work)
 		if by := byline(h.Work); by != "" {
 			meta += " · " + by
@@ -117,6 +113,14 @@ func (a *app) search(ctx context.Context, words string, opts library.SearchOptio
 		return exitCode(exitNotFound)
 	}
 	return nil
+}
+
+// hitPlace says where in its paper a passage is.
+func hitPlace(h library.SearchHit) string {
+	if h.Section != "" {
+		return fmt.Sprintf("page %d, reference list", h.Page)
+	}
+	return fmt.Sprintf("page %d", h.Page)
 }
 
 // snippet puts a search snippet on one line, with the matched words in
