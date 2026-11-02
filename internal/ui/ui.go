@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/fs"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -245,14 +246,15 @@ func (s *server) paper(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	work := p.Work
+	pdf, hasPDF := firstPDF(p)
 	out := paperJSON{ID: work.FilID, Title: work.DisplayTitle(), Authors: authors(work), Meta: meta(work),
 		Seed: work.IsSeed, Cites: p.Cites, CitedBy: p.CitedBy, Sentences: p.Contexts,
-		Sample: []sentenceJSON{}, PDF: firstFile(p) != "", Folder: p.Folder != ""}
+		Sample: []sentenceJSON{}, PDF: hasPDF, Folder: p.Folder != ""}
 	out.Origin = map[model.Source]string{model.SourceSeed: "ADDED BY YOU", model.SourceUpload: "IMPORTED BY YOU",
 		model.SourceExpansion: "FOUND BY FOLLOWING CITATIONS"}[work.Source]
 	if !out.PDF {
 		out.PDFNote = pdfNote(p)
-	} else if firstIsMismatch(p) {
+	} else if pdf.Mismatch {
 		out.PDFNote = "Its first pages do not carry this paper's title and author: it may be another paper or edition."
 	}
 	if p.Text != nil {
@@ -305,24 +307,15 @@ func meta(w model.Work) string {
 	return strings.Join(parts, " · ")
 }
 
-// firstFile is the paper's first file still on disk, or "".
-func firstFile(p library.Paper) string {
+// firstPDF is the paper's first PDF still on disk, if it has one. Its folder
+// can hold other files too.
+func firstPDF(p library.Paper) (library.PaperFile, bool) {
 	for _, f := range p.Files {
-		if !f.Missing {
-			return f.Path
+		if !f.Missing && strings.EqualFold(filepath.Ext(f.Path), ".pdf") {
+			return f, true
 		}
 	}
-	return ""
-}
-
-// firstIsMismatch reports whether the file Open PDF opens names another paper.
-func firstIsMismatch(p library.Paper) bool {
-	for _, f := range p.Files {
-		if !f.Missing {
-			return f.Mismatch
-		}
-	}
-	return false
+	return library.PaperFile{}, false
 }
 
 // pdfNote says why a paper has no PDF, from what the library knows.
@@ -354,12 +347,12 @@ func (s *server) openPDF(w http.ResponseWriter, r *http.Request) {
 		failFind(w, err)
 		return
 	}
-	path := firstFile(p)
-	if path == "" {
+	pdf, ok := firstPDF(p)
+	if !ok {
 		fail(w, http.StatusConflict, errors.New("this paper has no PDF on disk"))
 		return
 	}
-	s.open(w, path)
+	s.open(w, pdf.Path)
 }
 
 func (s *server) openFolder(w http.ResponseWriter, r *http.Request) {

@@ -139,3 +139,14 @@ func TestOpenUsesTheLibrarysOwnPaths(t *testing.T) {
 		t.Errorf("opened = %q; opening must not happen on a read", *opened)
 	}
 }
+
+func TestOnlyAPDFIsOpened(t *testing.T) {
+	t.Parallel()
+	f, ok := firstPDF(library.Paper{Files: []library.PaperFile{{Path: "notes.txt"}, {Path: "gone.pdf", Missing: true}, {Path: "paper.PDF"}}})
+	if !ok || f.Path != "paper.PDF" {
+		t.Errorf("firstPDF = %+v, %v", f, ok)
+	}
+	if _, ok := firstPDF(library.Paper{Files: []library.PaperFile{{Path: "notes.txt"}}}); ok {
+		t.Error("notes.txt counted as a PDF")
+	}
+}
