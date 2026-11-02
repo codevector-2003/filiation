@@ -422,3 +422,11 @@ func TestSelectedHitShowsItsPassage(t *testing.T) {
 		t.Errorf("want only the selected row's passage: %s", view)
 	}
 }
+
+func TestRowWarnsOfAPDFThatMayBeAnotherPaper(t *testing.T) {
+	t.Parallel()
+	r := listRow(library.Listed{FilID: "F1", Title: "T", HasPDF: true, Mismatch: true})
+	if r.good || !strings.Contains(r.note, "another paper") {
+		t.Errorf("row = %+v; want the warning, not good news", r)
+	}
+}

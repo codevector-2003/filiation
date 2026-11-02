@@ -728,7 +728,11 @@ func listRow(r library.Listed) pickRow {
 	}
 	var note []string
 	if r.HasPDF {
-		note = append(note, "PDF")
+		if r.Mismatch {
+			note = append(note, "PDF (another paper or edition?)")
+		} else {
+			note = append(note, "PDF")
+		}
 	}
 	switch r.TextStatus {
 	case "":
@@ -740,7 +744,7 @@ func listRow(r library.Listed) pickRow {
 	if r.Contexts > 0 {
 		note = append(note, plural(r.Contexts, "sentence", "sentences"))
 	}
-	return pickRow{id: r.FilID, seed: r.Seed, year: year, title: title, note: strings.Join(note, " · "), good: r.HasPDF}
+	return pickRow{id: r.FilID, seed: r.Seed, year: year, title: title, note: strings.Join(note, " · "), good: r.HasPDF && !r.Mismatch}
 }
 
 // canPick reports whether the picker can run: a terminal on both ends.
