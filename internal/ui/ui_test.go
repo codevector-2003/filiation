@@ -150,3 +150,11 @@ func TestOnlyAPDFIsOpened(t *testing.T) {
 		t.Error("notes.txt counted as a PDF")
 	}
 }
+
+func TestMissingNotesFileIsNotADeletedPDF(t *testing.T) {
+	t.Parallel()
+	p := library.Paper{Files: []library.PaperFile{{Path: "notes.txt", Missing: true}}}
+	if got := pdfNote(p); strings.Contains(got, "deleted") {
+		t.Errorf("pdfNote = %q", got)
+	}
+}

@@ -307,11 +307,13 @@ func meta(w model.Work) string {
 	return strings.Join(parts, " · ")
 }
 
+func isPDF(path string) bool { return strings.EqualFold(filepath.Ext(path), ".pdf") }
+
 // firstPDF is the paper's first PDF still on disk, if it has one. Its folder
 // can hold other files too.
 func firstPDF(p library.Paper) (library.PaperFile, bool) {
 	for _, f := range p.Files {
-		if !f.Missing && strings.EqualFold(filepath.Ext(f.Path), ".pdf") {
+		if !f.Missing && isPDF(f.Path) {
 			return f, true
 		}
 	}
@@ -321,7 +323,7 @@ func firstPDF(p library.Paper) (library.PaperFile, bool) {
 // pdfNote says why a paper has no PDF, from what the library knows.
 func pdfNote(p library.Paper) string {
 	for _, f := range p.Files {
-		if f.Missing {
+		if f.Missing && isPDF(f.Path) {
 			return "Its PDF was deleted from the library folder."
 		}
 	}
