@@ -54,6 +54,11 @@ func openLibrary(ctx context.Context) ui.Options {
 		opts.Problem = err.Error()
 		return opts
 	}
+	// People move and delete files in papers/ themselves. A scan that fails
+	// costs only fresh file records, so the library still opens.
+	if lib.Folder() != "" {
+		lib.Scan(ctx)
+	}
 	opts.Library = lib
 	return opts
 }
