@@ -26,9 +26,11 @@ async function openDocument(id) {
 }
 
 // drawPage draws one page into box, with the text layer that lets its words be
-// selected and found. It returns where each matching word is on the page.
-async function drawPage(doc, n, scale, box, words) {
+// selected and found. It returns where each matching word is on the page. A
+// draw overtaken by a newer one, as current says, leaves box as it is.
+async function drawPage(doc, n, scale, box, words, current) {
   const page = await doc.getPage(n);
+  if (current && !current()) return [];
   const viewport = page.getViewport({ scale });
   const ratio = window.devicePixelRatio || 1;
   const canvas = el('canvas');
@@ -116,7 +118,7 @@ async function showPage(n) {
   const on = document.querySelector('.thumb.on');
   if (on) on.scrollIntoView({ block: 'nearest' });
   try {
-    const found = await drawPage(reader.doc, page, reader.scale, $('reader-page'), reader.words);
+    const found = await drawPage(reader.doc, page, reader.scale, $('reader-page'), reader.words, () => draw === reader.draw);
     if (draw !== reader.draw) return;
     drawNotes();
     $('reader-view').scrollTop = 0;
