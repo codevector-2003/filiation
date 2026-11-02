@@ -49,6 +49,7 @@ function openOutside(url) {
 function show(name, arg) {
   document.querySelectorAll('.screen').forEach((s) => { s.hidden = s.id !== 'screen-' + name; });
   document.querySelectorAll('.nav').forEach((b) => { b.classList.toggle('on', b.dataset.screen === name); });
+  document.querySelector('.side').hidden = name === 'reader'; // the page needs the room
   if (screens[name]) screens[name](arg);
 }
 
@@ -203,7 +204,8 @@ function renderPaper(p) {
     }
   });
   const actions = el('div', 'actions');
-  if (p.pdf) actions.append(act('Open PDF', true, '/open'));
+  if (p.pdf) actions.append(button('Read', 'btn primary', () => openReader(p.id, 1, [])));
+  if (p.pdf) actions.append(act('Open PDF', false, '/open'));
   if (p.folder) actions.append(act('Show in folder', false, '/folder'));
   actions.append(button('Citation map', 'btn', () => show('map', p.id)));
   if (p.web) actions.append(button('Website', 'btn', () => openOutside(p.web)));
@@ -290,10 +292,10 @@ $('filter').addEventListener('input', (e) => {
   }, 150);
 });
 
-document.querySelectorAll('.tab').forEach((t) => {
+document.querySelectorAll('.tab[data-show]').forEach((t) => {
   t.addEventListener('click', () => {
     state.show = t.dataset.show;
-    document.querySelectorAll('.tab').forEach((o) => {
+    document.querySelectorAll('.tab[data-show]').forEach((o) => {
       o.classList.toggle('on', o === t);
       o.setAttribute('aria-pressed', o === t ? 'true' : 'false');
     });

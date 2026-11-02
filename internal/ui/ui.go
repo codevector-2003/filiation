@@ -59,13 +59,20 @@ func New(opts Options) http.Handler {
 		panic(err) // the embedded tree always has assets/
 	}
 	mux := http.NewServeMux()
-	mux.Handle("GET /", http.FileServerFS(root))
+	mux.Handle("GET /", scripts(http.FileServerFS(root)))
 	mux.HandleFunc("GET /api/library", s.library)
 	mux.HandleFunc("GET /api/papers", s.needLibrary(s.papers))
 	mux.HandleFunc("GET /api/papers/{id}", s.needLibrary(s.paper))
 	mux.HandleFunc("POST /api/papers/{id}/open", s.needLibrary(s.openPDF))
 	mux.HandleFunc("POST /api/papers/{id}/folder", s.needLibrary(s.openFolder))
 	mux.HandleFunc("GET /api/papers/{id}/pages/{n}", s.needLibrary(s.page))
+	mux.HandleFunc("GET /api/papers/{id}/pdf", s.needLibrary(s.pdfFile))
+	mux.HandleFunc("GET /api/papers/{id}/notes", s.needLibrary(s.notes))
+	mux.HandleFunc("POST /api/papers/{id}/notes", s.needLibrary(s.addNote))
+	mux.HandleFunc("POST /api/papers/{id}/notes/export", s.needLibrary(s.exportNotes))
+	mux.HandleFunc("POST /api/notes/{note}", s.needLibrary(s.changeNote))
+	mux.HandleFunc("POST /api/notes/{note}/delete", s.needLibrary(s.deleteNote))
+	mux.HandleFunc("GET /api/papers/{id}/cited/{n}", s.needLibrary(s.citedOnPage))
 	mux.HandleFunc("GET /api/search", s.needLibrary(s.search))
 	mux.HandleFunc("GET /api/map", s.needLibrary(s.mapAround))
 	mux.HandleFunc("GET /api/link", s.needLibrary(s.link))
@@ -88,6 +95,17 @@ func New(opts Options) http.Handler {
 	return mux
 }
 
+// scripts names the type of .mjs files itself. Left to the system's own table
+// they can come out as plain text, and a page refuses to run those as modules.
+func scripts(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, ".mjs") {
+			w.Header().Set("Content-Type", "text/javascript")
+		}
+		h.ServeHTTP(w, r)
+	})
+}
+
 func (s *server) needLibrary(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.Library == nil {
@@ -108,6 +126,8 @@ func fail(w http.ResponseWriter, code int, err error) {
 	w.WriteHeader(code)
 	json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 }
+
+func isBadInput(err error) bool { return errors.Is(err, errs.ErrInvalidInput) }
 
 func failFind(w http.ResponseWriter, err error) {
 	if errors.Is(err, errs.ErrNotFound) {
@@ -271,6 +291,9 @@ type paperJSON struct {
 	TextNote  string         `json:"textNote,omitempty"`
 	Folder    bool           `json:"folder"`
 	Web       string         `json:"web,omitempty"`
+	Citation  string         `json:"citation,omitempty"`
+	File      string         `json:"file,omitempty"` // the PDF the Reader opens
+	Abstract  string         `json:"abstract,omitempty"`
 }
 
 func (s *server) paper(w http.ResponseWriter, r *http.Request) {
@@ -283,9 +306,11 @@ func (s *server) paper(w http.ResponseWriter, r *http.Request) {
 	pdf, hasPDF := firstPDF(p)
 	out := paperJSON{ID: work.FilID, Title: work.DisplayTitle(), Authors: authors(work), Meta: meta(work),
 		Seed: work.IsSeed, Cites: p.Cites, CitedBy: p.CitedBy, Sentences: p.Contexts,
-		Sample: []sentenceJSON{}, PDF: hasPDF, Folder: p.Folder != "", Web: p.WebPage()}
+		Sample: []sentenceJSON{}, PDF: hasPDF, Folder: p.Folder != "", Web: p.WebPage(),
+		Citation: citation(work), Abstract: work.Abstract}
 	out.Origin = map[model.Source]string{model.SourceSeed: "ADDED BY YOU", model.SourceUpload: "IMPORTED BY YOU",
 		model.SourceExpansion: "FOUND BY FOLLOWING CITATIONS"}[work.Source]
+	out.File = s.pdfName(pdf)
 	if !out.PDF {
 		out.PDFNote = pdfNote(p)
 	} else if pdf.Mismatch {
@@ -343,9 +368,17 @@ func meta(w model.Work) string {
 
 func isPDF(path string) bool { return strings.EqualFold(filepath.Ext(path), ".pdf") }
 
-// firstPDF is the paper's first PDF still on disk, if it has one. Its folder
-// can hold other files too.
+// firstPDF is the paper's PDF still on disk, if it has one: the one its text
+// was read from when there are several, so that a search's pages are its
+// pages. Its folder can hold other files too.
 func firstPDF(p library.Paper) (library.PaperFile, bool) {
+	if p.Text != nil {
+		for _, f := range p.Files {
+			if !f.Missing && f.Path == p.Text.File {
+				return f, true
+			}
+		}
+	}
 	for _, f := range p.Files {
 		if !f.Missing && isPDF(f.Path) {
 			return f, true

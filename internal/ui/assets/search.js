@@ -58,36 +58,72 @@ async function runSearch() {
   }
 }
 
+async function loadPage(n) {
+  const asked = ++found.askedPage;
+  const box = $('page-text');
+  try {
+    if (found.docId !== found.id) {
+      const doc = await openDocument(found.id, true);
+      if (asked !== found.askedPage) {
+        doc.destroy();
+        return;
+      }
+      if (found.doc) found.doc.destroy();
+      found.doc = doc;
+      found.docId = found.id;
+    }
+    found.page = n;
+    found.pages = found.doc.numPages;
+    $('page-title').textContent = 'Page ' + n + ' of ' + found.pages;
+    $('page-prev').disabled = n <= 1;
+    $('page-next').disabled = n >= found.pages;
+    $('page-open').hidden = false;
+    const sheet = el('div', 'pdf-page');
+    const wide = box.clientWidth - 8;
+    const page = await found.doc.getPage(n);
+    const scale = Math.min(1.5, wide / page.getViewport({ scale: 1 }).width);
+    await drawPage(found.doc, n, scale, sheet, []);
+    if (asked !== found.askedPage) return;
+    box.replaceChildren(sheet);
+    const lit = matchWords(sheet.querySelector('.textLayer'), sheet.querySelector('.mark-layer'), found.words);
+    box.scrollTop = 0;
+    if (lit.length > 0) lit[0].scrollIntoView({ block: 'center' });
+  } catch (e) {
+    if (asked === found.askedPage) showPageText(n, asked);
+  }
+}
+
 // markWords puts text into box with the matched words highlighted.
 function markWords(box, text, words) {
-  const escaped = [...new Set(words)].filter(Boolean).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-  if (escaped.length === 0) {
+  const wanted = [...new Set(words)].filter(Boolean);
+  if (wanted.length === 0) {
     box.textContent = text;
     return;
   }
-  const re = new RegExp('(' + escaped.join('|') + ')', 'gi');
+  const re = wholeWords(wanted);
   box.replaceChildren(...text.split(re).map((part, i) => (i % 2 ? el('mark', '', part) : document.createTextNode(part))));
 }
 
-async function loadPage(n) {
-  const asked = ++found.askedPage;
+// showPageText is the fallback when the PDF has gone: the text fil read from
+// it stays in the library, and a search can still find it.
+async function showPageText(n, asked) {
+  const box = $('page-text');
   try {
     const p = await api('/api/papers/' + encodeURIComponent(found.id) + '/pages/' + n);
     if (asked !== found.askedPage) return;
+    found.docId = '';
     found.page = p.page;
-    found.pages = p.pages;
-    $('page-title').textContent = p.pages > 0 ? 'Page ' + p.page + ' of ' + p.pages : 'Page ' + p.page;
+    $('page-title').textContent = 'Page ' + p.page + ' of ' + p.pages;
     $('page-prev').disabled = p.page <= 1;
     $('page-next').disabled = p.page >= p.pages;
-    $('page-open').hidden = false;
-    const sheet = $('page-text');
-    if (p.text) markWords(sheet, p.text, found.words);
-    else sheet.textContent = 'This page has no text.';
-    sheet.scrollTop = 0;
+    $('page-open').hidden = true;
+    const sheet = el('div', 'page-text');
+    markWords(sheet, p.text, found.words);
+    box.replaceChildren(el('div', 'pdf-note', 'The PDF is not available, so this is the text Filiation read from it.'), sheet);
     const mark = sheet.querySelector('mark');
     if (mark) mark.scrollIntoView({ block: 'center' });
   } catch (e) {
-    if (asked === found.askedPage) $('page-text').textContent = e.message;
+    if (asked === found.askedPage) box.replaceChildren(el('div', 'pdf-note', e.message));
   }
 }
 
@@ -97,6 +133,4 @@ $('search-form').addEventListener('submit', (e) => {
 });
 $('page-prev').addEventListener('click', () => loadPage(found.page - 1));
 $('page-next').addEventListener('click', () => loadPage(found.page + 1));
-$('page-open').addEventListener('click', () => {
-  api('/api/papers/' + encodeURIComponent(found.id) + '/open', 'POST').catch((e) => { $('search-note').textContent = e.message; });
-});
+$('page-open').addEventListener('click', () => openReader(found.id, found.page, found.words));

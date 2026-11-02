@@ -95,8 +95,8 @@ type client struct {
 
 var clients = []client{
 	{id: "claude-desktop", name: "Claude Desktop", section: "mcpServers",
-		file:    func(e Env) string { return filepath.Join(e.ConfigDir, "Claude", "claude_desktop_config.json") },
-		marker:  func(e Env) string { return filepath.Join(e.ConfigDir, "Claude") },
+		file:    func(e Env) string { return filepath.Join(claudeDesktopDir(e), "claude_desktop_config.json") },
+		marker:  claudeDesktopDir,
 		restart: "Restart Claude Desktop afterwards to load it."},
 	{id: "cursor", name: "Cursor", section: "mcpServers",
 		file:    func(e Env) string { return filepath.Join(e.Home, ".cursor", "mcp.json") },
@@ -113,6 +113,16 @@ var clients = []client{
 }
 
 const claudeCodeID = "claude-code"
+
+// claudeDesktopDir is where Claude Desktop keeps its settings. The Microsoft
+// Store version reads them from its own package, never from the usual place.
+func claudeDesktopDir(e Env) string {
+	store, _ := filepath.Glob(filepath.Join(e.Home, "AppData", "Local", "Packages", "Claude_*", "LocalCache", "Roaming", "Claude"))
+	if len(store) > 0 {
+		return store[0]
+	}
+	return filepath.Join(e.ConfigDir, "Claude")
+}
 
 func (c client) args(readOnly bool) []string {
 	if readOnly {
