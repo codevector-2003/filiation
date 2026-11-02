@@ -13,11 +13,15 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
+	"runtime"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 
+	"github.com/codevector-2003/filiation/internal/assistants"
 	"github.com/codevector-2003/filiation/internal/config"
 	"github.com/codevector-2003/filiation/internal/library"
 	"github.com/codevector-2003/filiation/internal/opener"
@@ -26,7 +30,18 @@ import (
 
 func main() {
 	opts := openLibrary(context.Background())
-	err := run(ui.New(opts))
+	if env, err := assistants.DefaultEnv(filCommand()); err == nil {
+		opts.Assistants = &env
+	}
+	if dir, err := config.DefaultCacheDir(); err == nil {
+		opts.CallLog = filepath.Join(dir, assistants.CallLogName)
+	}
+	var appCtx context.Context
+	opts.PickFiles = func() ([]string, error) {
+		return wruntime.OpenMultipleFilesDialog(appCtx, wruntime.OpenDialogOptions{Title: "Add PDFs",
+			Filters: []wruntime.FileFilter{{DisplayName: "PDF files", Pattern: "*.pdf"}}})
+	}
+	err := run(ui.New(opts), func(ctx context.Context) { appCtx = ctx })
 	if opts.Library != nil {
 		opts.Library.Close()
 	}
@@ -45,10 +60,15 @@ func openLibrary(ctx context.Context) ui.Options {
 		opts.Problem = err.Error()
 		return opts
 	}
-	opts.Name = cfg.Name
+	// With no terminal to ask in, a first run takes the default place, as an
+	// assistant's first fil mcp does.
 	if cfg.FirstRun {
-		return opts
+		if err := cfg.Save(); err != nil {
+			opts.Problem = err.Error()
+			return opts
+		}
 	}
+	opts.Name = cfg.Name
 	lib, err := library.Open(ctx, cfg, library.Options{})
 	if err != nil {
 		opts.Problem = err.Error()
@@ -63,7 +83,25 @@ func openLibrary(ctx context.Context) ui.Options {
 	return opts
 }
 
-func run(h http.Handler) error {
+// filCommand is how an assistant starts fil: the fil beside this app when
+// there is one, because an assistant may not have fil on its PATH.
+func filCommand() string {
+	exe, err := os.Executable()
+	if err != nil {
+		return "fil"
+	}
+	name := "fil"
+	if runtime.GOOS == "windows" {
+		name = "fil.exe"
+	}
+	beside := filepath.Join(filepath.Dir(exe), name)
+	if _, err := os.Stat(beside); err != nil {
+		return "fil"
+	}
+	return beside
+}
+
+func run(h http.Handler, started func(context.Context)) error {
 	return wails.Run(&options.App{
 		Title:            "Filiation",
 		Width:            1320,
@@ -72,5 +110,7 @@ func run(h http.Handler) error {
 		MinHeight:        600,
 		BackgroundColour: &options.RGBA{R: 0xF6, G: 0xF5, B: 0xF2, A: 0xFF},
 		AssetServer:      &assetserver.Options{Handler: h},
+		DragAndDrop:      &options.DragAndDrop{EnableFileDrop: true, DisableWebViewDrop: true},
+		OnStartup:        started,
 	})
 }

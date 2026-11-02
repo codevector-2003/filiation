@@ -3,15 +3,18 @@ package main
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 
+	"github.com/codevector-2003/filiation/internal/assistants"
 	"github.com/codevector-2003/filiation/internal/library"
 	"github.com/codevector-2003/filiation/internal/mcpsrv"
 )
 
 func (a *app) mcpCommand() *cobra.Command {
-	return &cobra.Command{
+	var readOnly bool
+	cmd := &cobra.Command{
 		Use:   "mcp",
 		Short: "Serve your library to an AI assistant over MCP",
 		Long: "Run an MCP server on standard input and output, so that an assistant such as\n" +
@@ -24,14 +27,16 @@ func (a *app) mcpCommand() *cobra.Command {
 			"Use the full path to fil if it is not on your PATH.",
 		Args: noArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return a.serveMCP(cmd.Context())
+			return a.serveMCP(cmd.Context(), readOnly)
 		},
 	}
+	cmd.Flags().BoolVar(&readOnly, "read-only", false, "let the assistant read the library but not grow it")
+	return cmd
 }
 
 // serveMCP runs until the client disconnects. Standard output carries the
 // protocol, so everything meant for a person goes to standard error.
-func (a *app) serveMCP(ctx context.Context) error {
+func (a *app) serveMCP(ctx context.Context, readOnly bool) error {
 	cfg, err := a.loadConfig()
 	if err != nil {
 		return err
@@ -57,5 +62,9 @@ func (a *app) serveMCP(ctx context.Context) error {
 	defer lib.Close()
 
 	fmt.Fprintf(a.stderr, "fil %s: serving %s over MCP\n", Version, cfg.DBPath)
-	return mcpsrv.ServeStdio(ctx, lib, Version)
+	opts := mcpsrv.ServeOptions{ReadOnly: readOnly}
+	if dir, err := a.resolvedCacheDir(); err == nil {
+		opts.CallLog = filepath.Join(dir, assistants.CallLogName)
+	}
+	return mcpsrv.ServeStdio(ctx, lib, Version, opts)
 }

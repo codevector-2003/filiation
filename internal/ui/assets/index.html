@@ -13,45 +13,190 @@
       <span class="lib-name" id="lib-name">My Library</span>
       <span class="lib-path" id="lib-path"></span>
     </div>
-    <button class="nav on" type="button" id="nav-papers">
+    <button class="nav on" type="button" data-screen="papers">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v16H4zM14 4h6v16h-6z"/></svg>Papers<span class="count" id="count-papers"></span>
     </button>
-    <button class="nav" type="button" disabled title="Coming in the next step">
+    <button class="nav" type="button" data-screen="search">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg>Search
     </button>
-    <button class="nav" type="button" disabled title="Coming soon">
+    <button class="nav" type="button" data-screen="map">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="6" r="2"/><circle cx="18" cy="8" r="2"/><circle cx="10" cy="18" r="2"/><path d="M8 7l8 1M7 8l2 8M16.5 9.5l-5 7"/></svg>Citation map
     </button>
-    <button class="nav" type="button" disabled title="Coming soon">
+    <button class="nav" type="button" data-screen="inbox">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13l3-8h10l3 8v6H4zM4 13h5l1 2h4l1-2h5"/></svg>Inbox<span class="badge" id="count-inbox" hidden></span>
     </button>
-    <button class="nav" type="button" disabled title="Coming soon">
+    <button class="nav" type="button" data-screen="assistants">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7V4M15 7V4M7 7h10v5a5 5 0 0 1-10 0zM12 17v3"/></svg>AI assistants
     </button>
     <div class="side-head" id="collections-head" hidden>COLLECTIONS</div>
     <div class="collections" id="collections"></div>
     <div class="grow"></div>
+    <div class="job" id="job" hidden>
+      <div class="job-head"><span id="job-title"></span><span id="job-count"></span></div>
+      <div class="bar"><div class="fill" id="job-fill"></div></div>
+      <div class="job-foot"><span id="job-note"></span><button type="button" class="link" id="job-stop">Stop</button></div>
+    </div>
     <button class="help" type="button" id="help">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17h.01"/></svg>Help and documentation
     </button>
   </nav>
 
-  <main class="list-pane">
-    <div class="toolbar">
-      <label class="hidden-label" for="filter">Filter papers by title</label>
-      <input id="filter" type="search" placeholder="Filter by title" autocomplete="off">
-    </div>
-    <div class="tabs" role="group" aria-label="Show">
-      <button type="button" class="tab on" data-show="all" aria-pressed="true">All</button>
-      <button type="button" class="tab" data-show="seeds" aria-pressed="false">Added by you</button>
-      <button type="button" class="tab" data-show="pdf" aria-pressed="false">With PDF</button>
-      <button type="button" class="tab" data-show="notext" aria-pressed="false">No text</button>
-    </div>
-    <div class="rows" id="rows" aria-label="Papers"></div>
-  </main>
+  <!-- Papers -->
+  <div class="screen" id="screen-papers">
+    <main class="list-pane">
+      <div class="toolbar">
+        <label class="hidden-label" for="filter">Filter papers by title</label>
+        <input id="filter" type="search" placeholder="Filter by title" autocomplete="off">
+        <button type="button" class="btn" id="fetch-pdfs">Fetch PDFs</button>
+        <button type="button" class="btn primary" id="add-paper">Add paper</button>
+      </div>
+      <div class="tabs" role="group" aria-label="Show">
+        <button type="button" class="tab on" data-show="all" aria-pressed="true">All</button>
+        <button type="button" class="tab" data-show="seeds" aria-pressed="false">Added by you</button>
+        <button type="button" class="tab" data-show="pdf" aria-pressed="false">With PDF</button>
+        <button type="button" class="tab" data-show="notext" aria-pressed="false">No text</button>
+      </div>
+      <div class="rows" id="rows" aria-label="Papers"></div>
+    </main>
+    <aside class="detail" id="detail" aria-label="Selected paper"></aside>
+  </div>
 
-  <aside class="detail" id="detail" aria-label="Selected paper"></aside>
+  <!-- Search -->
+  <div class="screen" id="screen-search" hidden>
+    <main class="list-pane">
+      <form class="search-form" id="search-form" role="search">
+        <label class="head-label" for="q">SEARCH THE TEXT OF YOUR PAPERS</label>
+        <div class="search-row">
+          <input id="q" type="search" autocomplete="off">
+          <button class="btn primary big" type="submit">Search</button>
+        </div>
+        <div class="search-opts">
+          <label id="only-label" hidden><input type="checkbox" id="only-paper"><span id="only-text">Only this paper</span></label>
+          <label><input type="checkbox" id="with-refs">Include reference lists</label>
+          <span class="hint">Use "quotes" for a phrase, word* for a prefix</span>
+        </div>
+      </form>
+      <div class="search-note" id="search-note"></div>
+      <div class="rows" id="hits"></div>
+    </main>
+    <aside class="page-pane" aria-label="Page text">
+      <div class="page-head">
+        <span class="page-title" id="page-title">Choose a passage</span>
+        <div class="grow-h"></div>
+        <button type="button" class="square" id="page-prev" aria-label="Previous page" disabled>‹</button>
+        <button type="button" class="square" id="page-next" aria-label="Next page" disabled>›</button>
+        <button type="button" class="btn primary" id="page-open" hidden>Open PDF</button>
+      </div>
+      <div class="page-sheet" id="page-text"></div>
+      <div class="page-foot">The page's text as Filiation read it, not its layout.</div>
+    </aside>
+  </div>
+
+  <!-- Citation map -->
+  <div class="screen" id="screen-map" hidden>
+    <main class="list-pane">
+      <div class="map-bar">
+        <span class="map-around">Around:</span>
+        <span class="map-title" id="map-title"></span>
+        <div class="toggle" role="group" aria-label="Direction">
+          <button type="button" data-direction="cites" aria-pressed="true" class="on">What it cites</button>
+          <button type="button" data-direction="citedby" aria-pressed="false">What cites it</button>
+        </div>
+        <label for="steps">Steps</label>
+        <select id="steps"><option>1</option><option>2</option></select>
+        <button type="button" class="btn small" id="map-export">Export for Gephi</button>
+      </div>
+      <div class="map-view" id="map-view">
+        <div class="map-plane" id="map-plane">
+          <svg class="map-lines" id="map-lines" aria-hidden="true" width="1" height="1"></svg>
+        </div>
+        <div class="map-empty" id="map-empty" hidden></div>
+        <div class="legend">
+          <span><i class="key pdf"></i>PDF in your library</span>
+          <span><i class="key none"></i>No PDF here</span>
+          <span class="muted" id="map-count"></span>
+        </div>
+      </div>
+    </main>
+    <aside class="link-pane" id="link-pane" aria-label="Selected citation"></aside>
+  </div>
+
+  <!-- Inbox -->
+  <div class="screen" id="screen-inbox" hidden>
+    <section class="inbox-list" aria-label="Files in the Inbox">
+      <div class="inbox-head">
+        <span class="inbox-name">Inbox</span>
+        <span class="muted" id="inbox-count"></span>
+        <div class="grow-h"></div>
+        <button type="button" class="square" id="inbox-folder" aria-label="Open the Inbox folder" title="Open the Inbox folder">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h6l2 2h10v10H3z"/></svg>
+        </button>
+        <button type="button" class="square accent" id="inbox-add" aria-label="Add PDFs" title="Add PDFs">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+      </div>
+      <ul class="files" id="inbox-review" aria-label="To review"></ul>
+      <div class="side-head" id="filed-head" hidden>FILED</div>
+      <ul class="files" id="inbox-filed" aria-label="Filed"></ul>
+      <div class="grow"></div>
+      <div class="inbox-tip" id="inbox-tip"></div>
+    </section>
+    <main class="inbox-main" id="inbox-main"></main>
+  </div>
+
+  <!-- AI assistants -->
+  <div class="screen" id="screen-assistants" hidden>
+    <main class="assist-main">
+      <section class="assist-card">
+        <h1>Your library, inside the assistant you already use</h1>
+        <div class="flow">
+          <div class="flow-box"><b>Your assistant</b><span>asks through tool calls</span></div>
+          <div class="flow-arrow">starts fil mcp</div>
+          <div class="flow-box"><b>fil mcp</b><span>on this computer, only while the assistant needs it</span></div>
+          <div class="flow-arrow">reads</div>
+          <div class="flow-box"><b id="flow-lib">My Library</b><span id="flow-counts"></span></div>
+        </div>
+        <p class="flow-note">What the assistant reads goes to its model, so your assistant's provider sees it. Filiation's own traffic goes only to OpenAlex and open-access PDF hosts, and only when growing the library.</p>
+      </section>
+      <section class="assist-card">
+        <div class="assist-head"><h2>On this computer</h2><span class="muted" id="assist-found"></span></div>
+        <div class="assist-grid" id="assist-grid"></div>
+        <div class="assist-other">Another MCP client? Give it the command <code>fil mcp</code>
+          <button type="button" class="link" id="copy-settings">Copy settings</button> <span class="muted" id="copied"></span></div>
+      </section>
+      <section class="assist-card perm">
+        <span class="perm-text">
+          <b>Assistants can also grow your library</b>
+          <span>Add papers, follow references through OpenAlex and download open-access PDFs. Off means they can only read. A change reaches an assistant the next time it starts, so restart any that are open.</span>
+          <span class="error" id="grow-mixed"></span>
+        </span>
+        <button type="button" class="switch" id="grow" role="switch" aria-checked="true" aria-label="Assistants can grow the library"><span></span></button>
+      </section>
+    </main>
+    <aside class="assist-side" id="assist-side" aria-label="Connect and activity"></aside>
+  </div>
 </div>
+
+<dialog id="add-dialog">
+  <form method="dialog" id="add-form">
+    <h2>Add a paper</h2>
+    <label for="add-input">A DOI, an arXiv ID, a link, or its title</label>
+    <input id="add-input" autocomplete="off">
+    <div class="add-offers" id="add-offers"></div>
+    <div class="error" id="add-error"></div>
+    <div class="dialog-actions">
+      <button type="button" class="btn" id="add-cancel">Cancel</button>
+      <button type="submit" class="btn primary" id="add-go">Add</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="logos" hidden></div>
 <script src="app.js"></script>
+<script src="search.js"></script>
+<script src="map.js"></script>
+<script src="inbox.js"></script>
+<script src="assistants.js"></script>
+<script src="start.js"></script>
 </body>
 </html>

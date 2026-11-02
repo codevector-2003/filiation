@@ -346,7 +346,7 @@ func TestWebPage(t *testing.T) {
 		{"a local document has none", library.Paper{Work: model.Work{FilID: "F1"}}, ""},
 	}
 	for _, tt := range tests {
-		if got := webPage(tt.p); got != tt.want {
+		if got := tt.p.WebPage(); got != tt.want {
 			t.Errorf("%s: %q, want %q", tt.name, got, tt.want)
 		}
 	}
@@ -365,8 +365,8 @@ func TestWebAddress(t *testing.T) {
 		"https://a.org/x y":                  false,
 		`https://a.org/"x`:                   false,
 	} {
-		if got := webAddress(u); got != want {
-			t.Errorf("webAddress(%q) = %v, want %v", u, got, want)
+		if got := library.WebAddress(u); got != want {
+			t.Errorf("WebAddress(%q) = %v, want %v", u, got, want)
 		}
 	}
 	if err := (libActions{}).openURL("file:///etc/passwd"); err == nil {

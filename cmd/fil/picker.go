@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -551,16 +550,10 @@ func (a libActions) copyText(s string) error { return clipboard.WriteAll(s) }
 // openURL opens a web page in the default browser: only an http or https
 // address, so a stored link can never open a local file or run anything.
 func (a libActions) openURL(u string) error {
-	if !webAddress(u) {
+	if !library.WebAddress(u) {
 		return fmt.Errorf("%s is not a web address", u)
 	}
 	return opener.Open(u)
-}
-
-// webAddress reports an absolute http or https address with a host.
-func webAddress(u string) bool {
-	p, err := url.Parse(u)
-	return err == nil && (p.Scheme == "http" || p.Scheme == "https") && p.Host != "" && !strings.ContainsAny(u, " \t\r\n\"")
 }
 
 // listHeading says when the picker holds only part of the list, as the plain
@@ -588,28 +581,6 @@ func searchHeading(words string, partial, capped bool, unread int) string {
 	return h
 }
 
-// webPage is the best page on the web for a paper: where its DOI resolves,
-// the landing page of an open copy, the link OpenAlex gives, or OpenAlex's
-// own page for it.
-func webPage(p library.Paper) string {
-	w := p.Work
-	if w.DOI != nil && *w.DOI != "" {
-		return "https://doi.org/" + *w.DOI
-	}
-	for _, l := range p.PDF.Links {
-		if webAddress(l.LandingURL) {
-			return l.LandingURL
-		}
-	}
-	if w.OAURL != nil && webAddress(*w.OAURL) {
-		return *w.OAURL
-	}
-	if w.OpenAlexID != "" {
-		return "https://openalex.org/" + w.OpenAlexID
-	}
-	return ""
-}
-
 // inLibrary refuses anything outside the library's folder: the picker opens
 // the library's own files, never a path from anywhere else.
 func (a libActions) inLibrary(path string) error {
@@ -635,7 +606,7 @@ func within(root, path string) bool {
 // cardFrom lays out what Show knows about a paper.
 func cardFrom(p library.Paper) card {
 	w := p.Work
-	c := card{id: w.FilID, title: w.DisplayTitle(), byline: byline(w), folder: p.Folder, web: webPage(p)}
+	c := card{id: w.FilID, title: w.DisplayTitle(), byline: byline(w), folder: p.Folder, web: p.WebPage()}
 	var kind []string
 	if w.Year != nil {
 		kind = append(kind, fmt.Sprint(*w.Year))
