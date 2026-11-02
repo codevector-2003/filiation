@@ -2,16 +2,13 @@
 // alone never files a PDF: when fil is not sure, the person chooses.
 'use strict';
 
-const inbox = { items: [], selected: 0, choice: {}, skipped: 0 };
+const inbox = { items: [], selected: 0, choice: {} };
 
 screens.inbox = async () => {
   await loadInbox();
   const lib = state.lib || {};
   $('inbox-tip').textContent = 'Drag PDFs anywhere into this window, or save them to ' + (lib.folder ? lib.folder + '​/Inbox' : 'the Inbox folder') + ' and open this screen.';
-  // New files are looked at when the screen opens. Those already on the list
-  // are not: each look can spend a title search.
-  const known = inbox.items.filter((i) => i.state !== 'filed' || i.stays).length + inbox.skipped;
-  if (inbox.waiting > known) startJob('/api/inbox/import').catch(showInboxError);
+  if (inbox.fresh) startJob('/api/inbox/import').catch(showInboxError);
 };
 
 function showInboxError(e) {
@@ -22,7 +19,7 @@ async function loadInbox() {
   try {
     const res = await api('/api/inbox');
     inbox.items = res.items;
-    inbox.waiting = res.waiting;
+    inbox.fresh = res.fresh;
     renderInbox();
   } catch (e) {
     showInboxError(e);
@@ -162,7 +159,6 @@ function otherPaper(file) {
 
 async function skip(it) {
   await api('/api/inbox/' + it.id + '/skip', 'POST');
-  inbox.skipped++;
   loadInbox();
 }
 

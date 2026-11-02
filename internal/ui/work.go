@@ -27,8 +27,9 @@ type work struct {
 	job    jobJSON
 	cancel context.CancelFunc
 
-	inbox  []*inboxItem
-	nextID int
+	inbox   []*inboxItem
+	nextID  int
+	skipped int // files left in Inbox/ that the person passed over
 
 	offered []library.Candidate // what the last Add by title offered
 }
@@ -195,7 +196,6 @@ type inboxJSON struct {
 	Clue       string          `json:"clue,omitempty"`
 	Title      string          `json:"title,omitempty"`
 	PaperID    string          `json:"paperId,omitempty"`
-	Stays      bool            `json:"stays,omitempty"` // a duplicate: the file is still in the Inbox
 	Candidates []candidateJSON `json:"candidates"`
 }
 
@@ -209,7 +209,7 @@ func itemJSON(it *inboxItem) inboxJSON {
 			out.Title = f.Work.DisplayTitle()
 		}
 		if f.Outcome == library.ImportDuplicate {
-			out.Reason, out.Stays = "Already in the library", true
+			out.Reason = "Already in the library"
 		}
 	case library.ImportUnconfirmed, library.ImportCandidates:
 		out.State = "choose"
@@ -231,10 +231,24 @@ func (s *server) inboxList(w http.ResponseWriter, _ *http.Request) {
 	s.work.mu.Lock()
 	defer s.work.mu.Unlock()
 	items := make([]inboxJSON, 0, len(s.work.inbox))
+	known := s.work.skipped
 	for _, it := range s.work.inbox {
 		items = append(items, itemJSON(it))
+		if s.stillWaiting(it) {
+			known++
+		}
 	}
-	send(w, map[string]any{"items": items, "waiting": waiting})
+	// Only files not yet looked at are fresh: each look can spend a title search.
+	send(w, map[string]any{"items": items, "fresh": waiting > known})
+}
+
+// stillWaiting reports whether an import left this file in Inbox/, where it
+// counts as waiting: anything not filed, and a duplicate, which is not moved.
+func (s *server) stillWaiting(it *inboxItem) bool {
+	if it.result.Outcome == library.ImportImported {
+		return false
+	}
+	return filepath.Dir(it.result.File) == filepath.Join(s.Library.Folder(), "Inbox")
 }
 
 // remember records what an import did to a file, replacing what was known.
@@ -382,6 +396,9 @@ func (s *server) inboxSkip(w http.ResponseWriter, r *http.Request) {
 		for i, o := range s.work.inbox {
 			if o == it {
 				s.work.inbox = append(s.work.inbox[:i], s.work.inbox[i+1:]...)
+				if s.stillWaiting(it) {
+					s.work.skipped++
+				}
 				break
 			}
 		}

@@ -276,10 +276,24 @@ func TestInboxReviewAndKeepAsADocument(t *testing.T) {
 	waitJob(t, h)
 	type box struct {
 		Items []inboxJSON `json:"items"`
+		Fresh bool        `json:"fresh"`
 	}
-	items := decode[box](t, ask(t, h, "GET", "/api/inbox")).Items
+	first := decode[box](t, ask(t, h, "GET", "/api/inbox"))
+	items := first.Items
 	if len(items) != 1 || items[0].State == "filed" {
 		t.Fatalf("inbox = %+v", items)
+	}
+	if first.Fresh {
+		t.Error("a file already looked at counts as fresh, so each visit would look again")
+	}
+	if err := os.WriteFile(filepath.Join(lib.Folder, "Inbox", "later.pdf"), pdf, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if !decode[box](t, ask(t, h, "GET", "/api/inbox")).Fresh {
+		t.Error("a file saved since does not count as fresh")
+	}
+	if err := os.Remove(filepath.Join(lib.Folder, "Inbox", "later.pdf")); err != nil {
+		t.Fatal(err)
 	}
 	path := "/api/inbox/" + strconv.Itoa(items[0].ID)
 	if w := post(t, h, path+"/file", `{"title":"Meeting notes"}`); w.Code != http.StatusOK {

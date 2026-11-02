@@ -41,9 +41,12 @@ function place(nodes) {
   nodes.filter((n) => n.step === 2).forEach((n) => { (groups[n.parent] = groups[n.parent] || []).push(n); });
   const r2 = r1 * stagger + 260;
   for (const [parent, kids] of Object.entries(groups)) {
+    // One behind another, outward from the parent, so that cards never overlap.
+    const a = at[parent].a;
+    const gap = Math.abs(Math.cos(a)) * (NODE_W + 20) + Math.abs(Math.sin(a)) * (NODE_H + 20);
     kids.forEach((n, i) => {
-      const a = at[parent].a + (i - (kids.length - 1) / 2) * 0.17;
-      at[n.id] = { x: r2 * Math.cos(a), y: r2 * 0.78 * Math.sin(a), a };
+      const r = r2 + i * gap;
+      at[n.id] = { x: r * 1.15 * Math.cos(a), y: r * 0.8 * Math.sin(a), a };
     });
   }
   return at;
