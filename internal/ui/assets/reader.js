@@ -411,6 +411,7 @@ async function findInPaper(words) {
   const pages = [...new Set(res.hits.map((h) => h.page))].sort((a, b) => a - b);
   $('reader-found').textContent = pages.length === 0 ? 'Not found' : pages.length === 1 ? 'On 1 page' : 'On ' + pages.length + ' pages';
   if (pages.length > 0) showPage(pages.find((p) => p > reader.page) || pages[0]);
+  else document.querySelectorAll('#reader-page .hit').forEach((h) => h.remove());
 }
 
 $('reader-back').addEventListener('click', closeReader);
