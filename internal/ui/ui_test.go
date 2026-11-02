@@ -167,6 +167,20 @@ func TestOnlyAPDFIsOpened(t *testing.T) {
 	}
 }
 
+// With several editions, the one read is the one whose pages a search names.
+func TestTheEditionReadIsTheOneOpened(t *testing.T) {
+	t.Parallel()
+	files := []library.PaperFile{{Path: "accepted.pdf"}, {Path: "published.pdf"}}
+	f, ok := firstPDF(library.Paper{Files: files, Text: &library.PaperText{File: "published.pdf"}})
+	if !ok || f.Path != "published.pdf" {
+		t.Errorf("firstPDF = %+v, %v", f, ok)
+	}
+	files[1].Missing = true
+	if f, _ := firstPDF(library.Paper{Files: files, Text: &library.PaperText{File: "published.pdf"}}); f.Path != "accepted.pdf" {
+		t.Errorf("with the edition read gone, firstPDF = %+v", f)
+	}
+}
+
 func TestMissingNotesFileIsNotADeletedPDF(t *testing.T) {
 	t.Parallel()
 	p := library.Paper{Files: []library.PaperFile{{Path: "notes.txt", Missing: true}}}

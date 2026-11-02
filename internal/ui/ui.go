@@ -366,9 +366,17 @@ func meta(w model.Work) string {
 
 func isPDF(path string) bool { return strings.EqualFold(filepath.Ext(path), ".pdf") }
 
-// firstPDF is the paper's first PDF still on disk, if it has one. Its folder
-// can hold other files too.
+// firstPDF is the paper's PDF still on disk, if it has one: the one its text
+// was read from when there are several, so that a search's pages are its
+// pages. Its folder can hold other files too.
 func firstPDF(p library.Paper) (library.PaperFile, bool) {
+	if p.Text != nil {
+		for _, f := range p.Files {
+			if !f.Missing && f.Path == p.Text.File {
+				return f, true
+			}
+		}
+	}
 	for _, f := range p.Files {
 		if !f.Missing && isPDF(f.Path) {
 			return f, true
