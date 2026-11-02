@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Filiation</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div class="app">
+  <nav class="side" aria-label="Main">
+    <div class="lib">
+      <span class="lib-name" id="lib-name">My Library</span>
+      <span class="lib-path" id="lib-path"></span>
+    </div>
+    <button class="nav on" type="button" id="nav-papers">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v16H4zM14 4h6v16h-6z"/></svg>Papers<span class="count" id="count-papers"></span>
+    </button>
+    <button class="nav" type="button" disabled title="Coming in the next step">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg>Search
+    </button>
+    <button class="nav" type="button" disabled title="Coming soon">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="6" r="2"/><circle cx="18" cy="8" r="2"/><circle cx="10" cy="18" r="2"/><path d="M8 7l8 1M7 8l2 8M16.5 9.5l-5 7"/></svg>Citation map
+    </button>
+    <button class="nav" type="button" disabled title="Coming soon">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13l3-8h10l3 8v6H4zM4 13h5l1 2h4l1-2h5"/></svg>Inbox<span class="badge" id="count-inbox" hidden></span>
+    </button>
+    <button class="nav" type="button" disabled title="Coming soon">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7V4M15 7V4M7 7h10v5a5 5 0 0 1-10 0zM12 17v3"/></svg>AI assistants
+    </button>
+    <div class="side-head" id="collections-head" hidden>COLLECTIONS</div>
+    <div class="collections" id="collections"></div>
+    <div class="grow"></div>
+    <button class="help" type="button" id="help">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17h.01"/></svg>Help and documentation
+    </button>
+  </nav>
+
+  <main class="list-pane">
+    <div class="toolbar">
+      <label class="hidden-label" for="filter">Filter papers by title</label>
+      <input id="filter" type="search" placeholder="Filter by title" autocomplete="off">
+    </div>
+    <div class="tabs" role="group" aria-label="Show">
+      <button type="button" class="tab on" data-show="all" aria-pressed="true">All</button>
+      <button type="button" class="tab" data-show="seeds" aria-pressed="false">Added by you</button>
+      <button type="button" class="tab" data-show="pdf" aria-pressed="false">With PDF</button>
+      <button type="button" class="tab" data-show="notext" aria-pressed="false">No text</button>
+    </div>
+    <div class="rows" id="rows" aria-label="Papers"></div>
+  </main>
+
+  <aside class="detail" id="detail" aria-label="Selected paper"></aside>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
