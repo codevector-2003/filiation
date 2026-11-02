@@ -19,6 +19,9 @@ screens.map = (id) => {
 };
 
 function showMapMode() {
+  // Whatever the other view was still loading must not land in this one.
+  mapState.asked++;
+  whole.asked++;
   const around = mapState.mode === 'around';
   $('around-bar').hidden = !around;
   $('map-view').hidden = !around;
