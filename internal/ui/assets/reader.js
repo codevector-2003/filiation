@@ -213,7 +213,7 @@ function selectionHere() {
       w: r.width / base.width,
       h: r.height / base.height,
     }));
-  return { text, rects, bottom: Math.max(...rects.map((r) => r.y + r.h)), left: Math.min(...rects.map((r) => r.x)) };
+  return { text, rects, page: reader.page, bottom: Math.max(...rects.map((r) => r.y + r.h)), left: Math.min(...rects.map((r) => r.x)) };
 }
 
 function cited(text) {
@@ -241,7 +241,7 @@ async function addHighlight(colour, comment) {
   const sel = reader.selection;
   if (!sel) return null;
   const n = await api('/api/papers/' + encodeURIComponent(reader.paper.id) + '/notes', 'POST',
-    { page: reader.page, colour, quote: sel.text, rects: sel.rects, comment: comment || '' });
+    { page: sel.page, colour, quote: sel.text, rects: sel.rects, comment: comment || '' });
   reader.notes.push(n);
   reader.notes.sort((a, b) => a.page - b.page || a.id - b.id);
   window.getSelection().removeAllRanges();

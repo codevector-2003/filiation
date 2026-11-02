@@ -89,6 +89,25 @@ async function loadPage(n) {
     box.scrollTop = 0;
     if (lit.length > 0) lit[0].scrollIntoView({ block: 'center' });
   } catch (e) {
+    if (asked === found.askedPage) showPageText(n, asked);
+  }
+}
+
+// showPageText is the fallback when the PDF has gone: the text fil read from
+// it stays in the library, and a search can still find it.
+async function showPageText(n, asked) {
+  const box = $('page-text');
+  try {
+    const p = await api('/api/papers/' + encodeURIComponent(found.id) + '/pages/' + n);
+    if (asked !== found.askedPage) return;
+    found.docId = '';
+    found.page = p.page;
+    $('page-title').textContent = 'Page ' + p.page + ' of ' + p.pages;
+    $('page-prev').disabled = p.page <= 1;
+    $('page-next').disabled = p.page >= p.pages;
+    $('page-open').hidden = true;
+    box.replaceChildren(el('div', 'pdf-note', 'The PDF is not available, so this is the text Filiation read from it.'), el('div', 'page-text', p.text));
+  } catch (e) {
     if (asked === found.askedPage) box.replaceChildren(el('div', 'pdf-note', e.message));
   }
 }

@@ -428,4 +428,5 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
 .comment-form textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--accent); border-radius: 6px; font: inherit; color: inherit; resize: none; }
 .pdf-preview { flex: 1; min-height: 0; overflow: auto; }
 .pdf-preview .pdf-page { margin: 0 auto; }
-.pdf-note { padding: 28px; color: var(--muted); }
+.pdf-note { padding: 12px 4px; color: var(--ink-2); }
+.page-text { padding: 20px 24px; background: #FFFFFF; white-space: pre-wrap; font-family: var(--serif); font-size: 13px; font-weight: 500; line-height: 1.65; }
