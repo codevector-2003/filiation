@@ -27,7 +27,8 @@ import (
 //	7  M3: import_attempt — what importing each of the user's PDFs gave (ADR-014)
 //	8  M3: mention — every citation found in a PDF, with its sentence (ADR-015)
 //	9  M3: work_file.identity — whether a downloaded PDF is the paper it is filed under
-const SchemaVersion = 9
+//	10 M5: note.page, colour, quote, rects — notes the Reader keeps beside the PDF
+const SchemaVersion = 10
 
 // upgrades[v] moves a library from schema v to v+1. Each runs inside
 // Migrate's one transaction, after the ones before it, so a library several
@@ -41,6 +42,7 @@ var upgrades = map[int]func(ctx context.Context, db *DB, tx *sql.Tx) error{
 	6: upgradeV6ToV7,
 	7: upgradeV7ToV8,
 	8: upgradeV8ToV9,
+	9: upgradeV9ToV10,
 }
 
 // upgradeV2ToV3 adds the tables for the papers/ folder, upgradeV3ToV4 those
@@ -60,6 +62,16 @@ func upgradeV8ToV9(ctx context.Context, _ *DB, tx *sql.Tx) error {
 		return err
 	}
 	return addTables(ctx, tx, 9)
+}
+
+// upgradeV9ToV10 lets a note say where on a paper it is.
+func upgradeV9ToV10(ctx context.Context, _ *DB, tx *sql.Tx) error {
+	for _, col := range [][2]string{{"page", "INTEGER"}, {"colour", "TEXT"}, {"quote", "TEXT"}, {"rects", "TEXT"}} {
+		if err := addColumnIfMissing(ctx, tx, "note", col[0], col[1]); err != nil {
+			return err
+		}
+	}
+	return addTables(ctx, tx, 10)
 }
 
 // addColumnIfMissing adds a column to a table that already exists.

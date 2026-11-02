@@ -354,3 +354,75 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
   .assist-grid { grid-template-columns: minmax(0, 1fr); }
   .inbox-list { width: 260px; }
 }
+
+/* The Reader */
+#screen-reader { flex-direction: column; }
+.reader-bar { flex: none; min-height: 52px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 16px; border-bottom: 1px solid var(--line); background: var(--panel); }
+.reader-back { height: 34px; padding: 0 12px; border: 0; border-radius: 6px; background: transparent; }
+.reader-back:hover { background: var(--quote); }
+.reader-title { max-width: 260px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--muted); }
+.sep { width: 1px; height: 24px; background: var(--line); }
+.tools { display: flex; gap: 2px; padding: 3px; border-radius: 8px; background: var(--side); }
+.tools button { width: 34px; height: 30px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 6px; background: transparent; color: var(--ink-2); }
+.tools button svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; }
+.tools button.on { background: #FFFFFF; color: var(--ink); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12); }
+.swatches { display: flex; gap: 6px; padding: 0 6px; }
+.swatch { width: 22px; height: 22px; padding: 0; border: 2px solid transparent; border-radius: 11px; }
+.swatch.on { border-color: var(--ink); }
+.yellow { background: #F6DE7A; }
+.green { background: #A9D8B4; }
+.blue { background: #A8C8E6; }
+.pink { background: #EDB3C6; }
+#reader-pg { width: 44px; height: 32px; text-align: center; border: 1px solid var(--line-2); border-radius: 6px; }
+#reader-zoom { width: 44px; text-align: center; }
+#reader-find-form { display: flex; align-items: center; gap: 6px; }
+#reader-find { width: 150px; height: 32px; padding: 0 8px; border: 1px solid var(--line-2); border-radius: 6px; background: #FFFFFF; }
+#reader-found { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.reader-body { flex: 1; min-height: 0; display: flex; }
+.reader-thumbs { width: 120px; flex: none; padding: 14px 0; display: flex; flex-direction: column; align-items: center; gap: 14px; background: var(--side); border-right: 1px solid var(--line); overflow-y: auto; }
+.thumb { flex: none; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 0; border: 0; background: transparent; color: var(--ink-2); }
+.thumb-sheet { display: block; width: 72px; min-height: 94px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12); }
+.thumb-sheet canvas { display: block; }
+.thumb.on .thumb-sheet { outline: 2px solid var(--accent); outline-offset: 2px; box-shadow: none; }
+.thumb-n { font-size: 12px; }
+.reader-view { flex: 1; min-width: 0; overflow: auto; padding: 28px; background: #DCDAD4; }
+.reader-sheet-wrap { position: relative; width: fit-content; margin: 0 auto; }
+.pdf-page { position: relative; background: #FFFFFF; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15); }
+.pdf-page canvas { display: block; }
+.mark-layer { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+.note-box { position: absolute; mix-blend-mode: multiply; }
+.hit { position: absolute; background: #FBE7B5; outline: 1px solid #E9C93F; mix-blend-mode: multiply; }
+.note-pin {
+  position: absolute; right: -16px; width: 24px; height: 24px; padding: 0; border: 2px solid #FFFFFF; border-radius: 12px;
+  background: var(--accent); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25); pointer-events: auto;
+}
+.textLayer { position: absolute; inset: 0; overflow: clip; opacity: 1; line-height: 1; text-size-adjust: none; forced-color-adjust: none; transform-origin: 0 0; z-index: 2; text-align: initial; }
+.textLayer :is(span, br) { color: transparent; position: absolute; white-space: pre; cursor: text; transform-origin: 0% 0%; }
+.textLayer span.markedContent { top: 0; height: 0; }
+.textLayer ::selection { background: rgba(31, 95, 139, 0.3); }
+.textLayer br::selection { background: transparent; }
+.textLayer .endOfContent { display: block; position: absolute; inset: 100% 0 0; z-index: 0; cursor: default; user-select: none; }
+.sel-menu { position: absolute; z-index: 5; display: flex; align-items: center; gap: 2px; padding: 4px; border-radius: 8px; background: var(--ink); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25); white-space: nowrap; }
+.sel-menu button { height: 32px; padding: 0 10px; border: 0; border-radius: 5px; background: transparent; color: #FFFFFF; }
+.sel-menu button:hover { background: #3A3D42; }
+.sel-menu .dot-btn { width: 32px; padding: 0; display: flex; align-items: center; justify-content: center; }
+.sel-menu .dot { width: 16px; height: 16px; }
+.sel-sep { width: 1px; height: 20px; background: #4A4D52; }
+.sel-copies { position: absolute; z-index: 5; width: 380px; padding: 8px 12px; border-radius: 6px; background: var(--quote); font-size: 12px; color: var(--ink-2); line-height: 1.5; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15); }
+.reader-aside { width: 380px; flex: none; display: flex; flex-direction: column; border-left: 1px solid var(--line); background: var(--panel); }
+.reader-tabs { flex: none; display: flex; gap: 4px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.reader-side { flex: 1; min-height: 0; overflow-y: auto; }
+.reader-foot { flex: none; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--line); color: var(--ink-2); line-height: 1.5; }
+.note-card { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 14px 16px; border-bottom: 1px solid var(--line-3); }
+.note-top { width: 100%; display: flex; align-items: center; gap: 8px; }
+.note-top .quiet { margin-left: auto; }
+.link.quiet { color: var(--muted); font-size: 12px; }
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
+.note-quote { margin: 0; padding-left: 10px; border-left: 3px solid var(--line); font-family: var(--serif); font-size: 14px; font-weight: 500; line-height: 1.5; overflow-wrap: anywhere; }
+.note-comment { width: 100%; margin: 0; padding: 8px 10px; border-radius: 6px; background: var(--quote); line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.comment-form { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; border-bottom: 1px solid var(--line-3); }
+.comment-form label { font-weight: 600; }
+.comment-form textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--accent); border-radius: 6px; font: inherit; color: inherit; resize: none; }
+.pdf-preview { flex: 1; min-height: 0; overflow: auto; }
+.pdf-preview .pdf-page { margin: 0 auto; }
+.pdf-note { padding: 28px; color: var(--muted); }

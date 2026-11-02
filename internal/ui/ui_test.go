@@ -76,6 +76,18 @@ func TestScreensAreEmbedded(t *testing.T) {
 	}
 }
 
+// A module served as anything but a script does not run, and then no PDF opens.
+func TestPDFjsIsServedAsAScript(t *testing.T) {
+	t.Parallel()
+	h := New(Options{})
+	for _, path := range []string{"/pdfjs/pdf.min.mjs", "/pdfjs/pdf.worker.min.mjs"} {
+		w := ask(t, h, "GET", path)
+		if w.Code != http.StatusOK || !strings.HasPrefix(w.Header().Get("Content-Type"), "text/javascript") {
+			t.Errorf("GET %s = %d, %q", path, w.Code, w.Header().Get("Content-Type"))
+		}
+	}
+}
+
 func TestNoLibrarySaysSo(t *testing.T) {
 	t.Parallel()
 	h := New(Options{Problem: "the settings file is broken"})
@@ -407,5 +419,70 @@ func TestAssistantsScreen(t *testing.T) {
 	}
 	if w := post(t, h, "/api/assistants/nobody/connect", ""); w.Code != http.StatusConflict {
 		t.Errorf("an unknown assistant = %d", w.Code)
+	}
+}
+
+func TestReaderServesThePDFAndKeepsNotes(t *testing.T) {
+	t.Parallel()
+	h, id, opened := openTest(t)
+	w := ask(t, h, "GET", "/api/papers/"+id+"/pdf")
+	if w.Code != http.StatusOK || !strings.HasPrefix(w.Body.String(), "%PDF") {
+		t.Fatalf("pdf = %d, %.20q", w.Code, w.Body.String())
+	}
+
+	note := post(t, h, "/api/papers/"+id+"/notes",
+		`{"page":1,"colour":"yellow","quote":"Nest counts rose","rects":[{"x":0.1,"y":0.2,"w":0.3,"h":0.02}]}`)
+	if note.Code != http.StatusOK {
+		t.Fatalf("add = %d: %s", note.Code, note.Body)
+	}
+	added := decode[noteJSON](t, note)
+	if w := post(t, h, "/api/notes/"+strconv.FormatInt(added.ID, 10), `{"comment":"Compare with the 2019 count."}`); w.Code != http.StatusNoContent {
+		t.Fatalf("change = %d: %s", w.Code, w.Body)
+	}
+	type list struct {
+		Notes []noteJSON `json:"notes"`
+	}
+	got := decode[list](t, ask(t, h, "GET", "/api/papers/"+id+"/notes")).Notes
+	if len(got) != 1 || got[0].Comment != "Compare with the 2019 count." || got[0].Colour != "yellow" || !strings.Contains(string(got[0].Rects), "0.3") {
+		t.Fatalf("notes = %+v", got)
+	}
+
+	if w := post(t, h, "/api/papers/"+id+"/notes/export", ""); w.Code != http.StatusNoContent {
+		t.Fatalf("export = %d: %s", w.Code, w.Body)
+	}
+	files, err := filepath.Glob(filepath.Join((*opened)[0], "notes-*"+id+".md"))
+	if err != nil || len(files) != 1 {
+		t.Fatalf("exported = %v, %v", files, err)
+	}
+	if b, _ := os.ReadFile(files[0]); !strings.Contains(string(b), "> Nest counts rose") || !strings.Contains(string(b), "2019 count") {
+		t.Errorf("export = %s", b)
+	}
+
+	if w := post(t, h, "/api/notes/"+strconv.FormatInt(added.ID, 10)+"/delete", ""); w.Code != http.StatusNoContent {
+		t.Fatalf("delete = %d", w.Code)
+	}
+	if w := post(t, h, "/api/notes/"+strconv.FormatInt(added.ID, 10)+"/delete", ""); w.Code != http.StatusNotFound {
+		t.Errorf("deleting twice = %d", w.Code)
+	}
+}
+
+func TestNoteRefusesNonsense(t *testing.T) {
+	t.Parallel()
+	h, id, _ := openTest(t)
+	for _, body := range []string{`{"page":1}`, `{"page":1,"quote":"x","colour":"purple"}`, `{"page":-1,"quote":"x"}`} {
+		if w := post(t, h, "/api/papers/"+id+"/notes", body); w.Code != http.StatusBadRequest {
+			t.Errorf("%s = %d", body, w.Code)
+		}
+	}
+}
+
+func TestPaperWithNoPDFServesNone(t *testing.T) {
+	t.Parallel()
+	h, id, _ := openTest(t)
+	if w := ask(t, h, "GET", "/api/papers/F0000000Z/pdf"); w.Code != http.StatusNotFound {
+		t.Errorf("unknown paper = %d", w.Code)
+	}
+	if w := ask(t, h, "GET", "/api/papers/"+id+"/cited/1"); w.Code != http.StatusOK {
+		t.Errorf("cited = %d: %s", w.Code, w.Body)
 	}
 }

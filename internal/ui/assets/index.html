@@ -85,10 +85,9 @@
         <div class="grow-h"></div>
         <button type="button" class="square" id="page-prev" aria-label="Previous page" disabled>‹</button>
         <button type="button" class="square" id="page-next" aria-label="Next page" disabled>›</button>
-        <button type="button" class="btn primary" id="page-open" hidden>Open PDF</button>
+        <button type="button" class="btn primary" id="page-open" hidden>Open at this page</button>
       </div>
-      <div class="page-sheet" id="page-text"></div>
-      <div class="page-foot">The page's text as Filiation read it, not its layout.</div>
+      <div class="pdf-preview" id="page-text"></div>
     </aside>
   </div>
 
@@ -175,6 +174,75 @@
     </main>
     <aside class="assist-side" id="assist-side" aria-label="Connect and activity"></aside>
   </div>
+
+  <!-- Reader -->
+  <div class="screen" id="screen-reader" hidden>
+    <div class="reader-bar" role="toolbar" aria-label="Reader">
+      <button type="button" class="reader-back" id="reader-back">‹ Back</button>
+      <span class="reader-title" id="reader-title"></span>
+      <span class="sep"></span>
+      <div class="tools" role="group" aria-label="Tool">
+        <button type="button" class="on" data-tool="select" aria-pressed="true" aria-label="Select text" title="Select text"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6M9 20h6M12 4v16"/></svg></button>
+        <button type="button" data-tool="highlight" aria-pressed="false" aria-label="Highlight" title="Highlight"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h7M14 4l6 6-8 8H8v-4z"/></svg></button>
+        <button type="button" data-tool="comment" aria-pressed="false" aria-label="Comment" title="Comment"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg></button>
+      </div>
+      <div class="swatches" role="radiogroup" aria-label="Highlight colour">
+        <button type="button" role="radio" class="swatch yellow on" data-colour="yellow" aria-checked="true" aria-label="Yellow"></button>
+        <button type="button" role="radio" class="swatch green" data-colour="green" aria-checked="false" aria-label="Green"></button>
+        <button type="button" role="radio" class="swatch blue" data-colour="blue" aria-checked="false" aria-label="Blue"></button>
+        <button type="button" role="radio" class="swatch pink" data-colour="pink" aria-checked="false" aria-label="Pink"></button>
+      </div>
+      <div class="grow-h"></div>
+      <button type="button" class="square" id="reader-prev" aria-label="Previous page">‹</button>
+      <label class="hidden-label" for="reader-pg">Page</label>
+      <input id="reader-pg" autocomplete="off">
+      <span class="muted" id="reader-of"></span>
+      <button type="button" class="square" id="reader-next" aria-label="Next page">›</button>
+      <span class="sep"></span>
+      <button type="button" class="square" id="reader-out" aria-label="Zoom out">−</button>
+      <span id="reader-zoom">110%</span>
+      <button type="button" class="square" id="reader-in" aria-label="Zoom in">+</button>
+      <span class="sep"></span>
+      <form id="reader-find-form" role="search">
+        <label class="hidden-label" for="reader-find">Find in this paper</label>
+        <input id="reader-find" type="search" placeholder="Find in this paper" autocomplete="off">
+        <span id="reader-found"></span>
+      </form>
+    </div>
+    <div class="reader-body">
+      <nav class="reader-thumbs" id="reader-thumbs" aria-label="Pages"></nav>
+      <main class="reader-view" id="reader-view">
+        <div class="reader-sheet-wrap">
+          <div class="pdf-page" id="reader-page"></div>
+          <div class="sel-menu" id="sel-menu" role="menu" aria-label="Selected text" hidden>
+            <button type="button" role="menuitem" id="sel-copy">Copy</button>
+            <button type="button" role="menuitem" id="sel-cite">Copy with citation</button>
+            <span class="sel-sep"></span>
+            <button type="button" role="menuitem" class="dot-btn" data-mark="yellow" aria-label="Highlight yellow"><span class="dot yellow"></span></button>
+            <button type="button" role="menuitem" class="dot-btn" data-mark="green" aria-label="Highlight green"><span class="dot green"></span></button>
+            <button type="button" role="menuitem" class="dot-btn" data-mark="blue" aria-label="Highlight blue"><span class="dot blue"></span></button>
+            <button type="button" role="menuitem" class="dot-btn" data-mark="pink" aria-label="Highlight pink"><span class="dot pink"></span></button>
+            <span class="sel-sep"></span>
+            <button type="button" role="menuitem" id="sel-comment">Comment</button>
+            <button type="button" role="menuitem" id="sel-search">Search the library</button>
+          </div>
+          <div class="sel-copies" id="sel-copies" hidden></div>
+        </div>
+      </main>
+      <aside class="reader-aside" aria-label="Notes on this paper">
+        <div class="reader-tabs" role="group" aria-label="Side panel">
+          <button type="button" class="tab on" data-side="notes" id="side-notes-tab">Notes</button>
+          <button type="button" class="tab" data-side="cited">Cited on this page</button>
+          <button type="button" class="tab" data-side="details">Details</button>
+        </div>
+        <div class="reader-side" id="reader-side"></div>
+        <div class="reader-foot">
+          <span>Notes live in your library, so the PDF file stays as it was.</span>
+          <div><button type="button" class="btn small" id="reader-export">Export notes</button></div>
+        </div>
+      </aside>
+    </div>
+  </div>
 </div>
 
 <dialog id="add-dialog">
@@ -197,6 +265,7 @@
 <script src="map.js"></script>
 <script src="inbox.js"></script>
 <script src="assistants.js"></script>
+<script src="reader.js"></script>
 <script src="start.js"></script>
 </body>
 </html>

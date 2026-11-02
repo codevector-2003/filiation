@@ -159,7 +159,11 @@ CREATE TABLE IF NOT EXISTS note (
     id         INTEGER PRIMARY KEY,
     work_id    TEXT NOT NULL REFERENCES work(fil_id) ON DELETE CASCADE,
     body       TEXT NOT NULL,
-    created_at TEXT DEFAULT (datetime('now'))
+    created_at TEXT DEFAULT (datetime('now')),
+    page       INTEGER,   -- schema v10: from 1
+    colour     TEXT,      -- schema v10: a highlight's colour
+    quote      TEXT,      -- schema v10: the text marked
+    rects      TEXT       -- schema v10: where on the page, as JSON fractions of its size
 );
 
 CREATE TABLE IF NOT EXISTS collection (
@@ -330,4 +334,4 @@ CREATE TABLE IF NOT EXISTS meta (
     value TEXT
 );
 
-INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '9');
+INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '10');
