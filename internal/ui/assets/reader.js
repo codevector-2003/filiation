@@ -383,7 +383,7 @@ async function renderCited() {
       return card;
     }));
   } catch (e) {
-    box.replaceChildren(el('div', 'note error', e.message));
+    if (page === reader.page && reader.tab === 'cited' && id === reader.paper.id) box.replaceChildren(el('div', 'note error', e.message));
   }
 }
 
