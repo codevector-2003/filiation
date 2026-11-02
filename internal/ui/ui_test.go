@@ -235,7 +235,7 @@ func TestMapOfAPaperWithNoCitations(t *testing.T) {
 		Nodes  []nodeJSON `json:"nodes"`
 	}
 	m := decode[mapped](t, ask(t, h, "GET", "/api/map?id="+id+"&steps=2"))
-	if m.Center.ID != id || m.Nodes == nil || len(m.Nodes) != 0 {
+	if m.Center.ID != id || !m.Center.PDF || m.Nodes == nil || len(m.Nodes) != 0 {
 		t.Errorf("map = %+v", m)
 	}
 	if got := decode[mapped](t, ask(t, h, "GET", "/api/map")); got.Center.ID != id {

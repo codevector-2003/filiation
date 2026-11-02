@@ -140,17 +140,8 @@ func (s *server) mapAround(w http.ResponseWriter, r *http.Request) {
 		failFind(w, err)
 		return
 	}
-	withPDF, err := s.Library.List(ctx, library.ListOptions{WithPDF: true})
-	if err != nil {
-		fail(w, http.StatusInternalServerError, err)
-		return
-	}
-	hasPDF := make(map[string]bool, len(withPDF))
-	for _, l := range withPDF {
-		hasPDF[l.FilID] = true
-	}
 	node := func(wk model.Work, parent string, step int) nodeJSON {
-		return nodeJSON{ID: wk.FilID, Title: wk.DisplayTitle(), By: workBy(wk), PDF: hasPDF[wk.FilID], Stub: wk.IsStub(), Parent: parent, Step: step}
+		return nodeJSON{ID: wk.FilID, Title: wk.DisplayTitle(), By: workBy(wk), Stub: wk.IsStub(), Parent: parent, Step: step}
 	}
 	first := side(n)
 	nodes := []nodeJSON{}
@@ -187,7 +178,21 @@ func (s *server) mapAround(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	send(w, map[string]any{"center": node(n.Work, "", 0), "nodes": nodes, "total": len(first), "cites": len(n.Cites), "citedBy": len(n.CitedBy)})
+	center := node(n.Work, "", 0)
+	ids := []string{center.ID}
+	for _, o := range nodes {
+		ids = append(ids, o.ID)
+	}
+	hasPDF, err := s.Library.HavePDFs(ctx, ids)
+	if err != nil {
+		fail(w, http.StatusInternalServerError, err)
+		return
+	}
+	center.PDF = hasPDF[center.ID]
+	for i := range nodes {
+		nodes[i].PDF = hasPDF[nodes[i].ID]
+	}
+	send(w, map[string]any{"center": center, "nodes": nodes, "total": len(first), "cites": len(n.Cites), "citedBy": len(n.CitedBy)})
 }
 
 func (s *server) link(w http.ResponseWriter, r *http.Request) {

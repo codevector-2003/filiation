@@ -217,6 +217,11 @@ func (l *Library) checkIdentity(ctx context.Context, job store.ToRead, pages []s
 	return nil
 }
 
+// HavePDFs reports which of these papers have a PDF on disk.
+func (l *Library) HavePDFs(ctx context.Context, filIDs []string) (map[string]bool, error) {
+	return l.db.HavePDFs(ctx, filIDs)
+}
+
 // PageText is one page of a paper's text, as fil read it.
 func (l *Library) PageText(ctx context.Context, input string, page int) (string, error) {
 	w, err := l.Find(ctx, input)
