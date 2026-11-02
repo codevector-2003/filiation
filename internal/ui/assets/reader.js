@@ -477,6 +477,7 @@ $('sel-search').addEventListener('click', () => {
   const text = reader.selection.text;
   closeReader();
   show('search');
+  $('only-paper').checked = false; // the whole library, whatever it was opened from
   $('q').value = text;
   runSearch();
 });
