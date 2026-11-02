@@ -3,7 +3,7 @@
 //
 // Everything else is arranged around this package:
 //
-//   - The front doors (cmd/, internal/mcpsrv, internal/web) are translation
+//   - The front doors (cmd/, internal/mcpsrv, internal/ui) are translation
 //     layers. Each parses a request, calls one function here, and formats the
 //     result. If a front door imports internal/store, that is a bug.
 //   - This package orchestrates: it calls store, sources, graph, retrieve and

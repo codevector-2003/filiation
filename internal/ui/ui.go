@@ -13,6 +13,7 @@ import (
 	"github.com/codevector-2003/filiation/internal/errs"
 	"github.com/codevector-2003/filiation/internal/library"
 	"github.com/codevector-2003/filiation/internal/model"
+	"github.com/codevector-2003/filiation/internal/opener"
 )
 
 //go:embed assets
@@ -365,6 +366,15 @@ func (s *server) openFolder(w http.ResponseWriter, r *http.Request) {
 // open only ever gets a path the library gave: the page names a paper, never
 // a file.
 func (s *server) open(w http.ResponseWriter, path string) {
+	root := s.Library.Folder()
+	if root == "" {
+		fail(w, http.StatusConflict, errors.New("this library has no folder"))
+		return
+	}
+	if err := opener.Within(root, path); err != nil {
+		fail(w, http.StatusConflict, err)
+		return
+	}
 	if err := s.OpenPath(path); err != nil {
 		fail(w, http.StatusInternalServerError, fmt.Errorf("could not open it: %w", err))
 		return

@@ -14,5 +14,5 @@ func Open(path string) error {
 	if runtime.GOOS == "darwin" {
 		opener = "open"
 	}
-	return exec.Command(opener, path).Start()
+	return launch(exec.Command(opener, path))
 }
