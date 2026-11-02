@@ -93,6 +93,17 @@ async function loadPage(n) {
   }
 }
 
+// markWords puts text into box with the matched words highlighted.
+function markWords(box, text, words) {
+  const escaped = [...new Set(words)].filter(Boolean).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  if (escaped.length === 0) {
+    box.textContent = text;
+    return;
+  }
+  const re = new RegExp('(' + escaped.join('|') + ')', 'gi');
+  box.replaceChildren(...text.split(re).map((part, i) => (i % 2 ? el('mark', '', part) : document.createTextNode(part))));
+}
+
 // showPageText is the fallback when the PDF has gone: the text fil read from
 // it stays in the library, and a search can still find it.
 async function showPageText(n, asked) {
@@ -106,7 +117,11 @@ async function showPageText(n, asked) {
     $('page-prev').disabled = p.page <= 1;
     $('page-next').disabled = p.page >= p.pages;
     $('page-open').hidden = true;
-    box.replaceChildren(el('div', 'pdf-note', 'The PDF is not available, so this is the text Filiation read from it.'), el('div', 'page-text', p.text));
+    const sheet = el('div', 'page-text');
+    markWords(sheet, p.text, found.words);
+    box.replaceChildren(el('div', 'pdf-note', 'The PDF is not available, so this is the text Filiation read from it.'), sheet);
+    const mark = sheet.querySelector('mark');
+    if (mark) mark.scrollIntoView({ block: 'center' });
   } catch (e) {
     if (asked === found.askedPage) box.replaceChildren(el('div', 'pdf-note', e.message));
   }
