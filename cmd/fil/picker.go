@@ -197,6 +197,12 @@ func (m picker) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m.cardAction(msg.String(), true)
 		}
 	case "esc", "q", "backspace", "left", "h":
+		if msg.String() == "esc" && m.list.filter != "" {
+			m.filterIn.SetValue("")
+			m.list.filter = ""
+			m.refilter()
+			return m, nil
+		}
 		if len(m.stack) > 0 {
 			m.list = m.stack[len(m.stack)-1]
 			m.stack = m.stack[:len(m.stack)-1]
@@ -673,7 +679,8 @@ func cardFrom(p library.Paper) card {
 		c.graph = fmt.Sprintf("cites %s · cited by %s in your library", plural(p.Cites, "work", "works"), plural(p.CitedBy, "work", "works"))
 	}
 	for _, f := range p.Files {
-		if f.Missing {
+		// A paper's folder can hold other files; only a PDF is what o opens.
+		if f.Missing || !strings.EqualFold(filepath.Ext(f.Path), ".pdf") {
 			continue
 		}
 		what := f.Version

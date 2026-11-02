@@ -181,6 +181,18 @@ func TestPickerFilters(t *testing.T) {
 	if len(m.shown) != 3 {
 		t.Error("Esc in the filter did not clear it")
 	}
+	m = press(m, "/", "o", "p", "e", "n", "enter", "esc")
+	if len(m.shown) != 3 {
+		t.Error("Esc after a finished filter did not clear it first")
+	}
+}
+
+func TestCardOpensOnlyAPDF(t *testing.T) {
+	t.Parallel()
+	c := cardFrom(library.Paper{Files: []library.PaperFile{{Path: "notes.txt"}, {Path: "paper.PDF"}}})
+	if c.pdfPath != "paper.PDF" {
+		t.Errorf("pdfPath = %q", c.pdfPath)
+	}
 }
 
 func TestCardFromAPaper(t *testing.T) {
