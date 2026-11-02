@@ -18,9 +18,21 @@ type ListOptions = store.ListQuery
 // disk, what reading it gave, how many references carry their sentence.
 type Listed = store.ListRow
 
-// List lists the library: seeds first, then the most cited within it.
+// List lists the library: unless asked otherwise, seeds first, then the most
+// cited within it.
 func (l *Library) List(ctx context.Context, opts ListOptions) ([]Listed, error) {
 	return l.db.List(ctx, opts)
+}
+
+// Facets says what a listing's filters can offer next.
+type Facets = store.Facets
+
+// FacetFind narrows the authors and venues Facets offers.
+type FacetFind = store.FacetFind
+
+// Facets counts the papers opts finds by year, author and venue.
+func (l *Library) Facets(ctx context.Context, opts ListOptions, find FacetFind) (Facets, error) {
+	return l.db.Facets(ctx, opts, find)
 }
 
 // Paper is everything the library knows about one paper.

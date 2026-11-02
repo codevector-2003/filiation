@@ -33,7 +33,7 @@ protected for them.
 | 2 | M2 — MCP server | **Complete** — 25 Sept, released as v0.2 |
 | 3 | M3 — fil IDs, library folder, PDFs, text, citation context, FTS5 | **Complete** — 30 Oct, released as v0.3 ([`ARCHITECTURE_PHASE3.md`](ARCHITECTURE_PHASE3.md)) |
 | 4 | M4 — retrieval and answers | Not started |
-| 5 | M5 — the desktop app (was "web interface"; D24) | **In progress** — the shell is Wails v2, in the same process (spike 13, D25); the desktop app comes first and the browser version later (D26). 2 Nov: `desktop/` opens a real window with the Library, Search, Citation map, Inbox and AI assistants screens, and the Reader with notes |
+| 5 | M5 — the desktop app (was "web interface"; D24) | **In progress** — the shell is Wails v2, in the same process (spike 13, D25); the desktop app comes first and the browser version later (D26). 2 Nov: `desktop/` opens a real window with the Library, Search, Citation map, Inbox and AI assistants screens, and the Reader with notes. The Papers list reaches the whole library, with sorting and filters by year, author and venue |
 | 6 | M6 — claim genealogy | Not started |
 
 ---
