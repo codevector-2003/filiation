@@ -5,7 +5,11 @@
 
 const DOCS = 'https://github.com/codevector-2003/filiation#documentation';
 
-const state = { show: 'all', title: '', collection: '', selected: '', asked: 0, askedPaper: 0, lib: null };
+const state = {
+  show: 'all', title: '', collection: '', selected: '', asked: 0, askedPaper: 0, lib: null,
+  sort: '', yearFrom: 0, yearTo: 0, authors: [], venues: [], findAuthor: '', findVenue: '',
+  loaded: 0, more: false, loading: false, loadingMore: false,
+};
 const screens = {}; // each screen's script adds what to do when it is shown
 
 const $ = (id) => document.getElementById(id);
@@ -83,7 +87,7 @@ async function loadLibrary() {
 
 function showNoLibrary(lib) {
   $('filter').disabled = true;
-  document.querySelectorAll('.tab, .nav:not([data-screen="papers"]), #fetch-pdfs, #add-paper').forEach((t) => { t.disabled = true; });
+  document.querySelectorAll('.tab, .nav:not([data-screen="papers"]), #fetch-pdfs, #add-paper, #sort, #filters-toggle').forEach((t) => { t.disabled = true; });
   const text = lib.problem || 'No library is open.';
   $('rows').replaceChildren(el('div', 'note error', text));
 }
@@ -96,18 +100,207 @@ function chooseCollection(name) {
   show('papers');
 }
 
+function listQuery(offset) {
+  const q = new URLSearchParams({ show: state.show, title: state.title, collection: state.collection, sort: state.sort });
+  if (state.yearFrom) q.set('year_from', state.yearFrom);
+  if (state.yearTo) q.set('year_to', state.yearTo);
+  state.authors.forEach((a) => q.append('author', a));
+  state.venues.forEach((v) => q.append('venue', v));
+  if (state.findAuthor) q.set('find_author', state.findAuthor);
+  if (state.findVenue) q.set('find_venue', state.findVenue);
+  if (offset) q.set('offset', offset);
+  return q;
+}
+
 async function loadPapers() {
   const asked = ++state.asked;
-  const q = new URLSearchParams({ show: state.show, title: state.title, collection: state.collection });
+  state.loading = true; // the rows on show are about to go, so scrolling must not ask for more of them
+  state.loadingMore = false;
   let res;
   try {
-    res = await api('/api/papers?' + q);
+    res = await api('/api/papers?' + listQuery(0));
   } catch (e) {
-    if (asked === state.asked) $('rows').replaceChildren(el('div', 'note error', e.message));
+    if (asked === state.asked) {
+      state.loading = false;
+      $('rows').replaceChildren(el('div', 'note error', e.message));
+    }
     return;
   }
   if (asked !== state.asked) return; // a newer filter has been typed since
+  state.loading = false;
   renderRows(res);
+  renderFilters(res);
+}
+
+async function loadMore() {
+  if (!state.more || state.loading || state.loadingMore) return;
+  state.loadingMore = true;
+  const asked = ++state.asked;
+  let res;
+  try {
+    res = await api('/api/papers?' + listQuery(state.loaded));
+  } catch (e) {
+    if (asked === state.asked) {
+      state.loadingMore = false;
+      showMore(e.message);
+    }
+    return;
+  }
+  if (asked !== state.asked) return;
+  state.loadingMore = false;
+  addRows(res);
+}
+
+// showMore ends the list with what is left. Scrolling loads it, and the button
+// does the same for anyone not scrolling.
+function showMore(text) {
+  document.querySelector('#rows > .more')?.remove();
+  if (state.more) $('rows').append(button(text, 'more', loadMore));
+}
+
+function addRows(res) {
+  $('rows').append(...res.papers.map(rowFor));
+  state.loaded += res.papers.length;
+  state.more = res.more;
+  showMore('Showing ' + state.loaded.toLocaleString() + ' of ' + res.total.toLocaleString() + '. Show more.');
+}
+
+function filtersOn() {
+  return state.yearFrom + state.yearTo + state.authors.length + state.venues.length > 0;
+}
+
+function changeFilter(change) {
+  change();
+  loadPapers();
+}
+
+function pickOption(name, chosen, list) {
+  const label = el('label', 'option');
+  const box = el('input');
+  box.type = 'checkbox';
+  box.checked = chosen.includes(name.name);
+  box.addEventListener('change', () => changeFilter(() => {
+    const at = list().indexOf(name.name);
+    if (at >= 0) list().splice(at, 1);
+    else list().push(name.name);
+  }));
+  const shown = el('span', 'option-name', name.name);
+  shown.title = name.name;
+  label.append(box, shown, el('span', 'option-count', name.works.toLocaleString()));
+  return label;
+}
+
+// yearStart is where the chart begins: the oldest few papers share its first
+// bar, or one paper from 1619 would squash everything after it.
+function yearStart(years) {
+  const total = years.reduce((n, y) => n + y.works, 0);
+  let seen = 0;
+  return years.find((y) => { seen += y.works; return seen > total * 0.02; }).year;
+}
+
+// yearStep keeps the chart to about forty bars, however far back a library goes.
+function yearStep(from, years) {
+  const span = years[years.length - 1].year - from + 1;
+  return [1, 2, 5, 10, 20, 50, 100].find((s) => span / s <= 40) || 200;
+}
+
+function renderYears(years) {
+  const box = $('year-bars');
+  if (years.length === 0) {
+    box.replaceChildren(el('span', 'muted', 'No years to show.'));
+    box.onpointerdown = null;
+    return;
+  }
+  const start = yearStart(years);
+  const step = yearStep(start, years);
+  const first = Math.floor(start / step) * step;
+  const binOf = (y) => Math.max(0, Math.floor((y - first) / step));
+  const bins = Array.from({ length: Math.floor((years[years.length - 1].year - first) / step) + 1 }, () => 0);
+  years.forEach((y) => { bins[binOf(y.year)] += y.works; });
+  const top = Math.max(...bins);
+  const bars = bins.map((n, i) => {
+    const b = el('div', 'ybar');
+    const from = first + i * step;
+    b.style.height = (n === 0 ? 0 : Math.max(4, Math.round((100 * n) / top))) + '%';
+    const older = i === 0 && years[0].year < first;
+    b.title = (older ? 'Up to ' + (from + step - 1) : step === 1 ? from : from + ' to ' + (from + step - 1)) + ': ' + n.toLocaleString();
+    return b;
+  });
+  box.replaceChildren(...bars);
+  const mark = (a, z) => bars.forEach((b, i) => { b.classList.toggle('in', a !== null && i >= a && i <= z); });
+  mark(filtersYear() ? binOf(state.yearFrom || first) : null, binOf(state.yearTo || first + bins.length * step - 1));
+  const at = (e) => {
+    const r = box.getBoundingClientRect();
+    return Math.min(bins.length - 1, Math.max(0, Math.floor(((e.clientX - r.left) / r.width) * bins.length)));
+  };
+  box.onpointerdown = (e) => {
+    box.setPointerCapture(e.pointerId);
+    const start = at(e);
+    mark(start, start);
+    box.onpointermove = (m) => mark(Math.min(start, at(m)), Math.max(start, at(m)));
+    box.onpointerup = (u) => {
+      box.onpointermove = null;
+      box.onpointerup = null;
+      const a = Math.min(start, at(u));
+      const z = Math.max(start, at(u));
+      changeFilter(() => {
+        state.yearFrom = a === 0 ? Math.min(first, years[0].year) : first + a * step;
+        state.yearTo = first + z * step + step - 1;
+      });
+    };
+  };
+}
+
+function filtersYear() {
+  return state.yearFrom > 0 || state.yearTo > 0;
+}
+
+function renderFilters(res) {
+  renderYears(res.facets.years);
+  $('year-from').value = state.yearFrom || '';
+  $('year-to').value = state.yearTo || '';
+  $('author-options').replaceChildren(...res.facets.authors.map((a) => pickOption(a, state.authors, () => state.authors)));
+  $('venue-options').replaceChildren(...res.facets.venues.map((v) => pickOption(v, state.venues, () => state.venues)));
+
+  const all = state.lib ? state.lib.works : res.total;
+  $('list-count').textContent = res.total === all
+    ? all.toLocaleString() + (all === 1 ? ' paper' : ' papers')
+    : res.total.toLocaleString() + ' of ' + all.toLocaleString() + ' papers';
+
+  const chip = (label, drop) => {
+    const b = button(label + ' ×', 'fchip', drop);
+    b.title = 'Remove: ' + label;
+    return b;
+  };
+  const chips = [];
+  if (state.collection) chips.push(chip(state.collection, () => chooseCollection(state.collection)));
+  if (filtersYear()) {
+    const label = state.yearFrom && state.yearTo
+      ? (state.yearFrom === state.yearTo ? '' + state.yearFrom : state.yearFrom + ' to ' + state.yearTo)
+      : state.yearFrom ? 'From ' + state.yearFrom : 'Up to ' + state.yearTo;
+    chips.push(chip(label, () => changeFilter(() => { state.yearFrom = 0; state.yearTo = 0; })));
+  }
+  state.authors.forEach((a) => chips.push(chip(a, () => changeFilter(() => { state.authors = state.authors.filter((o) => o !== a); }))));
+  state.venues.forEach((v) => chips.push(chip(v, () => changeFilter(() => { state.venues = state.venues.filter((o) => o !== v); }))));
+  if (chips.length > 1) {
+    chips.push(button('Clear all', 'link', () => {
+      state.collection = '';
+      document.querySelectorAll('.collection').forEach((b) => { b.classList.remove('on'); });
+      $('find-author').value = '';
+      $('find-venue').value = '';
+      changeFilter(() => {
+        state.yearFrom = 0;
+        state.yearTo = 0;
+        state.authors = [];
+        state.venues = [];
+        state.findAuthor = '';
+        state.findVenue = '';
+      });
+    }));
+  }
+  $('active-filters').replaceChildren(...chips);
+  const n = (filtersYear() ? 1 : 0) + state.authors.length + state.venues.length;
+  $('filters-toggle').textContent = n > 0 ? 'Filters (' + n + ')' : 'Filters';
 }
 
 function chips(p) {
@@ -120,35 +313,38 @@ function chips(p) {
   return out;
 }
 
+function rowFor(p) {
+  const b = el('button', 'row');
+  b.type = 'button';
+  b.dataset.id = p.id;
+  const head = el('div', 'row-title');
+  if (p.seed) {
+    const star = el('span', 'star', '★');
+    star.setAttribute('aria-label', 'Added by you');
+    head.append(star);
+  }
+  head.append(el('span', 'title-text', p.title));
+  const meta = el('div', 'row-meta');
+  if (p.by) meta.append(el('span', '', p.by));
+  meta.append(...chips(p));
+  b.append(head, meta);
+  b.addEventListener('click', () => select(p.id));
+  return b;
+}
+
 function renderRows(res) {
   const box = $('rows');
+  state.loaded = 0;
+  state.more = false;
   if (res.papers.length === 0) {
-    const empty = state.lib && state.lib.works === 0 && !state.title && !state.collection && state.show === 'all';
+    const empty = state.lib && state.lib.works === 0 && !state.title && !state.collection && state.show === 'all' && !filtersOn();
     box.replaceChildren(el('div', 'note', empty ? 'Your library is empty. Add your first paper to begin.' : 'No papers match.'));
     $('detail').replaceChildren();
     state.selected = '';
     return;
   }
-  const rows = res.papers.map((p) => {
-    const b = el('button', 'row');
-    b.type = 'button';
-    b.dataset.id = p.id;
-    const head = el('div', 'row-title');
-    if (p.seed) {
-      const star = el('span', 'star', '★');
-      star.setAttribute('aria-label', 'Added by you');
-      head.append(star);
-    }
-    head.append(el('span', 'title-text', p.title));
-    const meta = el('div', 'row-meta');
-    if (p.by) meta.append(el('span', '', p.by));
-    meta.append(...chips(p));
-    b.append(head, meta);
-    b.addEventListener('click', () => select(p.id));
-    return b;
-  });
-  box.replaceChildren(...rows);
-  if (res.more) box.append(el('div', 'more', 'Showing the first ' + res.papers.length + '. Filter to narrow the list.'));
+  box.replaceChildren();
+  addRows(res);
   box.scrollTop = 0;
   const keep = res.papers.some((p) => p.id === state.selected);
   select(keep ? state.selected : res.papers[0].id);
@@ -301,6 +497,40 @@ document.querySelectorAll('.tab[data-show]').forEach((t) => {
     });
     loadPapers();
   });
+});
+
+$('sort').addEventListener('change', (e) => changeFilter(() => { state.sort = e.target.value; }));
+
+$('filters-toggle').addEventListener('click', () => {
+  const panel = $('filters');
+  panel.hidden = !panel.hidden;
+  $('filters-toggle').setAttribute('aria-expanded', panel.hidden ? 'false' : 'true');
+});
+
+function readYears() {
+  const from = Number($('year-from').value) || 0;
+  const to = Number($('year-to').value) || 0;
+  changeFilter(() => {
+    state.yearFrom = from && to ? Math.min(from, to) : from;
+    state.yearTo = from && to ? Math.max(from, to) : to;
+  });
+}
+$('year-from').addEventListener('change', readYears);
+$('year-to').addEventListener('change', readYears);
+
+[['find-author', 'findAuthor'], ['find-venue', 'findVenue']].forEach(([id, key]) => {
+  $(id).addEventListener('input', (e) => {
+    clearTimeout(filterTimer);
+    filterTimer = setTimeout(() => {
+      state[key] = e.target.value.trim();
+      loadPapers();
+    }, 150);
+  });
+});
+
+$('rows').addEventListener('scroll', (e) => {
+  const box = e.target;
+  if (box.scrollHeight - box.scrollTop - box.clientHeight < 400) loadMore();
 });
 
 document.querySelectorAll('.nav').forEach((b) => {

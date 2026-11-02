@@ -1,9 +1,79 @@
 package store
 
 import (
+	"errors"
 	"os"
+	"strings"
 	"testing"
+
+	"github.com/codevector-2003/filiation/internal/errs"
 )
+
+func TestSortFilterAndFacets(t *testing.T) {
+	t.Parallel()
+	db := textLibrary(t)
+	ctx := t.Context()
+	mustExec(t, db.write, `
+UPDATE work SET year = 2001, venue = 'Nature', title = 'Bees' WHERE fil_id = 'F00000001';
+UPDATE work SET year = 2010, venue = 'Science', title = 'ants' WHERE fil_id = 'F00000002';
+UPDATE work SET year = NULL, venue = NULL, title = 'Cats' WHERE fil_id = 'F00000003';
+INSERT INTO author (openalex_id, name) VALUES ('A1', 'Ada Lovelace'), ('A2', 'Alan Turing');
+INSERT INTO authorship (work_id, author_id, position) VALUES ('F00000001', 'A1', 0), ('F00000002', 'A1', 0), ('F00000002', 'A2', 1);`)
+
+	for sort, want := range map[string]string{
+		"newest": "F00000002,F00000001,F00000003",
+		"oldest": "F00000001,F00000002,F00000003",
+		"title":  "F00000002,F00000001,F00000003",
+	} {
+		rows, err := db.List(ctx, ListQuery{Sort: sort})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var ids []string
+		for _, r := range rows {
+			ids = append(ids, r.FilID)
+		}
+		if got := strings.Join(ids, ","); got != want {
+			t.Errorf("sort %s = %s, want %s", sort, got, want)
+		}
+	}
+	if _, err := db.List(ctx, ListQuery{Sort: "by mood"}); !errors.Is(err, errs.ErrInvalidInput) {
+		t.Errorf("an unknown order = %v", err)
+	}
+
+	for q, want := range map[*ListQuery]int{
+		{YearFrom: 2005}: 1, {YearTo: 2005}: 1, {YearFrom: 2000, YearTo: 2020}: 2,
+		{Authors: []string{"Alan Turing"}}: 1, {Authors: []string{"Alan Turing", "Ada Lovelace"}}: 2,
+		{Venues: []string{"Nature"}}: 1, {Venues: []string{"Nature"}, Authors: []string{"Alan Turing"}}: 0,
+	} {
+		rows, err := db.List(ctx, *q)
+		if err != nil || len(rows) != want {
+			t.Errorf("List(%+v) = %d rows, %v; want %d", *q, len(rows), err, want)
+		}
+		if f, err := db.Facets(ctx, *q, FacetFind{}); err != nil || f.Total != want {
+			t.Errorf("Facets(%+v).Total = %d, %v; want %d", *q, f.Total, err, want)
+		}
+	}
+
+	// A filter's options ignore that filter, but not the others, and a work
+	// with no year still counts until a year range is set.
+	f, err := db.Facets(ctx, ListQuery{Authors: []string{"Alan Turing"}, Title: "ants"}, FacetFind{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f.Total != 1 || len(f.Authors) != 2 || f.Authors[0] != (FacetCount{"Ada Lovelace", 1}) || len(f.Venues) != 1 || f.Venues[0].Name != "Science" {
+		t.Errorf("facets = %+v", f)
+	}
+	if f, _ := db.Facets(ctx, ListQuery{}, FacetFind{}); f.Total != 3 || len(f.Years) != 2 || f.Years[0].Year != 2001 {
+		t.Errorf("years = %+v", f)
+	}
+
+	// Finding narrows what is offered, and what is chosen stays on show.
+	f, _ = db.Facets(ctx, ListQuery{Venues: []string{"Nature"}}, FacetFind{Author: "lovelace", Venue: "science"})
+	if len(f.Authors) != 1 || len(f.Venues) != 2 {
+		t.Errorf("found facets = %+v", f)
+	}
+}
 
 func TestListAndIdentity(t *testing.T) {
 	t.Parallel()
@@ -36,6 +106,14 @@ func TestListAndIdentity(t *testing.T) {
 	}
 	if got, _ := db.List(ctx, ListQuery{Title: "open", Limit: 1}); len(got) != 1 {
 		t.Errorf("a title filter with a limit = %d rows", len(got))
+	}
+
+	// Paging skips the same rows with a title filter as without one.
+	if got, _ := db.List(ctx, ListQuery{Title: "open", Offset: 1}); len(got) != 1 {
+		t.Errorf("a title filter with an offset = %d rows", len(got))
+	}
+	if got, _ := db.List(ctx, ListQuery{Limit: 2, Offset: 2}); len(got) != 1 {
+		t.Errorf("the last page = %d rows", len(got))
 	}
 
 	// The identity flag follows the file when it moves, and is cleared when
