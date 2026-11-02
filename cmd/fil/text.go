@@ -68,6 +68,7 @@ func (a *app) search(ctx context.Context, words string, opts library.SearchOptio
 		for i, h := range res.Hits {
 			r := workRow(h.Work, hitPlace(h))
 			r.good = true
+			r.passage = snippet(h.Snippet)
 			picks[i] = r
 		}
 		limit := opts.Limit

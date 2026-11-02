@@ -33,6 +33,8 @@ type pickRow struct {
 	title string
 	note  string // on the right: "PDF · searchable", "page 5", "it cites"
 	good  bool   // the note is good news: a PDF, text
+
+	passage string // a search hit's words, shown while its row is selected
 }
 
 // card is one paper's details, laid out.
@@ -335,6 +337,8 @@ func (m picker) viewList() string {
 	b.WriteString(" " + p.label(m.list.heading) + p.dim(" · "+count) + "\n")
 	if m.filtering || m.list.filter != "" {
 		b.WriteString(" " + m.filterIn.View() + "\n")
+	} else if m.list.cur < len(m.shown) && m.list.rows[m.shown[m.list.cur]].passage != "" {
+		b.WriteString(" " + p.dim(clip(m.list.rows[m.shown[m.list.cur]].passage, max(16, m.width-2))) + "\n")
 	} else {
 		b.WriteString("\n")
 	}

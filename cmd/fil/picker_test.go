@@ -410,3 +410,15 @@ func TestInLibraryRefusesALinkLeadingOut(t *testing.T) {
 		t.Errorf("a file in the library was refused: %v", err)
 	}
 }
+
+func TestSelectedHitShowsItsPassage(t *testing.T) {
+	t.Parallel()
+	m := newPicker(nil, paint{}, "Passages", []pickRow{
+		{id: "F1", title: "Same paper", note: "page 1", passage: "the first passage"},
+		{id: "F2", title: "Same paper", note: "page 9", passage: "the second passage"},
+	})
+	view := m.viewList()
+	if !strings.Contains(view, "the first passage") || strings.Contains(view, "the second passage") {
+		t.Errorf("want only the selected row's passage: %s", view)
+	}
+}
