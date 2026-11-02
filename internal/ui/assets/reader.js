@@ -7,7 +7,7 @@ const COLOURS = { yellow: '#F6DE7A', green: '#A9D8B4', blue: '#A8C8E6', pink: '#
 
 const reader = {
   paper: null, doc: null, page: 1, pages: 0, scale: 1.1, tool: 'select', colour: 'yellow',
-  notes: [], tab: 'notes', words: [], selection: null, from: 'papers', draw: 0, findText: '', comment: null,
+  opening: 0, notes: [], tab: 'notes', words: [], selection: null, from: 'papers', draw: 0, findText: '', comment: null,
 };
 
 let pdfjs;
@@ -149,7 +149,8 @@ async function drawThumbs(id) {
 
 async function thumbImage(b, id) {
   if (reader.paper.id !== id) return;
-  const page = await reader.doc.getPage(Number(b.dataset.page));
+  const page = await reader.doc.getPage(Number(b.dataset.page)).catch(() => null); // the paper may have closed
+  if (!page) return;
   const viewport = page.getViewport({ scale: 72 / page.getViewport({ scale: 1 }).width });
   const canvas = el('canvas');
   canvas.width = viewport.width;
@@ -163,11 +164,16 @@ async function openReader(id, page, words) {
   reader.from = document.querySelector('.nav.on') ? document.querySelector('.nav.on').dataset.screen : 'papers';
   reader.words = words || [];
   reader.comment = null;
+  const opening = ++reader.opening;
   $('reader-find').value = '';
   show('reader');
   $('reader-page').replaceChildren(el('div', 'note', 'Opening…'));
   try {
     const [paper, doc, notes] = await Promise.all([api('/api/papers/' + encodeURIComponent(id)), openDocument(id), api('/api/papers/' + encodeURIComponent(id) + '/notes')]);
+    if (opening !== reader.opening) { // another paper was opened meanwhile
+      doc.destroy();
+      return;
+    }
     if (reader.doc) reader.doc.destroy();
     reader.paper = paper;
     reader.doc = doc;
@@ -179,7 +185,7 @@ async function openReader(id, page, words) {
     renderSide();
     await showPage(page || 1);
   } catch (e) {
-    $('reader-page').replaceChildren(el('div', 'note error', e.message));
+    if (opening === reader.opening) $('reader-page').replaceChildren(el('div', 'note error', e.message));
   }
 }
 
