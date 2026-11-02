@@ -485,6 +485,12 @@ func (a libActions) neighbours(id string) (string, []pickRow, error) {
 	if a.limit > 0 && (len(n.Cites) > a.limit || len(n.CitedBy) > a.limit) {
 		heading += fmt.Sprintf(" (at most %d each way; --limit 0 shows all)", a.limit)
 	}
+	switch {
+	case n.Work.IsStub():
+		heading += " (not fetched yet, so its references are unknown: fil expand fetches it)"
+	case len(n.Cites) == 0:
+		heading += " (no references in OpenAlex)"
+	}
 	var rows []pickRow
 	for _, w := range capped(n.Cites, a.limit) {
 		rows = append(rows, workRow(w, "it cites"))

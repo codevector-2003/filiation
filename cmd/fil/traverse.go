@@ -111,7 +111,10 @@ func (a *app) neighbours(ctx context.Context, input string, limit int, withConte
 		if err != nil {
 			return err
 		}
-		return a.pickWith(act, heading, rows)
+		// With nothing to move through, the plain output says why.
+		if len(rows) > 0 {
+			return a.pickWith(act, heading, rows)
+		}
 	}
 
 	w := a.stdout
