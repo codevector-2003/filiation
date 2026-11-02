@@ -314,6 +314,41 @@ func TestInboxReviewAndKeepAsADocument(t *testing.T) {
 	}
 }
 
+// A file passed over stays passed over, and does not hide a new one.
+func TestSkippedFileDoesNotHideANewOne(t *testing.T) {
+	t.Parallel()
+	h, _, _ := openTest(t)
+	lib := decode[libraryJSON](t, ask(t, h, "GET", "/api/library"))
+	inbox := filepath.Join(lib.Folder, "Inbox")
+	pdf := pdftest.Make("Nothing here identifies this file, and nothing a search could use at all.")
+	if err := os.WriteFile(filepath.Join(inbox, "first.pdf"), pdf, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	post(t, h, "/api/inbox/import", "")
+	waitJob(t, h)
+	type box struct {
+		Items []inboxJSON `json:"items"`
+		Fresh bool        `json:"fresh"`
+	}
+	got := decode[box](t, ask(t, h, "GET", "/api/inbox"))
+	if len(got.Items) != 1 {
+		t.Fatalf("inbox = %+v", got)
+	}
+	post(t, h, "/api/inbox/"+strconv.Itoa(got.Items[0].ID)+"/skip", "")
+	if decode[box](t, ask(t, h, "GET", "/api/inbox")).Fresh {
+		t.Error("a skipped file came back as fresh")
+	}
+	if err := os.Remove(filepath.Join(inbox, "first.pdf")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(inbox, "second.pdf"), pdf, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if !decode[box](t, ask(t, h, "GET", "/api/inbox")).Fresh {
+		t.Error("a new file went unnoticed after a skipped one left")
+	}
+}
+
 func TestImportRefusesAnythingButPDFs(t *testing.T) {
 	t.Parallel()
 	h, _, _ := openTest(t)
@@ -359,6 +394,16 @@ func TestAssistantsScreen(t *testing.T) {
 		if a.ID == "cursor" && (!a.Connected || !a.ReadOnly) {
 			t.Errorf("cursor = %+v; the change must reach what is connected", a)
 		}
+	}
+	if err := assistants.Connect(env, "gemini", false); err != nil {
+		t.Fatal(err)
+	}
+	type mixed struct {
+		Grow  bool `json:"grow"`
+		Mixed bool `json:"mixed"`
+	}
+	if m := decode[mixed](t, ask(t, h, "GET", "/api/assistants")); m.Grow || !m.Mixed {
+		t.Errorf("one reading and one writing = %+v; want off, and said to be mixed", m)
 	}
 	if w := post(t, h, "/api/assistants/nobody/connect", ""); w.Code != http.StatusConflict {
 		t.Errorf("an unknown assistant = %d", w.Code)

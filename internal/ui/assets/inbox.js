@@ -2,14 +2,34 @@
 // alone never files a PDF: when fil is not sure, the person chooses.
 'use strict';
 
-const inbox = { items: [], selected: 0, choice: {} };
+const inbox = { items: [], selected: 0, choice: {}, dropped: [] };
 
 screens.inbox = async () => {
   await loadInbox();
   const lib = state.lib || {};
   $('inbox-tip').textContent = 'Drag PDFs anywhere into this window, or save them to ' + (lib.folder ? lib.folder + '​/Inbox' : 'the Inbox folder') + ' and open this screen.';
-  if (inbox.fresh) startJob('/api/inbox/import').catch(showInboxError);
+  lookAgain();
 };
+
+// One job runs at a time, so when another is running this waits for it: the
+// job's end comes back here.
+function lookAgain() {
+  if (inbox.dropped.length > 0) {
+    const files = inbox.dropped;
+    inbox.dropped = [];
+    startJob('/api/inbox/import', { files }).catch((e) => {
+      if (e.busy) inbox.dropped.unshift(...files);
+      else showInboxError(e);
+    });
+  } else if (inbox.fresh) {
+    startJob('/api/inbox/import').catch((e) => { if (!e.busy) showInboxError(e); });
+  }
+}
+
+function dropPDFs(paths) {
+  inbox.dropped.push(...paths);
+  show('inbox');
+}
 
 function showInboxError(e) {
   $('inbox-main').replaceChildren(el('div', 'note error', e.message));
@@ -175,6 +195,9 @@ $('inbox-add').addEventListener('click', async () => {
   }
 });
 
-job.listeners.push((j) => {
-  if (j.kind === 'import') loadInbox();
+job.listeners.push(async (j) => {
+  if (j.kind === 'import' || inbox.dropped.length > 0) await loadInbox();
+  // Only drops wait here: looking for new files again on each job's end could
+  // go round for ever, spending a title search each time.
+  if (!j.error && inbox.dropped.length > 0) lookAgain();
 });

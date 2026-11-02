@@ -13,10 +13,7 @@ fetch('logos.svg')
 
 // Dropped PDFs go straight to the Inbox.
 if (window.runtime && window.runtime.OnFileDrop) {
-  window.runtime.OnFileDrop((x, y, paths) => {
-    show('inbox');
-    startJob('/api/inbox/import', { files: paths }).catch(showInboxError);
-  }, false);
+  window.runtime.OnFileDrop((x, y, paths) => { dropPDFs(paths); }, false);
 }
 
 loadLibrary()

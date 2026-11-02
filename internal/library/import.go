@@ -683,11 +683,24 @@ func titleQuery(f text.Front) string {
 
 // InboxWaiting counts the PDFs in Inbox/: dropped there and not filed yet.
 func (l *Library) InboxWaiting() (int, error) {
+	files, err := l.InboxFiles()
+	return len(files), err
+}
+
+// InboxFiles lists the PDFs waiting in Inbox/, as absolute paths.
+func (l *Library) InboxFiles() ([]string, error) {
 	if l.files == nil {
-		return 0, nil
+		return nil, nil
 	}
 	entries, err := l.files.Inbox()
-	return len(entries), err
+	if err != nil {
+		return nil, err
+	}
+	out := make([]string, len(entries))
+	for i, e := range entries {
+		out[i] = l.files.Abs(e.Path)
+	}
+	return out, nil
 }
 
 // importInbox files what in Inbox/ identifies itself for free — an

@@ -33,7 +33,11 @@ async function api(path, method, body) {
   const r = await fetch(path, init);
   if (r.status === 204 || r.status === 202) return null;
   const answer = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(answer.error || 'Something went wrong.');
+  if (!r.ok) {
+    const e = new Error(answer.error || 'Something went wrong.');
+    e.busy = r.status === 409 && path !== '/api/fetch';
+    throw e;
+  }
   return answer;
 }
 

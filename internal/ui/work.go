@@ -29,7 +29,7 @@ type work struct {
 
 	inbox   []*inboxItem
 	nextID  int
-	skipped int // files left in Inbox/ that the person passed over
+	skipped map[string]bool // files the person passed over
 
 	offered []library.Candidate // what the last Add by title offered
 }
@@ -227,28 +227,25 @@ func itemJSON(it *inboxItem) inboxJSON {
 }
 
 func (s *server) inboxList(w http.ResponseWriter, _ *http.Request) {
-	waiting, _ := s.Library.InboxWaiting()
+	waiting, _ := s.Library.InboxFiles()
 	s.work.mu.Lock()
 	defer s.work.mu.Unlock()
 	items := make([]inboxJSON, 0, len(s.work.inbox))
-	known := s.work.skipped
+	seen := map[string]bool{}
 	for _, it := range s.work.inbox {
 		items = append(items, itemJSON(it))
-		if s.stillWaiting(it) {
-			known++
+		// A filed PDF has left, so a new file of that name is a new file. A
+		// duplicate stays where it was.
+		if it.result.Outcome != library.ImportImported {
+			seen[it.result.File] = true
 		}
 	}
 	// Only files not yet looked at are fresh: each look can spend a title search.
-	send(w, map[string]any{"items": items, "fresh": waiting > known})
-}
-
-// stillWaiting reports whether an import left this file in Inbox/, where it
-// counts as waiting: anything not filed, and a duplicate, which is not moved.
-func (s *server) stillWaiting(it *inboxItem) bool {
-	if it.result.Outcome == library.ImportImported {
-		return false
+	fresh := false
+	for _, f := range waiting {
+		fresh = fresh || (!seen[f] && !s.work.skipped[f])
 	}
-	return filepath.Dir(it.result.File) == filepath.Join(s.Library.Folder(), "Inbox")
+	send(w, map[string]any{"items": items, "fresh": fresh})
 }
 
 // remember records what an import did to a file, replacing what was known.
@@ -396,9 +393,10 @@ func (s *server) inboxSkip(w http.ResponseWriter, r *http.Request) {
 		for i, o := range s.work.inbox {
 			if o == it {
 				s.work.inbox = append(s.work.inbox[:i], s.work.inbox[i+1:]...)
-				if s.stillWaiting(it) {
-					s.work.skipped++
+				if s.work.skipped == nil {
+					s.work.skipped = map[string]bool{}
 				}
+				s.work.skipped[it.result.File] = true
 				break
 			}
 		}

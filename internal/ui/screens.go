@@ -274,12 +274,15 @@ func (s *server) assistantList(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 	list := assistants.List(*s.Assistants)
-	s.work.mu.Lock()
+	// Connected by hand, some may read only and others not: the switch then
+	// says off, the safer reading, and the screen says it is mixed.
+	reading, writing := false, false
 	for _, a := range list {
-		if a.Connected && a.ReadOnly {
-			s.readOnly = true
-		}
+		reading = reading || (a.Connected && a.ReadOnly)
+		writing = writing || (a.Connected && !a.ReadOnly)
 	}
+	s.work.mu.Lock()
+	s.readOnly = s.readOnly || reading
 	grow := !s.readOnly
 	s.work.mu.Unlock()
 	calls := assistants.Recent(s.CallLog, recentCalls)
@@ -290,7 +293,7 @@ func (s *server) assistantList(w http.ResponseWriter, _ *http.Request) {
 	if !grow {
 		args = `["mcp", "--read-only"]`
 	}
-	send(w, map[string]any{"list": list, "grow": grow, "calls": calls,
+	send(w, map[string]any{"list": list, "grow": grow, "mixed": reading && writing, "calls": calls,
 		"settings": fmt.Sprintf(`"%s": { "command": %q, "args": %s }`, assistants.ServerName, s.Assistants.Command, args)})
 }
 
