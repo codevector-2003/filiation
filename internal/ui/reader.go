@@ -45,12 +45,17 @@ func (s *server) pdfFile(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, pdf.Path)
 }
 
-// pdfName is what a note remembers of the PDF it was made on.
-func pdfName(f library.PaperFile) string {
+// pdfName is what a note remembers of the PDF it was made on: its place in the
+// library, because a paper's editions can share a name in different folders.
+func (s *server) pdfName(f library.PaperFile) string {
 	if f.Path == "" {
 		return ""
 	}
-	return filepath.Base(f.Path)
+	rel, err := filepath.Rel(s.Library.Folder(), f.Path)
+	if err != nil {
+		return filepath.ToSlash(f.Path)
+	}
+	return filepath.ToSlash(rel)
 }
 
 // isIndexed reports whether f is the file the paper's text was read from.
@@ -103,7 +108,7 @@ func (s *server) addNote(w http.ResponseWriter, r *http.Request) {
 	}
 	pdf, _ := firstPDF(p)
 	n, err := s.Library.AddNote(r.Context(), r.PathValue("id"), library.Note{Page: req.Page, Colour: req.Colour,
-		Quote: req.Quote, Rects: string(req.Rects), File: pdfName(pdf), Comment: req.Comment})
+		Quote: req.Quote, Rects: string(req.Rects), File: s.pdfName(pdf), Comment: req.Comment})
 	if err != nil {
 		failNote(w, err)
 		return

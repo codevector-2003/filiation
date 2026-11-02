@@ -18,7 +18,7 @@ type Note struct {
 	Colour  string // yellow | green | blue | pink, "" for a comment alone
 	Quote   string // the text marked
 	Rects   string // where on the page, as JSON fractions of its size
-	File    string // the name of the PDF marked: another edition has other pages
+	File    string // the PDF marked, in the library folder: another edition has other pages
 	Comment string
 	Created string // as the database wrote it, UTC
 }

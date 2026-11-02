@@ -292,7 +292,7 @@ type paperJSON struct {
 	Folder    bool           `json:"folder"`
 	Web       string         `json:"web,omitempty"`
 	Citation  string         `json:"citation,omitempty"`
-	File      string         `json:"file,omitempty"` // the name of the PDF the Reader opens
+	File      string         `json:"file,omitempty"` // the PDF the Reader opens
 	Abstract  string         `json:"abstract,omitempty"`
 }
 
@@ -310,7 +310,7 @@ func (s *server) paper(w http.ResponseWriter, r *http.Request) {
 		Citation: citation(work), Abstract: work.Abstract}
 	out.Origin = map[model.Source]string{model.SourceSeed: "ADDED BY YOU", model.SourceUpload: "IMPORTED BY YOU",
 		model.SourceExpansion: "FOUND BY FOLLOWING CITATIONS"}[work.Source]
-	out.File = pdfName(pdf)
+	out.File = s.pdfName(pdf)
 	if !out.PDF {
 		out.PDFNote = pdfNote(p)
 	} else if pdf.Mismatch {

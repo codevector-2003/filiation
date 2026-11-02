@@ -164,7 +164,7 @@ CREATE TABLE IF NOT EXISTS note (
     colour     TEXT,      -- schema v10: a highlight's colour
     quote      TEXT,      -- schema v10: the text marked
     rects      TEXT,      -- schema v10: where on the page, as JSON fractions of its size
-    file       TEXT       -- schema v10: the name of the PDF marked; another edition has other pages
+    file       TEXT       -- schema v10: the PDF marked, in the library folder; another edition has other pages
 );
 
 CREATE TABLE IF NOT EXISTS collection (

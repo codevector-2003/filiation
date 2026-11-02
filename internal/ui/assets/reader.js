@@ -47,6 +47,7 @@ async function drawPage(doc, n, scale, box, words, current) {
   box.style.height = viewport.height + 'px';
   box.style.setProperty('--scale-factor', scale);
   box.replaceChildren(canvas, marks, text, el('div', 'pin-layer'));
+  box.dataset.page = n; // what is on screen, which reader.page can run ahead of
   await page.render({ canvasContext: canvas.getContext('2d'), viewport, transform: ratio === 1 ? null : [ratio, 0, 0, ratio, 0, 0] }).promise;
   const layer = new pdfjs.TextLayer({ textContentSource: page.streamTextContent(), container: text, viewport });
   await layer.render();
@@ -235,13 +236,13 @@ function selectionHere() {
       w: r.width / base.width,
       h: r.height / base.height,
     }));
-  return { text, rects, page: reader.page, bottom: Math.max(...rects.map((r) => r.y + r.h)), left: Math.min(...rects.map((r) => r.x)) };
+  return { text, rects, page: Number(box.dataset.page), bottom: Math.max(...rects.map((r) => r.y + r.h)), left: Math.min(...rects.map((r) => r.x)) };
 }
 
-function cited(text) {
+function cited(sel) {
   const c = reader.paper.citation;
-  const where = (c ? c + ', ' : '') + 'p. ' + reader.page;
-  return '“' + text + '” (' + where + ')';
+  const where = (c ? c + ', ' : '') + 'p. ' + sel.page;
+  return '“' + sel.text + '” (' + where + ')';
 }
 
 function showMenu(sel) {
@@ -299,7 +300,7 @@ function noteCard(n) {
     renderSide();
   }));
   card.append(top);
-  if (!onThisFile(n)) card.append(el('span', 'muted', 'Made on another edition (' + n.file + '), so it is not marked on this page.'));
+  if (!onThisFile(n)) card.append(el('span', 'muted', 'Made on another edition (' + n.file.split('/').pop() + '), so it is not marked on this page.'));
   if (n.quote) {
     const q = el('p', 'note-quote', n.quote);
     q.style.borderLeftColor = COLOURS[n.colour] || 'var(--line)';
@@ -488,7 +489,7 @@ $('reader-view').addEventListener('mousedown', (e) => {
 $('sel-copy').addEventListener('click', () => { if (reader.selection) copyText(reader.selection.text); });
 $('sel-cite').addEventListener('click', () => {
   if (!reader.selection) return;
-  const text = cited(reader.selection.text);
+  const text = cited(reader.selection);
   copyText(text);
   $('sel-copies').textContent = 'Copied: ' + text;
   $('sel-copies').style.left = $('sel-menu').style.left;
