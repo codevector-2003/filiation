@@ -7,7 +7,7 @@ const COLOURS = { yellow: '#F6DE7A', green: '#A9D8B4', blue: '#A8C8E6', pink: '#
 
 const reader = {
   paper: null, doc: null, page: 1, pages: 0, scale: 1.1, tool: 'select', colour: 'yellow',
-  opening: 0, notes: [], tab: 'notes', words: [], selection: null, from: 'papers', draw: 0, findText: '', comment: null,
+  opening: 0, finding: 0, notes: [], tab: 'notes', words: [], selection: null, from: 'papers', draw: 0, findText: '', comment: null,
 };
 
 let pdfjs;
@@ -50,11 +50,17 @@ async function drawPage(doc, n, scale, box, words, current) {
   return matchWords(text, marks, words);
 }
 
+// wholeWords matches these words alone, so that "art" does not light "partial".
+function wholeWords(words) {
+  const any = words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+  return new RegExp('(?<![\\p{L}\\p{N}])(' + any + ')(?![\\p{L}\\p{N}])', 'giu');
+}
+
 // matchWords lights up each matching word on the page.
 function matchWords(text, marks, words) {
   const wanted = [...new Set(words.map((w) => w.toLowerCase()).filter(Boolean))];
   if (wanted.length === 0) return [];
-  const re = new RegExp('(' + wanted.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')', 'gi');
+  const re = wholeWords(wanted);
   const base = marks.getBoundingClientRect();
   const found = [];
   const walk = document.createTreeWalker(text, NodeFilter.SHOW_TEXT);
@@ -397,9 +403,10 @@ async function findInPaper(words) {
   if (!words) return;
   reader.findText = words;
   const id = reader.paper.id;
+  const finding = ++reader.finding;
   const q = new URLSearchParams({ q: words, paper: id, references: 'true', limit: 'all' });
   const res = await api('/api/search?' + q);
-  if (id !== reader.paper.id) return;
+  if (id !== reader.paper.id || finding !== reader.finding) return;
   reader.words = [...new Set(res.hits.flatMap((h) => h.parts.filter((x) => x.mark).map((x) => x.text)))];
   const pages = [...new Set(res.hits.map((h) => h.page))].sort((a, b) => a - b);
   $('reader-found').textContent = pages.length === 0 ? 'Not found' : pages.length === 1 ? 'On 1 page' : 'On ' + pages.length + ' pages';

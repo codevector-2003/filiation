@@ -95,12 +95,12 @@ async function loadPage(n) {
 
 // markWords puts text into box with the matched words highlighted.
 function markWords(box, text, words) {
-  const escaped = [...new Set(words)].filter(Boolean).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-  if (escaped.length === 0) {
+  const wanted = [...new Set(words)].filter(Boolean);
+  if (wanted.length === 0) {
     box.textContent = text;
     return;
   }
-  const re = new RegExp('(' + escaped.join('|') + ')', 'gi');
+  const re = wholeWords(wanted);
   box.replaceChildren(...text.split(re).map((part, i) => (i % 2 ? el('mark', '', part) : document.createTextNode(part))));
 }
 
