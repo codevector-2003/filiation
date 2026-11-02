@@ -271,8 +271,8 @@ func readSettings(path string) (map[string]any, error) {
 	if err := dec.Decode(&doc); err != nil {
 		return nil, fmt.Errorf("%s is not plain JSON, so fil left it alone: %v", filepath.Base(path), err)
 	}
-	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
-		return nil, fmt.Errorf("%s is not plain JSON, so fil left it alone", filepath.Base(path))
+	if _, err := dec.Token(); !errors.Is(err, io.EOF) || doc == nil {
+		return nil, fmt.Errorf("%s is not plain JSON settings, so fil left it alone", filepath.Base(path))
 	}
 	return doc, nil
 }

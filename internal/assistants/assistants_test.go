@@ -130,6 +130,19 @@ func TestFileWithCommentsIsLeftAlone(t *testing.T) {
 	}
 }
 
+func TestNullFileIsLeftAlone(t *testing.T) {
+	t.Parallel()
+	e := testEnv(t)
+	path := filepath.Join(e.Home, ".cursor", "mcp.json")
+	write(t, path, "null")
+	if err := Connect(e, "cursor", false); err == nil {
+		t.Error("Connect changed a file holding no settings object")
+	}
+	if b, _ := os.ReadFile(path); string(b) != "null" {
+		t.Errorf("the file changed: %s", b)
+	}
+}
+
 func TestUnexpectedSectionIsLeftAlone(t *testing.T) {
 	t.Parallel()
 	e := testEnv(t)
