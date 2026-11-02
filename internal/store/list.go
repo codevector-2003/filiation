@@ -36,6 +36,33 @@ type ListRow struct {
 	Mismatch   bool   // its downloaded PDF names another paper or edition
 }
 
+// HavePDFs reports which of these works have a PDF on disk.
+func (db *DB) HavePDFs(ctx context.Context, filIDs []string) (map[string]bool, error) {
+	out := make(map[string]bool, len(filIDs))
+	if len(filIDs) == 0 {
+		return out, nil
+	}
+	args := make([]any, len(filIDs))
+	for i, id := range filIDs {
+		args[i] = id
+	}
+	rows, err := db.read.QueryContext(ctx, `
+SELECT DISTINCT fil_id FROM work_file
+WHERE missing = 0 AND lower(path) LIKE '%.pdf' AND fil_id IN (?`+strings.Repeat(",?", len(filIDs)-1)+`);`, args...)
+	if err != nil {
+		return nil, fmt.Errorf("find PDFs: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("find PDFs: %w", err)
+		}
+		out[id] = true
+	}
+	return out, rows.Err()
+}
+
 // List lists the library's papers: seeds first, then the most cited within
 // the library, then the order they arrived.
 func (db *DB) List(ctx context.Context, q ListQuery) ([]ListRow, error) {

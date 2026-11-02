@@ -16,6 +16,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/codevector-2003/filiation/internal/assistants"
 	"github.com/codevector-2003/filiation/internal/config"
 	"github.com/codevector-2003/filiation/internal/identity"
 	"github.com/codevector-2003/filiation/internal/library"
@@ -425,5 +426,55 @@ func TestLibraryStats(t *testing.T) {
 	}
 	if !strings.Contains(out.Note, "never merged") {
 		t.Errorf("note = %q; duplicates must be described as unmerged", out.Note)
+	}
+}
+
+func TestReadOnlyWithdrawsWhatGrowsTheLibrary(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	log := filepath.Join(t.TempDir(), "calls.jsonl")
+	st, ct := mcp.NewInMemoryTransports()
+	cfg := &config.Config{DBPath: filepath.Join(t.TempDir(), "fil.db"), MaxNodes: config.DefaultMaxNodes,
+		MaxDepth: config.DefaultMaxDepth, MaxRefsPerWork: config.DefaultMaxRefsPerWork}
+	lib, err := library.Open(ctx, cfg, library.Options{NoCache: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { lib.Close() })
+	s := New(lib, "test")
+	ServeOptions{ReadOnly: true, CallLog: log}.apply(s)
+	ss, err := s.Connect(ctx, st, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { ss.Close() })
+	cs, err := mcp.NewClient(&mcp.Implementation{Name: "test", Version: "0"}, nil).Connect(ctx, ct, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { cs.Close() })
+
+	listed, err := cs.ListTools(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	names := map[string]bool{}
+	for _, tool := range listed.Tools {
+		names[tool.Name] = true
+	}
+	for _, name := range growingTools {
+		if names[name] {
+			t.Errorf("%s is still offered", name)
+		}
+	}
+	if !names["search_library"] {
+		t.Error("reading went too")
+	}
+	if _, err := cs.CallTool(ctx, &mcp.CallToolParams{Name: "library_stats"}); err != nil {
+		t.Fatal(err)
+	}
+	calls := assistants.Recent(log, 5)
+	if len(calls) != 1 || calls[0].Tool != "library_stats" {
+		t.Errorf("logged = %+v", calls)
 	}
 }

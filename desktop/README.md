@@ -12,4 +12,6 @@ This is its own Go module, and the one place cgo is allowed.
 | macOS | Xcode command line tools | `CGO_LDFLAGS="-framework UniformTypeIdentifiers" go build -tags desktop,production -o Filiation .` |
 | Linux | `libgtk-3-dev`, `libwebkit2gtk-4.1-dev` | `go build -tags desktop,production,webkit2_41 -o Filiation .` |
 
+Put `fil` beside the app: assistants connected from the AI assistants screen are given its full path.
+
 The screens need no separate build step: they are plain files in `internal/ui/assets`, embedded in the binary.

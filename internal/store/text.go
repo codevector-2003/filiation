@@ -328,3 +328,38 @@ func matchTerms(typed string) ([]string, error) {
 	}
 	return terms, nil
 }
+
+// PageText is one page of a work's text, stitched back from its chunks, which
+// overlap. Empty when the page holds none.
+func (db *DB) PageText(ctx context.Context, filID string, page int) (string, error) {
+	rows, err := db.read.QueryContext(ctx, `
+SELECT text, ifnull(char_start, -1), ifnull(char_end, -1) FROM chunk
+WHERE work_id = ? AND page = ? ORDER BY ordinal;`, filID, page)
+	if err != nil {
+		return "", fmt.Errorf("read page: %w", err)
+	}
+	defer rows.Close()
+	var out strings.Builder
+	end := 0
+	for rows.Next() {
+		var text string
+		var from, to int
+		if err := rows.Scan(&text, &from, &to); err != nil {
+			return "", fmt.Errorf("read page: %w", err)
+		}
+		switch {
+		case from < 0: // chunked before offsets were kept
+			if out.Len() > 0 {
+				out.WriteByte(' ')
+			}
+			out.WriteString(text)
+		case to > end:
+			if from > end && out.Len() > 0 {
+				out.WriteByte(' ')
+			}
+			out.WriteString(text[min(len(text), max(0, end-from)):])
+			end = to
+		}
+	}
+	return out.String(), rows.Err()
+}
