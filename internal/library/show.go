@@ -2,6 +2,7 @@ package library
 
 import (
 	"context"
+	"net/url"
 	"strings"
 	"time"
 
@@ -214,4 +215,42 @@ func (l *Library) checkIdentity(ctx context.Context, job store.ToRead, pages []s
 		return l.db.Tx(context.WithoutCancel(ctx), func(tx *store.Tx) error { return tx.SetIdentity(ctx, f.Path, identity) })
 	}
 	return nil
+}
+
+// PageText is one page of a paper's text, as fil read it.
+func (l *Library) PageText(ctx context.Context, input string, page int) (string, error) {
+	w, err := l.Find(ctx, input)
+	if err != nil {
+		return "", err
+	}
+	return l.db.PageText(ctx, w.FilID, page)
+}
+
+// WebPage is the best page on the web for a paper: where its DOI resolves, the
+// landing page of an open copy, the link OpenAlex gives, or OpenAlex's own page
+// for it. Empty for a local document.
+func (p Paper) WebPage() string {
+	w := p.Work
+	if w.DOI != nil && *w.DOI != "" {
+		return "https://doi.org/" + *w.DOI
+	}
+	for _, l := range p.PDF.Links {
+		if WebAddress(l.LandingURL) {
+			return l.LandingURL
+		}
+	}
+	if w.OAURL != nil && WebAddress(*w.OAURL) {
+		return *w.OAURL
+	}
+	if w.OpenAlexID != "" {
+		return "https://openalex.org/" + w.OpenAlexID
+	}
+	return ""
+}
+
+// WebAddress reports an absolute http or https address with a host, and
+// nothing in it that could end the address early.
+func WebAddress(u string) bool {
+	p, err := url.Parse(u)
+	return err == nil && (p.Scheme == "http" || p.Scheme == "https") && p.Host != "" && !strings.ContainsAny(u, " \t\r\n\"")
 }

@@ -53,7 +53,7 @@ so on), so scripts can branch on them. `--library <name>` picks a library for an
 
 | Command | What it does |
 | --- | --- |
-| `fil mcp` | Serve your library to an AI assistant over MCP. Your MCP client runs it. See [MCP.md](MCP.md). |
+| `fil mcp` | Serve your library to an AI assistant over MCP. Your MCP client runs it. `--read-only` lets it read but not grow the library. See [MCP.md](MCP.md). |
 
 ## Your library, settings and cache
 

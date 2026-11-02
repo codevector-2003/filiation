@@ -128,6 +128,7 @@ filiation/
 │   ├── errs/                  sentinel errors, compared with errors.Is┘ in internal/
 │   ├── mcpsrv/                MCP tool definitions, M2
 │   ├── opener/                hands a file or folder to the system
+│   ├── assistants/            connects AI assistants to fil mcp; their settings, the call log
 │   └── ui/                    the desktop app's screens (//go:embed) and handlers, M5
 ├── desktop/                   the desktop app shell: own go.mod, cgo allowed (D24), M5
 └── docs/
@@ -238,7 +239,7 @@ Phase 1 carries two extra weeks for that.
 - [ ] **M5 — The desktop app** (2–3 weeks). *In progress from 31 Oct 2026, ahead of M4.* The
       interface is `internal/ui` (`//go:embed`); a thin Wails v2 shell in `desktop/` shows it in a
       native window on all three platforms, with no port open (D24, D25). A browser version follows
-      later from the same screens (D26). The window and the Library screen work.
+      later from the same screens (D26). Library, Search, Citation map, Inbox and AI assistants work.
 - [ ] **M6 — Claim genealogy** (3–4 weeks). Citation intent, weighted edges, tracing a claim to
       its earliest source. **The differentiator.**
 

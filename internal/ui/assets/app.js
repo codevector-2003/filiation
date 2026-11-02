@@ -1,10 +1,12 @@
-// The Library screen. Everything shown comes from the library as text, set
-// with textContent, so nothing in a paper's title can act as markup.
+// What every screen shares, and the Papers screen. Everything shown comes from
+// the library as text, set with textContent, so nothing in a paper's title can
+// act as markup.
 'use strict';
 
 const DOCS = 'https://github.com/codevector-2003/filiation#documentation';
 
-const state = { show: 'all', title: '', collection: '', selected: '', asked: 0, askedPaper: 0 };
+const state = { show: 'all', title: '', collection: '', selected: '', asked: 0, askedPaper: 0, lib: null };
+const screens = {}; // each screen's script adds what to do when it is shown
 
 const $ = (id) => document.getElementById(id);
 
@@ -15,16 +17,40 @@ function el(tag, cls, text) {
   return e;
 }
 
-async function api(path, method) {
-  const r = await fetch(path, { method: method || 'GET' });
-  if (r.status === 204) return null;
-  const body = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(body.error || 'Something went wrong.');
-  return body;
+function button(label, cls, onClick) {
+  const b = el('button', cls, label);
+  b.type = 'button';
+  b.addEventListener('click', onClick);
+  return b;
+}
+
+async function api(path, method, body) {
+  const init = { method: method || 'GET' };
+  if (body !== undefined) {
+    init.headers = { 'Content-Type': 'application/json' };
+    init.body = JSON.stringify(body);
+  }
+  const r = await fetch(path, init);
+  if (r.status === 204 || r.status === 202) return null;
+  const answer = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(answer.error || 'Something went wrong.');
+  return answer;
+}
+
+function openOutside(url) {
+  if (window.runtime) window.runtime.BrowserOpenURL(url);
+  else window.open(url, '_blank', 'noopener');
+}
+
+function show(name, arg) {
+  document.querySelectorAll('.screen').forEach((s) => { s.hidden = s.id !== 'screen-' + name; });
+  document.querySelectorAll('.nav').forEach((b) => { b.classList.toggle('on', b.dataset.screen === name); });
+  if (screens[name]) screens[name](arg);
 }
 
 async function loadLibrary() {
   const lib = await api('/api/library');
+  state.lib = lib;
   $('lib-name').textContent = lib.name;
   $('lib-path').textContent = lib.folder || '';
   if (!lib.ready) {
@@ -42,6 +68,7 @@ async function loadLibrary() {
     const b = el('button', 'collection');
     b.type = 'button';
     b.dataset.name = c.name;
+    b.classList.toggle('on', c.name === state.collection);
     b.append(el('span', '', c.name), el('span', 'count', c.works.toLocaleString()));
     b.addEventListener('click', () => chooseCollection(c.name));
     return b;
@@ -51,9 +78,9 @@ async function loadLibrary() {
 
 function showNoLibrary(lib) {
   $('filter').disabled = true;
-  document.querySelectorAll('.tab').forEach((t) => { t.disabled = true; });
-  const text = lib.problem || 'No library yet. Add your first paper with fil add in a terminal, then open this window again.';
-  $('rows').replaceChildren(el('div', lib.problem ? 'note error' : 'note', text));
+  document.querySelectorAll('.tab, .nav:not([data-screen="papers"]), #fetch-pdfs, #add-paper').forEach((t) => { t.disabled = true; });
+  const text = lib.problem || 'No library is open.';
+  $('rows').replaceChildren(el('div', 'note error', text));
 }
 
 function chooseCollection(name) {
@@ -61,7 +88,7 @@ function chooseCollection(name) {
   document.querySelectorAll('.collection').forEach((b) => {
     b.classList.toggle('on', b.dataset.name === state.collection);
   });
-  loadPapers();
+  show('papers');
 }
 
 async function loadPapers() {
@@ -91,7 +118,8 @@ function chips(p) {
 function renderRows(res) {
   const box = $('rows');
   if (res.papers.length === 0) {
-    box.replaceChildren(el('div', 'note', 'No papers match.'));
+    const empty = state.lib && state.lib.works === 0 && !state.title && !state.collection && state.show === 'all';
+    box.replaceChildren(el('div', 'note', empty ? 'Your library is empty. Add your first paper to begin.' : 'No papers match.'));
     $('detail').replaceChildren();
     state.selected = '';
     return;
@@ -162,22 +190,20 @@ function renderPaper(p) {
   if (p.meta) head.append(el('span', 'meta', p.meta));
 
   const message = el('div', 'why', p.pdfNote || p.textNote || '');
-  const act = (label, primary, path) => {
-    const b = el('button', primary ? 'btn primary' : 'btn', label);
-    b.type = 'button';
-    b.addEventListener('click', async () => {
-      try {
-        await api('/api/papers/' + encodeURIComponent(p.id) + path, 'POST');
-      } catch (e) {
-        message.className = 'error';
-        message.textContent = e.message;
-      }
-    });
-    return b;
-  };
+  const act = (label, primary, path) => button(label, primary ? 'btn primary' : 'btn', async () => {
+    try {
+      await api('/api/papers/' + encodeURIComponent(p.id) + path, 'POST');
+    } catch (e) {
+      message.className = 'error';
+      message.textContent = e.message;
+    }
+  });
   const actions = el('div', 'actions');
   if (p.pdf) actions.append(act('Open PDF', true, '/open'));
   if (p.folder) actions.append(act('Show in folder', false, '/folder'));
+  actions.append(button('Citation map', 'btn', () => show('map', p.id)));
+  if (p.web) actions.append(button('Website', 'btn', () => openOutside(p.web)));
+  if (p.pages > 0) actions.append(button('Search inside', 'btn', () => show('search', { id: p.id, title: p.title })));
 
   const stats = el('div', 'stats');
   stats.append(
@@ -186,8 +212,7 @@ function renderPaper(p) {
       : stat(p.citedBy, p.citedBy === 1 ? 'paper here cites it' : 'papers here cite it'),
     stat(p.sentences, p.sentences === 1 ? 'citation with its sentence' : 'citations with their sentence'));
 
-  const parts = [head];
-  if (actions.childElementCount > 0) parts.push(actions);
+  const parts = [head, actions];
   parts.push(message, stats); // always there: a failed action reports into it
 
   if (p.sample.length > 0) {
@@ -200,10 +225,56 @@ function renderPaper(p) {
       fig.append(el('blockquote', '', '“' + s.text + '”'), cap);
       box.append(fig);
     }
+    if (p.sentences > p.sample.length) {
+      box.append(el('div', 'muted', 'The first ' + p.sample.length + ' of ' + p.sentences + '. The citation map shows each one.'));
+    }
     parts.push(box);
   }
   $('detail').replaceChildren(...parts);
   $('detail').scrollTop = 0;
+}
+
+// Long work runs one job at a time; the sidebar shows it on every screen.
+const job = { timer: 0, run: 0, listeners: [] };
+
+async function pollJob() {
+  let j;
+  try {
+    j = await api('/api/job');
+  } catch (e) {
+    return;
+  }
+  renderJob(j);
+  if (j.running) {
+    clearTimeout(job.timer);
+    job.timer = setTimeout(pollJob, 500);
+  } else if (j.run !== job.run) {
+    job.run = j.run;
+    await loadLibrary();
+    loadPapers();
+    job.listeners.forEach((f) => f(j));
+  }
+}
+
+function renderJob(j) {
+  const box = $('job');
+  if (!j.running && !j.summary && !j.error) {
+    box.hidden = true;
+    return;
+  }
+  box.hidden = false;
+  $('job-title').textContent = j.kind === 'import' ? 'Filing PDFs' : 'Fetching PDFs';
+  $('job-count').textContent = j.running && j.total > 0 ? j.done + ' of ' + j.total : '';
+  $('job-fill').style.width = j.running ? (j.total > 0 ? Math.round((100 * j.done) / j.total) : 100) + '%' : '100%';
+  $('job-note').textContent = j.error || (j.running ? j.note : j.summary) || '';
+  $('job-note').classList.toggle('error', !!j.error);
+  $('job-stop').hidden = !j.running;
+  document.querySelectorAll('#fetch-pdfs').forEach((b) => { b.disabled = j.running; });
+}
+
+async function startJob(path, body) {
+  await api(path, 'POST', body);
+  pollJob();
 }
 
 let filterTimer;
@@ -226,6 +297,10 @@ document.querySelectorAll('.tab').forEach((t) => {
   });
 });
 
+document.querySelectorAll('.nav').forEach((b) => {
+  b.addEventListener('click', () => show(b.dataset.screen));
+});
+
 $('rows').addEventListener('keydown', (e) => {
   if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
     e.preventDefault();
@@ -233,11 +308,56 @@ $('rows').addEventListener('keydown', (e) => {
   }
 });
 
-$('help').addEventListener('click', () => {
-  if (window.runtime) window.runtime.BrowserOpenURL(DOCS);
-  else window.open(DOCS, '_blank', 'noopener');
+$('help').addEventListener('click', () => openOutside(DOCS));
+$('job-stop').addEventListener('click', () => api('/api/job/stop', 'POST'));
+$('fetch-pdfs').addEventListener('click', () => {
+  startJob('/api/fetch').catch((e) => renderJob({ error: e.message }));
 });
 
-loadLibrary()
-  .then((ready) => { if (ready) return loadPapers(); })
-  .catch((e) => { $('rows').replaceChildren(el('div', 'note error', e.message)); });
+screens.papers = () => { loadPapers(); };
+
+// Add a paper.
+function resetAdd() {
+  $('add-input').value = '';
+  $('add-error').textContent = '';
+  $('add-offers').replaceChildren();
+  $('add-go').disabled = false;
+}
+
+async function addPaper(body) {
+  $('add-error').textContent = '';
+  $('add-go').disabled = true;
+  try {
+    const res = await api('/api/add', 'POST', body);
+    if (res.offers) {
+      $('add-offers').replaceChildren(el('div', 'muted', 'Several papers match. Which one?'), ...res.offers.map((o) => {
+        const b = el('button', 'offer');
+        b.type = 'button';
+        b.append(el('span', 'title-text', o.title), el('span', 'muted', o.by));
+        b.addEventListener('click', () => addPaper({ candidate: o.index }));
+        return b;
+      }));
+      return;
+    }
+    $('add-dialog').close();
+    state.selected = res.id;
+    await loadLibrary();
+    loadPapers();
+  } catch (e) {
+    $('add-error').textContent = e.message;
+  } finally {
+    $('add-go').disabled = false;
+  }
+}
+
+$('add-paper').addEventListener('click', () => {
+  resetAdd();
+  $('add-dialog').showModal();
+  $('add-input').focus();
+});
+$('add-cancel').addEventListener('click', () => $('add-dialog').close());
+$('add-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const input = $('add-input').value.trim();
+  if (input) addPaper({ input });
+});

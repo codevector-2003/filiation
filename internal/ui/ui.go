@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/codevector-2003/filiation/internal/assistants"
 	"github.com/codevector-2003/filiation/internal/errs"
 	"github.com/codevector-2003/filiation/internal/library"
 	"github.com/codevector-2003/filiation/internal/model"
@@ -34,13 +35,25 @@ type Options struct {
 	// OpenPath opens a file or folder with the system: opener.Open, or a
 	// stand-in in a test.
 	OpenPath func(path string) error
+
+	// PickFiles asks the person for PDFs in the system's file dialog.
+	PickFiles func() ([]string, error)
+
+	// Assistants is where to find AI assistants, and CallLog the record of
+	// what they asked. A nil Assistants leaves that screen out.
+	Assistants *assistants.Env
+	CallLog    string
 }
 
-type server struct{ Options }
+type server struct {
+	Options
+	work     work
+	readOnly bool // assistants may read but not grow the library; guarded by work.mu
+}
 
 // New returns the handler serving the screens and their data.
 func New(opts Options) http.Handler {
-	s := &server{opts}
+	s := &server{Options: opts}
 	root, err := fs.Sub(assets, "assets")
 	if err != nil {
 		panic(err) // the embedded tree always has assets/
@@ -52,6 +65,26 @@ func New(opts Options) http.Handler {
 	mux.HandleFunc("GET /api/papers/{id}", s.needLibrary(s.paper))
 	mux.HandleFunc("POST /api/papers/{id}/open", s.needLibrary(s.openPDF))
 	mux.HandleFunc("POST /api/papers/{id}/folder", s.needLibrary(s.openFolder))
+	mux.HandleFunc("GET /api/papers/{id}/pages/{n}", s.needLibrary(s.page))
+	mux.HandleFunc("GET /api/search", s.needLibrary(s.search))
+	mux.HandleFunc("GET /api/map", s.needLibrary(s.mapAround))
+	mux.HandleFunc("GET /api/link", s.needLibrary(s.link))
+	mux.HandleFunc("GET /api/path", s.needLibrary(s.path))
+	mux.HandleFunc("POST /api/export", s.needLibrary(s.export))
+	mux.HandleFunc("POST /api/add", s.needLibrary(s.add))
+	mux.HandleFunc("GET /api/job", s.jobStatus)
+	mux.HandleFunc("POST /api/job/stop", s.jobStop)
+	mux.HandleFunc("POST /api/fetch", s.needLibrary(s.fetch))
+	mux.HandleFunc("GET /api/inbox", s.needLibrary(s.inboxList))
+	mux.HandleFunc("POST /api/inbox/import", s.needLibrary(s.inboxImport))
+	mux.HandleFunc("POST /api/inbox/choose", s.needLibrary(s.inboxChoose))
+	mux.HandleFunc("POST /api/inbox/folder", s.needLibrary(s.inboxFolder))
+	mux.HandleFunc("POST /api/inbox/{id}/file", s.needLibrary(s.inboxFile))
+	mux.HandleFunc("POST /api/inbox/{id}/skip", s.needLibrary(s.inboxSkip))
+	mux.HandleFunc("GET /api/assistants", s.assistantList)
+	mux.HandleFunc("POST /api/assistants/permission", s.assistantPermission)
+	mux.HandleFunc("POST /api/assistants/{id}/connect", s.assistantConnect)
+	mux.HandleFunc("POST /api/assistants/{id}/disconnect", s.assistantDisconnect)
 	return mux
 }
 
@@ -218,7 +251,7 @@ func textNote(status string) string {
 type sentenceJSON struct {
 	Page  int    `json:"page"`
 	Text  string `json:"text"`
-	Cites string `json:"cites"`
+	Cites string `json:"cites,omitempty"`
 }
 
 type paperJSON struct {
@@ -237,6 +270,7 @@ type paperJSON struct {
 	PDFNote   string         `json:"pdfNote,omitempty"`
 	TextNote  string         `json:"textNote,omitempty"`
 	Folder    bool           `json:"folder"`
+	Web       string         `json:"web,omitempty"`
 }
 
 func (s *server) paper(w http.ResponseWriter, r *http.Request) {
@@ -249,7 +283,7 @@ func (s *server) paper(w http.ResponseWriter, r *http.Request) {
 	pdf, hasPDF := firstPDF(p)
 	out := paperJSON{ID: work.FilID, Title: work.DisplayTitle(), Authors: authors(work), Meta: meta(work),
 		Seed: work.IsSeed, Cites: p.Cites, CitedBy: p.CitedBy, Sentences: p.Contexts,
-		Sample: []sentenceJSON{}, PDF: hasPDF, Folder: p.Folder != ""}
+		Sample: []sentenceJSON{}, PDF: hasPDF, Folder: p.Folder != "", Web: p.WebPage()}
 	out.Origin = map[model.Source]string{model.SourceSeed: "ADDED BY YOU", model.SourceUpload: "IMPORTED BY YOU",
 		model.SourceExpansion: "FOUND BY FOLLOWING CITATIONS"}[work.Source]
 	if !out.PDF {

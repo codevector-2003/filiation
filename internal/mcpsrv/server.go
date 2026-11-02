@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/codevector-2003/filiation/internal/assistants"
 	"github.com/codevector-2003/filiation/internal/errs"
 	"github.com/codevector-2003/filiation/internal/library"
 	"github.com/codevector-2003/filiation/internal/model"
@@ -119,8 +121,52 @@ func New(lib *library.Library, version string) *mcp.Server {
 
 // ServeStdio serves lib over stdin and stdout until the client disconnects or
 // ctx is cancelled. Nothing else may write to stdout while it runs.
-func ServeStdio(ctx context.Context, lib *library.Library, version string) error {
-	return New(lib, version).Run(ctx, &mcp.StdioTransport{})
+func ServeStdio(ctx context.Context, lib *library.Library, version string, opts ServeOptions) error {
+	s := New(lib, version)
+	opts.apply(s)
+	return s.Run(ctx, &mcp.StdioTransport{})
+}
+
+// ServeOptions shape what one server allows and what it keeps.
+type ServeOptions struct {
+	// ReadOnly withdraws the tools that grow the library, and with them every
+	// tool that reaches the network.
+	ReadOnly bool
+	// CallLog is the file each tool call is recorded in, on this computer, for
+	// the desktop app to show. Empty keeps no record.
+	CallLog string
+}
+
+// growingTools are the tools ReadOnly withdraws.
+var growingTools = []string{"add_paper", "expand_graph", "fetch_pdfs"}
+
+// maxLoggedArgs is how much of a call's arguments the log keeps.
+const maxLoggedArgs = 200
+
+func (o ServeOptions) apply(s *mcp.Server) {
+	if o.ReadOnly {
+		s.RemoveTools(growingTools...)
+	}
+	if o.CallLog == "" {
+		return
+	}
+	s.AddReceivingMiddleware(func(next mcp.MethodHandler) mcp.MethodHandler {
+		return func(ctx context.Context, method string, req mcp.Request) (mcp.Result, error) {
+			res, err := next(ctx, method, req)
+			if params, ok := req.GetParams().(*mcp.CallToolParamsRaw); ok && method == "tools/call" {
+				failed := err != nil
+				if tool, ok := res.(*mcp.CallToolResult); ok && tool.IsError {
+					failed = true
+				}
+				args := string(params.Arguments)
+				if r := []rune(args); len(r) > maxLoggedArgs {
+					args = string(r[:maxLoggedArgs]) + "…"
+				}
+				assistants.Record(o.CallLog, assistants.Call{At: time.Now(), Tool: params.Name, Args: args, Failed: failed})
+			}
+			return res, err
+		}
+	})
 }
 
 type tools struct{ lib *library.Library }
