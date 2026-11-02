@@ -21,8 +21,8 @@ import (
 //go:embed assets
 var assets embed.FS
 
-// listLimit is how many papers the list holds at once.
-const listLimit = 500
+// listLimit is how many papers the list asks for at once.
+const listLimit = 200
 
 // Options is what the interface shows and how it reaches the system.
 type Options struct {
@@ -209,7 +209,18 @@ type rowJSON struct {
 
 func (s *server) papers(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
-	opts := library.ListOptions{Title: q.Get("title"), Collection: q.Get("collection"), Limit: listLimit}
+	opts := library.ListOptions{Title: q.Get("title"), Collection: q.Get("collection"), Authors: q["author"], Venues: q["venue"],
+		Sort: q.Get("sort"), Limit: listLimit}
+	for name, to := range map[string]*int{"year_from": &opts.YearFrom, "year_to": &opts.YearTo, "offset": &opts.Offset} {
+		if v := q.Get(name); v != "" {
+			n, err := strconv.Atoi(v)
+			if err != nil || n < 0 {
+				fail(w, http.StatusBadRequest, fmt.Errorf("%s is not a number: %q", name, v))
+				return
+			}
+			*to = n
+		}
+	}
 	switch q.Get("show") {
 	case "", "all":
 	case "seeds":
@@ -223,6 +234,15 @@ func (s *server) papers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rows, err := s.Library.List(r.Context(), opts)
+	if errors.Is(err, errs.ErrInvalidInput) {
+		fail(w, http.StatusBadRequest, err)
+		return
+	}
+	if err != nil {
+		fail(w, http.StatusInternalServerError, err)
+		return
+	}
+	facets, err := s.Library.Facets(r.Context(), opts, library.FacetFind{Author: q.Get("find_author"), Venue: q.Get("find_venue")})
 	if err != nil {
 		fail(w, http.StatusInternalServerError, err)
 		return
@@ -235,7 +255,34 @@ func (s *server) papers(w http.ResponseWriter, r *http.Request) {
 			out[i].Title = "Not fetched yet: " + l.OpenAlexID
 		}
 	}
-	send(w, map[string]any{"papers": out, "more": len(rows) == listLimit})
+	send(w, map[string]any{"papers": out, "total": facets.Total, "facets": facetsOut(facets),
+		"more": opts.Offset+len(rows) < facets.Total})
+}
+
+type facetJSON struct {
+	Name  string `json:"name"`
+	Works int    `json:"works"`
+}
+
+type yearJSON struct {
+	Year  int `json:"year"`
+	Works int `json:"works"`
+}
+
+func facetsOut(f library.Facets) map[string]any {
+	years := make([]yearJSON, len(f.Years))
+	for i, y := range f.Years {
+		years[i] = yearJSON(y)
+	}
+	authors := make([]facetJSON, len(f.Authors))
+	for i, a := range f.Authors {
+		authors[i] = facetJSON(a)
+	}
+	venues := make([]facetJSON, len(f.Venues))
+	for i, v := range f.Venues {
+		venues[i] = facetJSON(v)
+	}
+	return map[string]any{"years": years, "authors": authors, "venues": venues}
 }
 
 func rowBy(l library.Listed) string {

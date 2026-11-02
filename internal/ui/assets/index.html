@@ -55,6 +55,47 @@
         <button type="button" class="tab" data-show="seeds" aria-pressed="false">Added by you</button>
         <button type="button" class="tab" data-show="pdf" aria-pressed="false">With PDF</button>
         <button type="button" class="tab" data-show="notext" aria-pressed="false">No text</button>
+        <div class="grow-h"></div>
+        <label class="hidden-label" for="sort">Sort papers</label>
+        <select id="sort">
+          <option value="">Your papers first</option>
+          <option value="newest">Newest</option>
+          <option value="oldest">Oldest</option>
+          <option value="title">Title A to Z</option>
+          <option value="cited">Most cited in this library</option>
+          <option value="citedworld">Most cited overall</option>
+          <option value="added">Recently added</option>
+        </select>
+        <button type="button" class="btn small" id="filters-toggle" aria-expanded="false" aria-controls="filters">Filters</button>
+      </div>
+      <div class="filters" id="filters" hidden>
+        <fieldset class="facet facet-years">
+          <legend>Year</legend>
+          <div class="year-bars" id="year-bars" title="Drag across the years you want"></div>
+          <div class="year-range">
+            <label class="hidden-label" for="year-from">From year</label>
+            <input id="year-from" type="number" placeholder="From" min="1" step="1">
+            <span>to</span>
+            <label class="hidden-label" for="year-to">To year</label>
+            <input id="year-to" type="number" placeholder="To" min="1" step="1">
+          </div>
+        </fieldset>
+        <fieldset class="facet">
+          <legend>Author</legend>
+          <label class="hidden-label" for="find-author">Find an author</label>
+          <input id="find-author" type="search" placeholder="Find an author" autocomplete="off">
+          <div class="options" id="author-options"></div>
+        </fieldset>
+        <fieldset class="facet">
+          <legend>Venue</legend>
+          <label class="hidden-label" for="find-venue">Find a venue</label>
+          <input id="find-venue" type="search" placeholder="Find a venue" autocomplete="off">
+          <div class="options" id="venue-options"></div>
+        </fieldset>
+      </div>
+      <div class="list-state">
+        <span id="list-count" aria-live="polite"></span>
+        <div class="active-filters" id="active-filters"></div>
       </div>
       <div class="rows" id="rows" aria-label="Papers"></div>
     </main>

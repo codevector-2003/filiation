@@ -121,8 +121,13 @@ func TestLibraryAndList(t *testing.T) {
 	if got := decode[list](t, ask(t, h, "GET", "/api/papers?title=astronomy")); len(got.Papers) != 0 {
 		t.Errorf("a filter matching nothing = %+v", got)
 	}
-	if w := ask(t, h, "GET", "/api/papers?show=everything"); w.Code != http.StatusBadRequest {
-		t.Errorf("an unknown view = %d", w.Code)
+	for _, bad := range []string{"show=everything", "sort=mood", "year_from=soon", "offset=-1"} {
+		if w := ask(t, h, "GET", "/api/papers?"+bad); w.Code != http.StatusBadRequest {
+			t.Errorf("%s = %d", bad, w.Code)
+		}
+	}
+	if got := decode[list](t, ask(t, h, "GET", "/api/papers?year_from=3000&sort=newest")); len(got.Papers) != 0 || got.More {
+		t.Errorf("a year nothing has = %+v", got)
 	}
 }
 
