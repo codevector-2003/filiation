@@ -389,9 +389,12 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
 .reader-sheet-wrap { position: relative; width: fit-content; margin: 0 auto; }
 .pdf-page { position: relative; background: #FFFFFF; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15); }
 .pdf-page canvas { display: block; }
-.mark-layer { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
-.note-box { position: absolute; mix-blend-mode: multiply; }
-.hit { position: absolute; background: #FBE7B5; outline: 1px solid #E9C93F; mix-blend-mode: multiply; }
+/* Multiply over the page, so that the words stay readable through the colour.
+   A z-index here would cut the layer off from the page and hide them. */
+.mark-layer { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: multiply; }
+.note-box { position: absolute; }
+.hit { position: absolute; background: #FBE7B5; outline: 1px solid #E9C93F; }
+.pin-layer { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
 .note-pin {
   position: absolute; right: -16px; width: 24px; height: 24px; padding: 0; border: 2px solid #FFFFFF; border-radius: 12px;
   background: var(--accent); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25); pointer-events: auto;

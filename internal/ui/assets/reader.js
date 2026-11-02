@@ -41,7 +41,7 @@ async function drawPage(doc, n, scale, box, words) {
   box.style.width = viewport.width + 'px';
   box.style.height = viewport.height + 'px';
   box.style.setProperty('--scale-factor', scale);
-  box.replaceChildren(canvas, marks, text);
+  box.replaceChildren(canvas, marks, text, el('div', 'pin-layer'));
   await page.render({ canvasContext: canvas.getContext('2d'), viewport, transform: ratio === 1 ? null : [ratio, 0, 0, ratio, 0, 0] }).promise;
   const layer = new pdfjs.TextLayer({ textContentSource: page.streamTextContent(), container: text, viewport });
   await layer.render();
@@ -79,7 +79,9 @@ function drawNotes() {
   const box = $('reader-page');
   const marks = box.querySelector('.mark-layer');
   if (!marks) return;
-  marks.querySelectorAll('.note-box, .note-pin').forEach((n) => n.remove());
+  const pins = box.querySelector('.pin-layer');
+  marks.querySelectorAll('.note-box').forEach((n) => n.remove());
+  pins.replaceChildren();
   const here = reader.notes.filter((n) => n.page === reader.page && Array.isArray(n.rects) && n.rects.length > 0);
   for (const n of here) {
     for (const r of n.rects) {
@@ -96,7 +98,7 @@ function drawNotes() {
       pin.setAttribute('aria-label', 'Comment on this highlight');
       pin.title = n.comment;
       pin.style.top = n.rects[0].y * 100 + '%';
-      marks.append(pin);
+      pins.append(pin);
     }
   }
 }
