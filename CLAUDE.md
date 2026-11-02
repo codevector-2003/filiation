@@ -79,7 +79,7 @@ than plain search.
 | CLI | `spf13/cobra` | Standard, and matches what users expect from a Go tool |
 | HTTP client | stdlib `net/http` + `golang.org/x/time/rate` | `rate.Limiter` is exactly the token bucket ADR-004 needs |
 | MCP | `modelcontextprotocol/go-sdk` | Official, maintained with Google |
-| Web server | stdlib `net/http` + `//go:embed` | **The SPA compiles into the binary.** No separate assets to ship |
+| Interface | stdlib `net/http` handler + `//go:embed` | **The screens compile into the binary**, plain files with no build step, shown in the desktop window with no port open (D26) |
 | Desktop window | Wails v2, in `desktop/` (its own module) | **The one place cgo is allowed** (D24). A thin shell showing the interface `fil` serves, in the same process; built per OS. Only candidate that ran everywhere (spike 13, D25) |
 | Embeddings | Ollama HTTP | See ADR-008. The cost of choosing Go |
 | Answers | Ollama, or user-supplied API key | Free path must exist |
@@ -127,13 +127,13 @@ filiation/
 │   ├── model/                 Work, Edge, FrontierItem                │ nothing else
 │   ├── errs/                  sentinel errors, compared with errors.Is┘ in internal/
 │   ├── mcpsrv/                MCP tool definitions, M2
-│   └── web/                   handlers + //go:embed of the built SPA, M5
-├── web/ui/                    SPA source, built into internal/web/dist
+│   ├── opener/                hands a file or folder to the system
+│   └── ui/                    the desktop app's screens (//go:embed) and handlers, M5
 ├── desktop/                   the desktop app shell: own go.mod, cgo allowed (D24), M5
 └── docs/
 ```
 
-**The rule that matters most:** `cmd/`, `internal/mcpsrv/` and `internal/web/` are translation
+**The rule that matters most:** `cmd/`, `internal/mcpsrv/` and `internal/ui/` are translation
 layers. Each takes a request, calls one function in `internal/library`, and formats the result.
 **If a front door imports `internal/store`, that is a bug.** Go's `internal/` convention helps
 but does not enforce this — you have to.
@@ -235,9 +235,10 @@ Phase 1 carries two extra weeks for that.
       retrieval, answers with citations. **Pre-filtering by graph and FTS5 is load-bearing, not an
       optimisation** — the vector stage is a brute-force scan, so it must never see the whole
       library. Build candidate generation before semantic search (D13).
-- [ ] **M5 — The desktop app** (2–3 weeks). *In progress from 31 Oct 2026, ahead of M4.* `fil`
-      serves the interface (`//go:embed`); a thin Wails v2 shell in `desktop/` shows it in a native
-      window on all three platforms (D24, D25). Step 1, the shell spike, is done.
+- [ ] **M5 — The desktop app** (2–3 weeks). *In progress from 31 Oct 2026, ahead of M4.* The
+      interface is `internal/ui` (`//go:embed`); a thin Wails v2 shell in `desktop/` shows it in a
+      native window on all three platforms, with no port open (D24, D25). A browser version follows
+      later from the same screens (D26). The window and the Library screen work.
 - [ ] **M6 — Claim genealogy** (3–4 weeks). Citation intent, weighted edges, tracing a claim to
       its earliest source. **The differentiator.**
 

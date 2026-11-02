@@ -16,7 +16,7 @@ import (
 // import internal/store: that would put SQL-shaped decisions in a place that
 // has three copies, and make the storage backend impossible to swap (CLAUDE.md,
 // "the rule that matters most").
-var frontDoors = []string{"cmd", "internal/mcpsrv", "internal/web"}
+var frontDoors = []string{"cmd", "internal/mcpsrv", "internal/ui"}
 
 const forbidden = "github.com/codevector-2003/filiation/internal/store"
 

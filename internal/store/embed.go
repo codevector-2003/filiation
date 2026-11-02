@@ -6,7 +6,7 @@
 //
 //   - store never imports internal/sources, and sources never imports store.
 //     Only internal/graph knows about both.
-//   - No front door (cmd/, internal/mcpsrv, internal/web) may import store.
+//   - No front door (cmd/, internal/mcpsrv, internal/ui) may import store.
 //     They call internal/library, which calls this.
 //
 // Writes are single-threaded. SQLite allows one writer, and Go makes that easy

@@ -26,7 +26,7 @@ running log of what was chosen and rejected.
 | F7 | Capture the sentence around each citation marker | M3 |
 | F8 | Search by keyword and by meaning, expanded along weighted citation edges | M4 |
 | F9 | Answer natural-language questions with citations into the user's own library | M4 |
-| F10 | Browse and edit the library in a local web interface | M5 |
+| F10 | Browse and edit the library in the desktop app | M5 |
 | F11 | Classify citation intent and trace a claim to its earliest source | M6 |
 
 ### Non-functional
@@ -57,7 +57,7 @@ Five layers. Each depends only on the layer below it.
 ┌──────────────────────────────────────────────────────────────┐
 │  FRONT DOORS                                                 │
 │                                                              │
-│   cmd/fil          internal/mcpsrv       internal/web       │
+│   cmd/fil          internal/mcpsrv       internal/ui        │
 │   cobra            MCP tools             net/http + embed   │
 │   humans           assistants            researchers         │
 └───────────────┬──────────────┬───────────────┬───────────────┘
