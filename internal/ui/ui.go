@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/fs"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -62,6 +63,7 @@ func New(opts Options) http.Handler {
 	mux.Handle("GET /", scripts(http.FileServerFS(root)))
 	mux.HandleFunc("GET /api/library", s.library)
 	mux.HandleFunc("GET /api/papers", s.needLibrary(s.papers))
+	mux.HandleFunc("GET /api/papers/ids", s.needLibrary(s.paperIDs))
 	mux.HandleFunc("GET /api/papers/{id}", s.needLibrary(s.paper))
 	mux.HandleFunc("POST /api/papers/{id}/open", s.needLibrary(s.openPDF))
 	mux.HandleFunc("POST /api/papers/{id}/folder", s.needLibrary(s.openFolder))
@@ -75,6 +77,7 @@ func New(opts Options) http.Handler {
 	mux.HandleFunc("GET /api/papers/{id}/cited/{n}", s.needLibrary(s.citedOnPage))
 	mux.HandleFunc("GET /api/search", s.needLibrary(s.search))
 	mux.HandleFunc("GET /api/map", s.needLibrary(s.mapAround))
+	mux.HandleFunc("GET /api/graph", s.needLibrary(s.wholeGraph))
 	mux.HandleFunc("GET /api/link", s.needLibrary(s.link))
 	mux.HandleFunc("GET /api/path", s.needLibrary(s.path))
 	mux.HandleFunc("POST /api/export", s.needLibrary(s.export))
@@ -207,16 +210,15 @@ type rowJSON struct {
 	Stub       bool   `json:"stub"`
 }
 
-func (s *server) papers(w http.ResponseWriter, r *http.Request) {
-	q := r.URL.Query()
+// listOptions reads what the Papers list is showing from a request.
+func listOptions(q url.Values) (library.ListOptions, error) {
 	opts := library.ListOptions{Title: q.Get("title"), Collection: q.Get("collection"), Authors: q["author"], Venues: q["venue"],
-		Sort: q.Get("sort"), Limit: listLimit}
+		Sort: q.Get("sort")}
 	for name, to := range map[string]*int{"year_from": &opts.YearFrom, "year_to": &opts.YearTo, "offset": &opts.Offset} {
 		if v := q.Get(name); v != "" {
 			n, err := strconv.Atoi(v)
 			if err != nil || n < 0 {
-				fail(w, http.StatusBadRequest, fmt.Errorf("%s is not a number: %q", name, v))
-				return
+				return opts, fmt.Errorf("%s is not a number: %q", name, v)
 			}
 			*to = n
 		}
@@ -230,9 +232,19 @@ func (s *server) papers(w http.ResponseWriter, r *http.Request) {
 	case "notext":
 		opts.WithoutText = true
 	default:
-		fail(w, http.StatusBadRequest, fmt.Errorf("unknown view %q", q.Get("show")))
+		return opts, fmt.Errorf("unknown view %q", q.Get("show"))
+	}
+	return opts, nil
+}
+
+func (s *server) papers(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	opts, err := listOptions(q)
+	if err != nil {
+		fail(w, http.StatusBadRequest, err)
 		return
 	}
+	opts.Limit = listLimit
 	rows, err := s.Library.List(r.Context(), opts)
 	if errors.Is(err, errs.ErrInvalidInput) {
 		fail(w, http.StatusBadRequest, err)
@@ -257,6 +269,31 @@ func (s *server) papers(w http.ResponseWriter, r *http.Request) {
 	}
 	send(w, map[string]any{"papers": out, "total": facets.Total, "facets": facetsOut(facets),
 		"more": opts.Offset+len(rows) < facets.Total})
+}
+
+// paperIDs is every paper the Papers list's filters find, unpaged, for the map
+// to brighten.
+func (s *server) paperIDs(w http.ResponseWriter, r *http.Request) {
+	opts, err := listOptions(r.URL.Query())
+	if err != nil {
+		fail(w, http.StatusBadRequest, err)
+		return
+	}
+	opts.Offset = 0
+	rows, err := s.Library.List(r.Context(), opts)
+	if errors.Is(err, errs.ErrInvalidInput) {
+		fail(w, http.StatusBadRequest, err)
+		return
+	}
+	if err != nil {
+		fail(w, http.StatusInternalServerError, err)
+		return
+	}
+	ids := make([]string, len(rows))
+	for i, l := range rows {
+		ids[i] = l.FilID
+	}
+	send(w, map[string]any{"ids": ids})
 }
 
 type facetJSON struct {

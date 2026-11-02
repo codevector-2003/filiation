@@ -254,6 +254,29 @@ mark { padding: 0 1px; border-radius: 2px; background: #FBE7B5; color: inherit; 
 
 /* Citation map */
 .map-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 20px; border-bottom: 1px solid var(--line); }
+.map-controls { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.map-controls[hidden] { display: none; }
+#whole-find { width: 170px; height: 32px; padding: 0 10px; border: 1px solid var(--line-2); border-radius: 6px; background: #FFFFFF; }
+.whole-check { display: flex; gap: 6px; align-items: center; }
+.whole-filter { display: flex; gap: 8px; align-items: center; color: var(--muted); }
+.whole-filter[hidden] { display: none; }
+.whole-view canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.whole-found {
+  position: absolute; left: 20px; top: 12px; width: 340px; max-width: calc(100% - 40px); padding: 6px; z-index: 2;
+  display: flex; flex-direction: column; gap: 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel);
+}
+.whole-found[hidden] { display: none; }
+.found { padding: 6px 8px; overflow: hidden; border: 0; border-radius: 4px; background: transparent; text-align: left; white-space: nowrap; text-overflow: ellipsis; }
+.found:hover { background: var(--selected); }
+.whole-tip {
+  position: absolute; max-width: 280px; padding: 6px 10px; z-index: 2; pointer-events: none;
+  border-radius: 6px; background: var(--ink); color: #FFFFFF; font-size: 12px; line-height: 1.35;
+}
+.key.dot { width: 12px; height: 12px; border: 0; border-radius: 50%; }
+.key.seed { background: #8A5300; }
+.key.dot.pdf { background: #1F5F8B; border: 0; }
+.key.titled { background: #83878E; }
+.key.unnamed { background: #C4C7CB; }
 .map-around { font-weight: 600; }
 .map-title { flex: 1; min-width: 80px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-family: var(--serif); font-weight: 600; }
 .toggle { display: flex; border: 1px solid var(--line-2); border-radius: 6px; overflow: hidden; }

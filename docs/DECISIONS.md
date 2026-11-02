@@ -663,3 +663,13 @@ with `//go:embed`. Fonts are embedded too, so the app never needs the network to
 **Cost accepted:** until the browser version exists, Linux without WebKitGTK has the command line
 only. The window uses the native title bar, not the one drawn in the design, so it behaves correctly
 on all three systems.
+
+## D27 — The whole-library map is drawn on a canvas, laid out by d3-force
+
+The map around one paper uses page elements, which suits a dozen cards and not thousands of dots.
+The whole-library view draws on a canvas, and d3-force arranges it in a Web Worker so the window
+never waits. The library is 18 KB, ISC-licensed, and kept in `internal/ui/assets/d3force`, so
+there is still no build step. Measured on a real library of 3,132 papers and 4,504 citations: 3.8 s
+to arrange in the desktop window, about 3 ms to redraw. d3-force starts from fixed places with a
+fixed random seed, so the same library gets the same map. It opens on papers with two or more
+links, since a paper with one link is mostly a reference-list entry nothing else is known about.
