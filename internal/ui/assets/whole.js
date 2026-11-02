@@ -274,7 +274,7 @@ function paperAt(mx, my) {
 }
 
 function wholePane() {
-  const known = whole.around ? whole.around.filter((a) => a.cites.length > 0).length : 0;
+  const known = whole.nodes.filter((n) => n.refs).length;
   const parts = [el('h2', 'pane-head', 'WHOLE LIBRARY')];
   if (whole.nodes.length > 0) {
     parts.push(el('div', 'link-lead', whole.nodes.length.toLocaleString() + ' papers and ' + whole.edges.length.toLocaleString() + ' citations.'));
