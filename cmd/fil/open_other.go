@@ -14,5 +14,10 @@ func openWithSystem(path string) error {
 	if runtime.GOOS == "darwin" {
 		opener = "open"
 	}
-	return exec.Command(opener, path).Start()
+	cmd := exec.Command(opener, path)
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	go cmd.Wait() // collects it once it exits, however long a session runs
+	return nil
 }

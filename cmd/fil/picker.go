@@ -606,6 +606,23 @@ func (a libActions) inLibrary(path string) error {
 	if _, err := os.Stat(path); err != nil {
 		return fmt.Errorf("%s is not there any more: fil library scan finds moved files", filepath.Base(path))
 	}
+	return reallyWithin(root, path)
+}
+
+// reallyWithin refuses a path that leads out of root: a link inside the
+// folder can point anywhere, so it compares where each really is.
+func reallyWithin(root, path string) error {
+	realRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return err
+	}
+	realPath, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return err
+	}
+	if !within(realRoot, realPath) {
+		return fmt.Errorf("%s leads outside the library folder", filepath.Base(path))
+	}
 	return nil
 }
 
