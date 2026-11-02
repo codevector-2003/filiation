@@ -248,8 +248,10 @@ async function copyText(text) {
 async function addHighlight(colour, comment) {
   const sel = reader.selection;
   if (!sel) return null;
-  const n = await api('/api/papers/' + encodeURIComponent(reader.paper.id) + '/notes', 'POST',
+  const id = reader.paper.id;
+  const n = await api('/api/papers/' + encodeURIComponent(id) + '/notes', 'POST',
     { page: sel.page, colour, quote: sel.text, rects: sel.rects, comment: comment || '' });
+  if (reader.paper.id !== id) return n; // saved, but another paper is open now
   reader.notes.push(n);
   reader.notes.sort((a, b) => a.page - b.page || a.id - b.id);
   window.getSelection().removeAllRanges();
@@ -356,9 +358,10 @@ async function renderCited() {
   const box = $('reader-side');
   box.replaceChildren(el('div', 'note', 'Looking…'));
   const page = reader.page;
+  const id = reader.paper.id;
   try {
-    const res = await api('/api/papers/' + encodeURIComponent(reader.paper.id) + '/cited/' + page);
-    if (page !== reader.page || reader.tab !== 'cited') return;
+    const res = await api('/api/papers/' + encodeURIComponent(id) + '/cited/' + page);
+    if (page !== reader.page || reader.tab !== 'cited' || id !== reader.paper.id) return;
     if (res.cited.length === 0) {
       box.replaceChildren(el('div', 'note', 'No citation was found on this page.'));
       return;
@@ -393,8 +396,10 @@ function renderDetails() {
 async function findInPaper(words) {
   if (!words) return;
   reader.findText = words;
-  const q = new URLSearchParams({ q: words, paper: reader.paper.id, references: 'true' });
+  const id = reader.paper.id;
+  const q = new URLSearchParams({ q: words, paper: id, references: 'true', limit: 'all' });
   const res = await api('/api/search?' + q);
+  if (id !== reader.paper.id) return;
   reader.words = [...new Set(res.hits.flatMap((h) => h.parts.filter((x) => x.mark).map((x) => x.text)))];
   const pages = [...new Set(res.hits.map((h) => h.page))].sort((a, b) => a - b);
   $('reader-found').textContent = pages.length === 0 ? 'Not found' : pages.length === 1 ? 'On 1 page' : 'On ' + pages.length + ' pages';

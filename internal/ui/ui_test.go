@@ -237,6 +237,15 @@ func TestSearchFindsPassagesWithTheirPage(t *testing.T) {
 	}
 }
 
+func TestSearchCanLookThroughAWholePaper(t *testing.T) {
+	t.Parallel()
+	h, id, _ := openTest(t)
+	w := ask(t, h, "GET", "/api/search?q=hedgerow&limit=all&paper="+id)
+	if w.Code != http.StatusOK || strings.Contains(w.Body.String(), `"capped":true`) {
+		t.Errorf("search = %d: %s", w.Code, w.Body)
+	}
+}
+
 func TestPageText(t *testing.T) {
 	t.Parallel()
 	h, id, _ := openTest(t)
