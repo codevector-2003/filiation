@@ -81,6 +81,19 @@ func TestConnectKeepsEverythingElseAndABackup(t *testing.T) {
 	}
 }
 
+func TestStoreVersionOfClaudeDesktop(t *testing.T) {
+	t.Parallel()
+	e := testEnv(t)
+	dir := filepath.Join(e.Home, "AppData", "Local", "Packages", "Claude_abc", "LocalCache", "Roaming", "Claude")
+	write(t, filepath.Join(dir, "claude_desktop_config.json"), `{"theme":"dark"}`)
+	if err := Connect(e, "claude-desktop", false); err != nil {
+		t.Fatal(err)
+	}
+	if s := statusOf(t, e, "claude-desktop"); !s.Connected || !strings.HasPrefix(s.File, dir) {
+		t.Errorf("status = %+v; want the package's own file", s)
+	}
+}
+
 func TestConnectCreatesAMissingFile(t *testing.T) {
 	t.Parallel()
 	e := testEnv(t)

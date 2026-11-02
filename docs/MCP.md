@@ -101,7 +101,8 @@ read the library but not grow it, and nothing it does reaches the network.
 ### The desktop app
 
 The app's AI assistants screen does all of this for you: it finds the assistants on your computer,
-adds or removes the one entry, and keeps the old settings file beside it with `.before-filiation`
+adds or removes the one entry (in its own folder for the Microsoft Store version of Claude
+Desktop), and keeps the old settings file beside it with `.before-filiation`
 on its name. A file that is not plain JSON, such as one with comments, is left alone. Claude Code
 is changed through its own `claude mcp` command. `fil mcp` records each tool called in
 `assistant-calls.jsonl` in the cache folder, so that the screen can show it. That record stays on

@@ -17,7 +17,11 @@ import (
 // The map shows this much: enough to read, however many a paper cites. A
 // second step follows the first few only, or it would be a hairball.
 const (
-	mapFirstStep   = 12
+	mapFirstStep = 12
+
+	// searchEverything is enough to find a word on every page of one paper.
+	searchEverything = 5000
+
 	mapSecondFrom  = 6
 	mapSecondStep  = 3
 	recentCalls    = 30
@@ -64,7 +68,11 @@ func (s *server) search(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusBadRequest, errors.New("type some words to search for"))
 		return
 	}
-	res, err := s.Library.Search(r.Context(), words, library.SearchOptions{Paper: q.Get("paper"), References: q.Get("references") == "true"})
+	limit := library.DefaultSearchLimit
+	if q.Get("limit") == "all" {
+		limit = searchEverything
+	}
+	res, err := s.Library.Search(r.Context(), words, library.SearchOptions{Limit: limit, Paper: q.Get("paper"), References: q.Get("references") == "true"})
 	if err != nil {
 		failFind(w, err)
 		return
@@ -75,7 +83,7 @@ func (s *server) search(w http.ResponseWriter, r *http.Request) {
 			References: h.Section != "", Parts: snippetParts(h.Snippet)}
 	}
 	send(w, map[string]any{"hits": hits, "partial": res.Partial, "unread": res.Unread,
-		"capped": len(hits) == library.DefaultSearchLimit})
+		"capped": len(hits) == limit})
 }
 
 func (s *server) page(w http.ResponseWriter, r *http.Request) {
