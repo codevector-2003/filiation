@@ -10,7 +10,7 @@ screens.inbox = async () => {
   $('inbox-tip').textContent = 'Drag PDFs anywhere into this window, or save them to ' + (lib.folder ? lib.folder + '​/Inbox' : 'the Inbox folder') + ' and open this screen.';
   // New files are looked at when the screen opens. Those already on the list
   // are not: each look can spend a title search.
-  const known = inbox.items.filter((i) => i.state !== 'filed').length + inbox.skipped;
+  const known = inbox.items.filter((i) => i.state !== 'filed' || i.stays).length + inbox.skipped;
   if (inbox.waiting > known) startJob('/api/inbox/import').catch(showInboxError);
 };
 

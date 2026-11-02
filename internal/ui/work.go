@@ -195,6 +195,7 @@ type inboxJSON struct {
 	Clue       string          `json:"clue,omitempty"`
 	Title      string          `json:"title,omitempty"`
 	PaperID    string          `json:"paperId,omitempty"`
+	Stays      bool            `json:"stays,omitempty"` // a duplicate: the file is still in the Inbox
 	Candidates []candidateJSON `json:"candidates"`
 }
 
@@ -208,7 +209,7 @@ func itemJSON(it *inboxItem) inboxJSON {
 			out.Title = f.Work.DisplayTitle()
 		}
 		if f.Outcome == library.ImportDuplicate {
-			out.Reason = "Already in the library"
+			out.Reason, out.Stays = "Already in the library", true
 		}
 	case library.ImportUnconfirmed, library.ImportCandidates:
 		out.State = "choose"
