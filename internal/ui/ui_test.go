@@ -181,6 +181,17 @@ func TestTheEditionReadIsTheOneOpened(t *testing.T) {
 	}
 }
 
+func TestSearchKeepsToTheEditionItRead(t *testing.T) {
+	t.Parallel()
+	p := library.Paper{Text: &library.PaperText{File: "published.pdf"}}
+	if isIndexed(p, library.PaperFile{Path: "accepted.pdf"}) {
+		t.Error("another edition counted as the one read")
+	}
+	if !isIndexed(p, library.PaperFile{Path: "published.pdf"}) {
+		t.Error("the edition read was refused")
+	}
+}
+
 func TestMissingNotesFileIsNotADeletedPDF(t *testing.T) {
 	t.Parallel()
 	p := library.Paper{Files: []library.PaperFile{{Path: "notes.txt", Missing: true}}}

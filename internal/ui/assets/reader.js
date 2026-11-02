@@ -20,9 +20,12 @@ async function loadPDFjs() {
   return pdfjs;
 }
 
-async function openDocument(id) {
+// openDocument opens a paper's PDF; indexed asks for only the edition its text
+// was read from.
+async function openDocument(id, indexed) {
   const lib = await loadPDFjs();
-  return lib.getDocument({ url: '/api/papers/' + encodeURIComponent(id) + '/pdf', disableAutoFetch: true }).promise;
+  const url = '/api/papers/' + encodeURIComponent(id) + '/pdf' + (indexed ? '?indexed=true' : '');
+  return lib.getDocument({ url, disableAutoFetch: true }).promise;
 }
 
 // drawPage draws one page into box, with the text layer that lets its words be
@@ -409,7 +412,8 @@ async function findInPaper(words) {
   if (id !== reader.paper.id || finding !== reader.finding) return;
   reader.words = [...new Set(res.hits.flatMap((h) => h.parts.filter((x) => x.mark).map((x) => x.text)))];
   const pages = [...new Set(res.hits.map((h) => h.page))].sort((a, b) => a - b);
-  $('reader-found').textContent = pages.length === 0 ? 'Not found' : pages.length === 1 ? 'On 1 page' : 'On ' + pages.length + ' pages';
+  const atLeast = res.capped ? 'at least ' : '';
+  $('reader-found').textContent = pages.length === 0 ? 'Not found' : pages.length === 1 ? 'On ' + atLeast + '1 page' : 'On ' + atLeast + pages.length + ' pages';
   if (pages.length > 0) showPage(pages.find((p) => p > reader.page) || pages[0]);
   else document.querySelectorAll('#reader-page .hit').forEach((h) => h.remove());
 }

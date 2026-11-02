@@ -63,7 +63,7 @@ async function loadPage(n) {
   const box = $('page-text');
   try {
     if (found.docId !== found.id) {
-      const doc = await openDocument(found.id);
+      const doc = await openDocument(found.id, true);
       if (asked !== found.askedPage) {
         doc.destroy();
         return;

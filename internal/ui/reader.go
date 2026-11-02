@@ -28,6 +28,11 @@ func (s *server) pdfFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	pdf, ok := firstPDF(p)
+	// Search's pages belong to the edition its text came from; another
+	// edition would put them in the wrong place.
+	if r.URL.Query().Get("indexed") == "true" && !isIndexed(p, pdf) {
+		ok = false
+	}
 	if !ok {
 		fail(w, http.StatusNotFound, errors.New("this paper has no PDF on disk"))
 		return
@@ -38,6 +43,11 @@ func (s *server) pdfFile(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/pdf")
 	http.ServeFile(w, r, pdf.Path)
+}
+
+// isIndexed reports whether f is the file the paper's text was read from.
+func isIndexed(p library.Paper, f library.PaperFile) bool {
+	return p.Text == nil || p.Text.File == f.Path
 }
 
 type noteJSON struct {
