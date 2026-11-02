@@ -509,5 +509,8 @@ $('sel-search').addEventListener('click', () => {
 
 $('reader-find-form').addEventListener('submit', (e) => {
   e.preventDefault();
-  findInPaper($('reader-find').value.trim()).catch((err) => { $('reader-found').textContent = err.message; });
+  const mine = reader.finding + 1;
+  findInPaper($('reader-find').value.trim()).catch((err) => {
+    if (mine === reader.finding) $('reader-found').textContent = err.message;
+  });
 });
