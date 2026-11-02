@@ -477,6 +477,10 @@ func (a libActions) neighbours(id string) (string, []pickRow, error) {
 	if err != nil {
 		return "", nil, err
 	}
+	heading := "Neighbours of " + clip(n.Work.DisplayTitle(), 50)
+	if a.limit > 0 && (len(n.Cites) > a.limit || len(n.CitedBy) > a.limit) {
+		heading += fmt.Sprintf(" (at most %d each way; --limit 0 shows all)", a.limit)
+	}
 	var rows []pickRow
 	for _, w := range capped(n.Cites, a.limit) {
 		rows = append(rows, workRow(w, "it cites"))
@@ -484,7 +488,7 @@ func (a libActions) neighbours(id string) (string, []pickRow, error) {
 	for _, w := range capped(n.CitedBy, a.limit) {
 		rows = append(rows, workRow(w, "cites it"))
 	}
-	return "Neighbours of " + clip(n.Work.DisplayTitle(), 50), rows, nil
+	return heading, rows, nil
 }
 
 // capped is the first limit works, or all of them when limit is 0.
@@ -551,13 +555,20 @@ func listHeading(limit, rows int) string {
 	return "Papers"
 }
 
-// searchHeading keeps the plain output's caveat when no passage had every
-// word, so partial matches do not pass for exact ones.
-func searchHeading(words string, partial bool) string {
+// searchHeading keeps the plain output's notes: partial matches must not pass
+// for exact ones, nor a capped or incomplete search for the whole library.
+func searchHeading(words string, partial, capped bool, unread int) string {
+	h := "Passages for " + words
 	if partial {
-		return "Passages with some of the words, the most first: " + words
+		h = "Passages with some of the words, the most first: " + words
 	}
-	return "Passages for " + words
+	if capped {
+		h += " (the best only; --limit shows more)"
+	}
+	if unread > 0 {
+		h += " (" + plural(unread, "PDF", "PDFs") + " not read yet, so not searched)"
+	}
+	return h
 }
 
 // webPage is the best page on the web for a paper: where its DOI resolves,

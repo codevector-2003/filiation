@@ -372,10 +372,13 @@ func TestHeadingsKeepThePlainOutputsNotes(t *testing.T) {
 			t.Errorf("listHeading(%d, %d) = %q; the whole list needs no note", c[0], c[1], got)
 		}
 	}
-	if got := searchHeading("green bees", true); !strings.Contains(got, "some of the words") {
+	if got := searchHeading("green bees", true, false, 0); !strings.Contains(got, "some of the words") {
 		t.Errorf("partial matches = %q; want them called partial", got)
 	}
-	if got := searchHeading("green bees", false); got != "Passages for green bees" {
+	if got := searchHeading("green bees", false, true, 2); !strings.Contains(got, "--limit") || !strings.Contains(got, "2 PDFs not read") {
+		t.Errorf("a capped, incomplete search = %q; want both said", got)
+	}
+	if got := searchHeading("green bees", false, false, 0); got != "Passages for green bees" {
 		t.Errorf("exact matches = %q", got)
 	}
 }

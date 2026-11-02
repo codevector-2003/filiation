@@ -70,7 +70,11 @@ func (a *app) search(ctx context.Context, words string, opts library.SearchOptio
 			r.good = true
 			picks[i] = r
 		}
-		return a.pick(ctx, lib, searchHeading(words, res.Partial), picks)
+		limit := opts.Limit
+		if limit == 0 {
+			limit = library.DefaultSearchLimit
+		}
+		return a.pick(ctx, lib, searchHeading(words, res.Partial, len(res.Hits) == limit, res.Unread), picks)
 	}
 
 	w := a.stdout
