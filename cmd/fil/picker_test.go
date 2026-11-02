@@ -361,3 +361,21 @@ func TestWebAddress(t *testing.T) {
 		t.Error("openURL opened a file address")
 	}
 }
+
+func TestHeadingsKeepThePlainOutputsNotes(t *testing.T) {
+	t.Parallel()
+	if got := listHeading(50, 50); !strings.Contains(got, "first 50") || !strings.Contains(got, "--limit 0") {
+		t.Errorf("a full page = %q; want it to say the list stops there", got)
+	}
+	for _, c := range [][2]int{{50, 12}, {0, 50}} {
+		if got := listHeading(c[0], c[1]); got != "Papers" {
+			t.Errorf("listHeading(%d, %d) = %q; the whole list needs no note", c[0], c[1], got)
+		}
+	}
+	if got := searchHeading("green bees", true); !strings.Contains(got, "some of the words") {
+		t.Errorf("partial matches = %q; want them called partial", got)
+	}
+	if got := searchHeading("green bees", false); got != "Passages for green bees" {
+		t.Errorf("exact matches = %q", got)
+	}
+}

@@ -70,7 +70,7 @@ func (a *app) search(ctx context.Context, words string, opts library.SearchOptio
 			r.good = true
 			picks[i] = r
 		}
-		return a.pick(ctx, lib, "Passages for "+words, picks)
+		return a.pick(ctx, lib, searchHeading(words, res.Partial), picks)
 	}
 
 	w := a.stdout

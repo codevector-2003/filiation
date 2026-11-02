@@ -68,7 +68,7 @@ func (a *app) list(ctx context.Context, opts library.ListOptions, asJSON bool) e
 		for i, r := range rows {
 			picks[i] = listRow(r)
 		}
-		return a.pick(ctx, lib, "Papers", picks)
+		return a.pick(ctx, lib, listHeading(opts.Limit, len(rows)), picks)
 	}
 	if len(rows) == 0 {
 		fmt.Fprintln(w, "No papers match.")

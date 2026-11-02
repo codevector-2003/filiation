@@ -542,6 +542,24 @@ func webAddress(u string) bool {
 	return err == nil && (p.Scheme == "http" || p.Scheme == "https") && p.Host != "" && !strings.ContainsAny(u, " \t\r\n\"")
 }
 
+// listHeading says when the picker holds only part of the list, as the plain
+// output does: it has no way to load more.
+func listHeading(limit, rows int) string {
+	if limit > 0 && rows == limit {
+		return fmt.Sprintf("Papers: the first %d. list --limit 0 shows all", limit)
+	}
+	return "Papers"
+}
+
+// searchHeading keeps the plain output's caveat when no passage had every
+// word, so partial matches do not pass for exact ones.
+func searchHeading(words string, partial bool) string {
+	if partial {
+		return "Passages with some of the words, the most first: " + words
+	}
+	return "Passages for " + words
+}
+
 // webPage is the best page on the web for a paper: where its DOI resolves,
 // the landing page of an open copy, the link OpenAlex gives, or OpenAlex's
 // own page for it.
