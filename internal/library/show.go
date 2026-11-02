@@ -24,6 +24,17 @@ func (l *Library) List(ctx context.Context, opts ListOptions) ([]Listed, error) 
 	return l.db.List(ctx, opts)
 }
 
+// Citations lists every citation in the library, as pairs of fil IDs: citing,
+// then cited.
+func (l *Library) Citations(ctx context.Context) ([][2]string, error) {
+	var out [][2]string
+	err := l.db.EachEdge(ctx, true, func(from, to string) error {
+		out = append(out, [2]string{from, to})
+		return nil
+	})
+	return out, err
+}
+
 // Facets says what a listing's filters can offer next.
 type Facets = store.Facets
 

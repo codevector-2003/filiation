@@ -278,6 +278,33 @@ func TestPageText(t *testing.T) {
 	}
 }
 
+func TestWholeGraphAndFilteredIDs(t *testing.T) {
+	t.Parallel()
+	h, id, _ := openTest(t)
+	type graph struct {
+		Nodes []graphNodeJSON `json:"nodes"`
+		Edges [][2]int        `json:"edges"`
+	}
+	g := decode[graph](t, ask(t, h, "GET", "/api/graph"))
+	if len(g.Nodes) != 1 || g.Nodes[0].ID != id || !g.Nodes[0].PDF || g.Nodes[0].Title == "" || len(g.Edges) != 0 {
+		t.Errorf("graph = %+v", g)
+	}
+	type ids struct {
+		IDs []string `json:"ids"`
+	}
+	if got := decode[ids](t, ask(t, h, "GET", "/api/papers/ids?title=solitary")); len(got.IDs) != 1 || got.IDs[0] != id {
+		t.Errorf("ids = %+v", got)
+	}
+	if got := decode[ids](t, ask(t, h, "GET", "/api/papers/ids?title=astronomy")); len(got.IDs) != 0 {
+		t.Errorf("ids of nothing = %+v", got)
+	}
+	for _, bad := range []string{"sort=mood", "show=everything"} {
+		if w := ask(t, h, "GET", "/api/papers/ids?"+bad); w.Code != http.StatusBadRequest {
+			t.Errorf("%s = %d", bad, w.Code)
+		}
+	}
+}
+
 func TestMapOfAPaperWithNoCitations(t *testing.T) {
 	t.Parallel()
 	h, id, _ := openTest(t)

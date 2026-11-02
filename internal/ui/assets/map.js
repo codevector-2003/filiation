@@ -6,13 +6,35 @@
 const NODE_W = 180;
 const NODE_H = 76;
 
-const mapState = { id: '', direction: 'cites', steps: '1', x: 0, y: 0, scale: 1, nodes: null, center: null, selected: '', asked: 0 };
+const mapState = { mode: 'whole', id: '', direction: 'cites', steps: '1', x: 0, y: 0, scale: 1, nodes: null, center: null, selected: '', asked: 0 };
 
 screens.map = (id) => {
-  if (id) mapState.id = id;
-  else if (!mapState.id && state.selected) mapState.id = state.selected;
-  loadMap();
+  if (id) {
+    mapState.id = id;
+    mapState.mode = 'around';
+  } else if (!mapState.id && state.selected) {
+    mapState.id = state.selected;
+  }
+  showMapMode();
 };
+
+function showMapMode() {
+  // Whatever the other view was still loading must not land in this one.
+  mapState.asked++;
+  whole.asked++;
+  const around = mapState.mode === 'around';
+  $('around-bar').hidden = !around;
+  $('map-view').hidden = !around;
+  $('whole-bar').hidden = around;
+  $('whole-view').hidden = around;
+  document.querySelectorAll('[data-map-mode]').forEach((b) => {
+    const on = b.dataset.mapMode === mapState.mode;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+  if (around) loadMap();
+  else loadWhole();
+}
 
 async function loadMap() {
   const asked = ++mapState.asked;
@@ -212,6 +234,13 @@ function pathFinder() {
   });
   return box;
 }
+
+document.querySelectorAll('[data-map-mode]').forEach((b) => {
+  b.addEventListener('click', () => {
+    mapState.mode = b.dataset.mapMode;
+    showMapMode();
+  });
+});
 
 document.querySelectorAll('[data-direction]').forEach((b) => {
   b.addEventListener('click', () => {

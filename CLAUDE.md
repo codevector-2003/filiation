@@ -239,7 +239,7 @@ Phase 1 carries two extra weeks for that.
 - [ ] **M5 — The desktop app** (2–3 weeks). *In progress from 31 Oct 2026, ahead of M4.* The
       interface is `internal/ui` (`//go:embed`); a thin Wails v2 shell in `desktop/` shows it in a
       native window on all three platforms, with no port open (D24, D25). A browser version follows
-      later from the same screens (D26). Library (with sorting and filters), Search, Citation map, Inbox, AI assistants and the Reader work.
+      later from the same screens (D26). Library (with sorting and filters), Search, Citation map, Inbox, AI assistants and the Reader work. The Citation map can show the whole library.
 - [ ] **M6 — Claim genealogy** (3–4 weeks). Citation intent, weighted edges, tracing a claim to
       its earliest source. **The differentiator.**
 

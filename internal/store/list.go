@@ -41,6 +41,7 @@ var listOrders = map[string]string{
 	"cited":      "cited_by DESC, w.rowid",
 	"citedworld": "ifnull(w.cited_by_count, 0) DESC, w.rowid",
 	"added":      "w.added_at DESC, w.rowid DESC",
+	"arrived":    "w.rowid",
 }
 
 // conditions turns the query into SQL, leaving out the filter named by skip:
@@ -95,6 +96,7 @@ type ListRow struct {
 	Author     string // first author's name, "" when not known
 	Seed       bool
 	Hydrated   bool
+	RefsKnown  bool   // its reference list was read, even if it turned out empty
 	CitedBy    int    // in this library
 	HasPDF     bool   // a PDF on disk
 	TextStatus string // "", ok, no-text, gibberish, unreadable, timed-out
@@ -153,7 +155,7 @@ func (db *DB) List(ctx context.Context, q ListQuery) ([]ListRow, error) {
 SELECT w.fil_id, ifnull(w.openalex_id, ''), ifnull(w.title, ''), ifnull(w.year, 0),
        ifnull((SELECT a.name FROM authorship s JOIN author a ON a.openalex_id = s.author_id
                WHERE s.work_id = w.fil_id ORDER BY s.position LIMIT 1), ''),
-       w.is_seed, w.hydrated,
+       w.is_seed, w.hydrated, w.fetched_refs,
        (SELECT count(*) FROM cites c WHERE c.to_work = w.fil_id) AS cited_by,
        EXISTS (SELECT 1 FROM work_file f WHERE f.fil_id = w.fil_id AND f.missing = 0 AND lower(f.path) LIKE '%.pdf'),
        ifnull((SELECT t.status FROM work_text t WHERE t.fil_id = w.fil_id), ''),
@@ -170,7 +172,7 @@ ORDER BY `+order+limit+`;`, args...)
 	for rows.Next() {
 		var r ListRow
 		if err := rows.Scan(&r.FilID, &r.OpenAlexID, &r.Title, &r.Year, &r.Author, &r.Seed, &r.Hydrated,
-			&r.CitedBy, &r.HasPDF, &r.TextStatus, &r.Contexts, &r.Mismatch); err != nil {
+			&r.RefsKnown, &r.CitedBy, &r.HasPDF, &r.TextStatus, &r.Contexts, &r.Mismatch); err != nil {
 			return nil, fmt.Errorf("store: list the library: %w", err)
 		}
 		if !hasAll(foldTitle(r.Title), words) {
