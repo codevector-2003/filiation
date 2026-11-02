@@ -188,8 +188,7 @@ function renderPaper(p) {
 
   const parts = [head];
   if (actions.childElementCount > 0) parts.push(actions);
-  if (message.textContent) parts.push(message);
-  parts.push(stats);
+  parts.push(message, stats); // always there: a failed action reports into it
 
   if (p.sample.length > 0) {
     const box = el('div', 'sentences');

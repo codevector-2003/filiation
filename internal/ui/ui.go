@@ -252,6 +252,8 @@ func (s *server) paper(w http.ResponseWriter, r *http.Request) {
 		model.SourceExpansion: "FOUND BY FOLLOWING CITATIONS"}[work.Source]
 	if !out.PDF {
 		out.PDFNote = pdfNote(p)
+	} else if firstIsMismatch(p) {
+		out.PDFNote = "Its first pages do not carry this paper's title and author: it may be another paper or edition."
 	}
 	if p.Text != nil {
 		if p.Text.Status == "ok" {
@@ -311,6 +313,16 @@ func firstFile(p library.Paper) string {
 		}
 	}
 	return ""
+}
+
+// firstIsMismatch reports whether the file Open PDF opens names another paper.
+func firstIsMismatch(p library.Paper) bool {
+	for _, f := range p.Files {
+		if !f.Missing {
+			return f.Mismatch
+		}
+	}
+	return false
 }
 
 // pdfNote says why a paper has no PDF, from what the library knows.

@@ -140,6 +140,7 @@ button:disabled { cursor: default; }
 .btn.primary { border: 0; background: var(--accent); color: #FFFFFF; font-weight: 600; }
 .btn.primary:hover { background: #164766; }
 .why { color: var(--muted); }
+.why:empty, .error:empty { display: none; }
 .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .stat {
   display: flex; flex-direction: column; gap: 4px; padding: 12px;
