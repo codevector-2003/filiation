@@ -281,8 +281,12 @@ func (s *server) assistantList(w http.ResponseWriter, _ *http.Request) {
 	if calls == nil {
 		calls = []assistants.Call{}
 	}
+	args := `["mcp"]`
+	if !grow {
+		args = `["mcp", "--read-only"]`
+	}
 	send(w, map[string]any{"list": list, "grow": grow, "calls": calls,
-		"settings": fmt.Sprintf(`"%s": { "command": %q, "args": ["mcp"] }`, assistants.ServerName, s.Assistants.Command)})
+		"settings": fmt.Sprintf(`"%s": { "command": %q, "args": %s }`, assistants.ServerName, s.Assistants.Command, args)})
 }
 
 func (s *server) assistantConnect(w http.ResponseWriter, r *http.Request) {

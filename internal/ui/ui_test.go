@@ -321,6 +321,8 @@ func TestAssistantsScreen(t *testing.T) {
 		List  []assistants.Status `json:"list"`
 		Grow  bool                `json:"grow"`
 		Calls []assistants.Call   `json:"calls"`
+
+		Settings string `json:"settings"`
 	}
 	s := decode[screen](t, ask(t, h, "GET", "/api/assistants"))
 	if len(s.List) == 0 || !s.Grow || len(s.Calls) != 1 {
@@ -335,6 +337,9 @@ func TestAssistantsScreen(t *testing.T) {
 	s = decode[screen](t, ask(t, h, "GET", "/api/assistants"))
 	if s.Grow {
 		t.Error("growing still allowed")
+	}
+	if !strings.Contains(s.Settings, "--read-only") {
+		t.Errorf("copied settings = %q; want them read only too", s.Settings)
 	}
 	for _, a := range s.List {
 		if a.ID == "cursor" && (!a.Connected || !a.ReadOnly) {
