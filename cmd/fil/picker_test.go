@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -393,33 +392,6 @@ func TestHeadingsKeepThePlainOutputsNotes(t *testing.T) {
 	}
 	if got := searchHeading("green bees", false, false, 0); got != "Passages for green bees" {
 		t.Errorf("exact matches = %q", got)
-	}
-}
-
-// A link inside the library must not open what lies outside it.
-func TestInLibraryRefusesALinkLeadingOut(t *testing.T) {
-	t.Parallel()
-	dir := t.TempDir()
-	root, outside := filepath.Join(dir, "lib"), filepath.Join(dir, "secret.pdf")
-	if err := os.Mkdir(root, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(outside, []byte("x"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	link := filepath.Join(root, "paper.pdf")
-	if err := os.Symlink(outside, link); err != nil {
-		t.Skipf("no symlinks here: %v", err)
-	}
-	if err := reallyWithin(root, link); err == nil {
-		t.Error("a link leading out of the library was allowed")
-	}
-	inside := filepath.Join(root, "own.pdf")
-	if err := os.WriteFile(inside, []byte("x"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := reallyWithin(root, inside); err != nil {
-		t.Errorf("a file in the library was refused: %v", err)
 	}
 }
 

@@ -16,6 +16,7 @@ import (
 
 	"github.com/codevector-2003/filiation/internal/library"
 	"github.com/codevector-2003/filiation/internal/model"
+	"github.com/codevector-2003/filiation/internal/opener"
 )
 
 // The picker turns a list of papers — from list, search or neighbours — into
@@ -535,14 +536,14 @@ func (a libActions) openFile(path string) error {
 	if err := a.inLibrary(path); err != nil {
 		return err
 	}
-	return openWithSystem(path)
+	return opener.Open(path)
 }
 
 func (a libActions) openFolder(path string) error {
 	if err := a.inLibrary(path); err != nil {
 		return err
 	}
-	return openWithSystem(path)
+	return opener.Open(path)
 }
 
 func (a libActions) copyText(s string) error { return clipboard.WriteAll(s) }
@@ -553,7 +554,7 @@ func (a libActions) openURL(u string) error {
 	if !webAddress(u) {
 		return fmt.Errorf("%s is not a web address", u)
 	}
-	return openWithSystem(u)
+	return opener.Open(u)
 }
 
 // webAddress reports an absolute http or https address with a host.
@@ -622,24 +623,7 @@ func (a libActions) inLibrary(path string) error {
 	if _, err := os.Stat(path); err != nil {
 		return fmt.Errorf("%s is not there any more: fil library scan finds moved files", filepath.Base(path))
 	}
-	return reallyWithin(root, path)
-}
-
-// reallyWithin refuses a path that leads out of root: a link inside the
-// folder can point anywhere, so it compares where each really is.
-func reallyWithin(root, path string) error {
-	realRoot, err := filepath.EvalSymlinks(root)
-	if err != nil {
-		return err
-	}
-	realPath, err := filepath.EvalSymlinks(path)
-	if err != nil {
-		return err
-	}
-	if !within(realRoot, realPath) {
-		return fmt.Errorf("%s leads outside the library folder", filepath.Base(path))
-	}
-	return nil
+	return opener.Within(root, path)
 }
 
 // within reports whether path is root or inside it.

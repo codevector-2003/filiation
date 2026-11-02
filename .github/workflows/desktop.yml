@@ -1,0 +1,50 @@
+# Builds the desktop app on each system it ships for (D24, D25). fil's own CI
+# stays cgo-free; this is the one place that needs a C toolchain.
+name: desktop
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: desktop/go.mod
+          cache-dependency-path: desktop/go.sum
+
+      - name: Linux libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+
+      - name: Build
+        run: |
+          tags="desktop,production"
+          ldflags="-s -w"
+          cgo=1
+          case "$RUNNER_OS" in
+            Windows) cgo=0; ldflags="$ldflags -H windowsgui" ;;
+            Linux) tags="$tags,webkit2_41" ;;
+            # Wails v2 does not link UniformTypeIdentifiers, which the Xcode 26 SDK needs.
+            macOS) export CGO_LDFLAGS="-framework UniformTypeIdentifiers" ;;
+          esac
+          CGO_ENABLED=$cgo go build -tags "$tags" -ldflags "$ldflags" -o Filiation .
+          ls -l Filiation*
