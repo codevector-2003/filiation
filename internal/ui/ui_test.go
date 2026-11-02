@@ -477,7 +477,8 @@ func TestReaderServesThePDFAndKeepsNotes(t *testing.T) {
 		Notes []noteJSON `json:"notes"`
 	}
 	got := decode[list](t, ask(t, h, "GET", "/api/papers/"+id+"/notes")).Notes
-	if len(got) != 1 || got[0].Comment != "Compare with the 2019 count." || got[0].Colour != "yellow" || !strings.Contains(string(got[0].Rects), "0.3") {
+	if len(got) != 1 || got[0].Comment != "Compare with the 2019 count." || got[0].Colour != "yellow" || !strings.Contains(string(got[0].Rects), "0.3") ||
+		got[0].File == "" || got[0].File != decode[paperJSON](t, ask(t, h, "GET", "/api/papers/"+id)).File {
 		t.Fatalf("notes = %+v", got)
 	}
 

@@ -45,6 +45,14 @@ func (s *server) pdfFile(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, pdf.Path)
 }
 
+// pdfName is what a note remembers of the PDF it was made on.
+func pdfName(f library.PaperFile) string {
+	if f.Path == "" {
+		return ""
+	}
+	return filepath.Base(f.Path)
+}
+
 // isIndexed reports whether f is the file the paper's text was read from.
 func isIndexed(p library.Paper, f library.PaperFile) bool {
 	return p.Text == nil || p.Text.File == f.Path
@@ -56,6 +64,7 @@ type noteJSON struct {
 	Colour  string          `json:"colour"`
 	Quote   string          `json:"quote"`
 	Rects   json.RawMessage `json:"rects"`
+	File    string          `json:"file"`
 	Comment string          `json:"comment"`
 	Created string          `json:"created"`
 }
@@ -65,7 +74,7 @@ func toNoteJSON(n library.Note) noteJSON {
 	if !json.Valid(rects) {
 		rects = json.RawMessage("[]")
 	}
-	return noteJSON{ID: n.ID, Page: n.Page, Colour: n.Colour, Quote: n.Quote, Rects: rects, Comment: n.Comment, Created: n.Created}
+	return noteJSON{ID: n.ID, Page: n.Page, Colour: n.Colour, Quote: n.Quote, Rects: rects, File: n.File, Comment: n.Comment, Created: n.Created}
 }
 
 func (s *server) notes(w http.ResponseWriter, r *http.Request) {
@@ -87,8 +96,14 @@ func (s *server) addNote(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusBadRequest, err)
 		return
 	}
+	p, err := s.Library.Show(r.Context(), r.PathValue("id"))
+	if err != nil {
+		failFind(w, err)
+		return
+	}
+	pdf, _ := firstPDF(p)
 	n, err := s.Library.AddNote(r.Context(), r.PathValue("id"), library.Note{Page: req.Page, Colour: req.Colour,
-		Quote: req.Quote, Rects: string(req.Rects), Comment: req.Comment})
+		Quote: req.Quote, Rects: string(req.Rects), File: pdfName(pdf), Comment: req.Comment})
 	if err != nil {
 		failNote(w, err)
 		return

@@ -86,6 +86,10 @@ function matchWords(text, marks, words) {
   return found;
 }
 
+function onThisFile(n) {
+  return !n.file || n.file === reader.paper.file;
+}
+
 function drawNotes() {
   const box = $('reader-page');
   const marks = box.querySelector('.mark-layer');
@@ -93,7 +97,8 @@ function drawNotes() {
   const pins = box.querySelector('.pin-layer');
   marks.querySelectorAll('.note-box').forEach((n) => n.remove());
   pins.replaceChildren();
-  const here = reader.notes.filter((n) => n.page === reader.page && Array.isArray(n.rects) && n.rects.length > 0);
+  // A note's boxes fit only the file it was made on; another edition has other pages.
+  const here = reader.notes.filter((n) => n.page === reader.page && onThisFile(n) && Array.isArray(n.rects) && n.rects.length > 0);
   for (const n of here) {
     for (const r of n.rects) {
       const b = el('div', 'note-box');
@@ -294,6 +299,7 @@ function noteCard(n) {
     renderSide();
   }));
   card.append(top);
+  if (!onThisFile(n)) card.append(el('span', 'muted', 'Made on another edition (' + n.file + '), so it is not marked on this page.'));
   if (n.quote) {
     const q = el('p', 'note-quote', n.quote);
     q.style.borderLeftColor = COLOURS[n.colour] || 'var(--line)';

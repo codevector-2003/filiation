@@ -27,7 +27,7 @@ import (
 //	7  M3: import_attempt — what importing each of the user's PDFs gave (ADR-014)
 //	8  M3: mention — every citation found in a PDF, with its sentence (ADR-015)
 //	9  M3: work_file.identity — whether a downloaded PDF is the paper it is filed under
-//	10 M5: note.page, colour, quote, rects — notes the Reader keeps beside the PDF
+//	10 M5: note.page, colour, quote, rects, file — notes the Reader keeps beside the PDF
 const SchemaVersion = 10
 
 // upgrades[v] moves a library from schema v to v+1. Each runs inside
@@ -66,7 +66,7 @@ func upgradeV8ToV9(ctx context.Context, _ *DB, tx *sql.Tx) error {
 
 // upgradeV9ToV10 lets a note say where on a paper it is.
 func upgradeV9ToV10(ctx context.Context, _ *DB, tx *sql.Tx) error {
-	for _, col := range [][2]string{{"page", "INTEGER"}, {"colour", "TEXT"}, {"quote", "TEXT"}, {"rects", "TEXT"}} {
+	for _, col := range [][2]string{{"page", "INTEGER"}, {"colour", "TEXT"}, {"quote", "TEXT"}, {"rects", "TEXT"}, {"file", "TEXT"}} {
 		if err := addColumnIfMissing(ctx, tx, "note", col[0], col[1]); err != nil {
 			return err
 		}

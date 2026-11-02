@@ -18,6 +18,7 @@ type Note struct {
 	Colour  string // yellow | green | blue | pink, "" for a comment alone
 	Quote   string // the text marked
 	Rects   string // where on the page, as JSON fractions of its size
+	File    string // the name of the PDF marked: another edition has other pages
 	Comment string
 	Created string // as the database wrote it, UTC
 }
@@ -25,8 +26,8 @@ type Note struct {
 // AddNote stores a note and returns its ID.
 func (tx *Tx) AddNote(ctx context.Context, n Note) (int64, error) {
 	res, err := tx.tx.ExecContext(ctx, `
-INSERT INTO note (work_id, body, page, colour, quote, rects) VALUES (?, ?, ?, ?, ?, ?);`,
-		n.FilID, n.Comment, n.Page, n.Colour, n.Quote, n.Rects)
+INSERT INTO note (work_id, body, page, colour, quote, rects, file) VALUES (?, ?, ?, ?, ?, ?, ?);`,
+		n.FilID, n.Comment, n.Page, n.Colour, n.Quote, n.Rects, n.File)
 	if err != nil {
 		return 0, fmt.Errorf("add note: %w", err)
 	}
@@ -65,7 +66,7 @@ func oneNote(res sql.Result) error {
 // Notes lists a work's notes in reading order.
 func (db *DB) Notes(ctx context.Context, filID string) ([]Note, error) {
 	rows, err := db.read.QueryContext(ctx, `
-SELECT id, work_id, ifnull(page, 0), ifnull(colour, ''), ifnull(quote, ''), ifnull(rects, ''), body, ifnull(created_at, '')
+SELECT id, work_id, ifnull(page, 0), ifnull(colour, ''), ifnull(quote, ''), ifnull(rects, ''), ifnull(file, ''), body, ifnull(created_at, '')
 FROM note WHERE work_id = ? ORDER BY ifnull(page, 0), id;`, filID)
 	if err != nil {
 		return nil, fmt.Errorf("read notes: %w", err)
@@ -74,7 +75,7 @@ FROM note WHERE work_id = ? ORDER BY ifnull(page, 0), id;`, filID)
 	var out []Note
 	for rows.Next() {
 		var n Note
-		if err := rows.Scan(&n.ID, &n.FilID, &n.Page, &n.Colour, &n.Quote, &n.Rects, &n.Comment, &n.Created); err != nil {
+		if err := rows.Scan(&n.ID, &n.FilID, &n.Page, &n.Colour, &n.Quote, &n.Rects, &n.File, &n.Comment, &n.Created); err != nil {
 			return nil, fmt.Errorf("read notes: %w", err)
 		}
 		out = append(out, n)
