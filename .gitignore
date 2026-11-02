@@ -19,9 +19,6 @@ coverage.out
 /blobs/
 .filiation/
 
-# Web UI build output is embedded at build time, not committed
-internal/web/dist/
-
 # Secrets
 .env
 .env.*

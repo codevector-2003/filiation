@@ -598,8 +598,8 @@ server and the planned server mode would all pay for a window they do not use.
 
 **So the rule is narrowed, not dropped:**
 
-- **`fil` stays cgo-free.** The CLI, the MCP server, the library and the web interface it serves
-  (`internal/web`) remain one static binary per platform, cross-built from one machine. CI and
+- **`fil` stays cgo-free.** The CLI, the MCP server, the library and the interface
+  (`internal/ui`) remain one static binary per platform, cross-built from one machine. CI and
   GoReleaser already build it with `CGO_ENABLED=0`, so a dependency needing cgo fails the build.
 - **The desktop app shell may use cgo.** It lives in `desktop/`, a Go module of its own, so its
   dependencies never enter `fil`'s `go.mod`. It is thin: a native window showing the same
@@ -629,7 +629,7 @@ sandboxes its web content with bubblewrap, which Ubuntu restricts, and even when
 17–26 s to start. Its tray and multi-window support are not needed for the designed screens.
 
 **How it shows the interface:** in the same process. The window's page is served by the
-`http.Handler` that `internal/web` provides, the same one `fil` serves, so the interface is written
+`http.Handler` that `internal/ui` provides, so the interface is written
 once and no local port is opened for the window. The `desktop/` module requires fil's module
 through a `replace` to the repository root.
 
@@ -642,3 +642,24 @@ through a `replace` to the repository root.
   `libwebkit2gtk-4.1` at run time.
 
 **Revisit** Wails v3 when its Linux build starts quickly under the WebKitGTK 6.0 sandbox.
+
+---
+
+## D26 — The desktop app comes first; the browser version comes later (amends D24)
+
+**Decided:** 2 Nov 2026, M5
+
+D24 planned `fil` serving the interface from a local server, with a browser window as the fallback.
+The user wants a local application first, so that is not built now. The app shows `internal/ui` in
+its own window, in the same process, with no port open, so there is no local server to secure.
+
+**A browser version is still planned, later.** It serves the same handler, so the screens are
+written once. A listening port must then add what this does not need yet: `127.0.0.1` only, a launch
+token, and Host and Origin checks.
+
+**The screens have no build step:** plain HTML, CSS and JavaScript in `internal/ui/assets`, embedded
+with `//go:embed`. Fonts are embedded too, so the app never needs the network to look right.
+
+**Cost accepted:** until the browser version exists, Linux without WebKitGTK has the command line
+only. The window uses the native title bar, not the one drawn in the design, so it behaves correctly
+on all three systems.
