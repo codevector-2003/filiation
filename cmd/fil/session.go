@@ -142,7 +142,7 @@ func sessionArgs(line string) ([]string, error) {
 // picker, unless the line wants something else: JSON, help, or already says.
 func withPick(args []string) []string {
 	switch args[0] {
-	case "list", "search", "neighbours":
+	case "list", "search", "neighbours", "neighbors":
 	default:
 		return args
 	}
