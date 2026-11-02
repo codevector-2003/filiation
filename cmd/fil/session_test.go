@@ -227,3 +227,13 @@ func TestSessionCommands(t *testing.T) {
 		t.Errorf("session commands = %q", names)
 	}
 }
+
+func TestWithPickKnowsBothSpellings(t *testing.T) {
+	t.Parallel()
+	for _, name := range []string{"neighbours", "neighbors"} {
+		got := withPick([]string{name, "F1"})
+		if got[len(got)-1] != "--pick" {
+			t.Errorf("withPick(%s) = %v", name, got)
+		}
+	}
+}

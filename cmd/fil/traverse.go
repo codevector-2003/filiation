@@ -47,6 +47,7 @@ func (a *app) neighboursCommand() *cobra.Command {
 	}
 	cmd.Flags().IntVar(&limit, "limit", 15, "most works to list on each side; 0 lists all")
 	cmd.Flags().BoolVar(&withContext, "context", false, "show the sentence each reference is cited in")
+	cmd.Flags().BoolVar(&a.pickMode, "pick", false, "move through the neighbours with the arrow keys; Enter for details")
 	return cmd
 }
 
@@ -102,6 +103,18 @@ func (a *app) neighbours(ctx context.Context, input string, limit int, withConte
 	n, err := lib.Neighbours(ctx, input)
 	if err != nil {
 		return a.explainFind(err)
+	}
+	// --context asks for the sentences, which only the printed list has.
+	if a.pickMode && a.canPick() && !withContext {
+		act := libActions{ctx: ctx, lib: lib, limit: limit}
+		heading, rows, err := act.neighbours(n.Work.FilID)
+		if err != nil {
+			return err
+		}
+		// With nothing to move through, the plain output says why.
+		if len(rows) > 0 {
+			return a.pickWith(act, heading, rows)
+		}
 	}
 
 	w := a.stdout

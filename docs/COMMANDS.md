@@ -6,6 +6,23 @@ prompt, and runs one command after another. Type a command with or without the l
 walk the menu or your history, and Ctrl+C stops a running command without leaving. `help` lists
 examples and `exit` leaves.
 
+In a session, `list`, `search` and `neighbours` show their papers as a list you move through
+(outside a session, add `--pick`). Arrow keys move, `/` filters by title, Enter shows the paper:
+its authors, DOI, IDs, place in the graph, PDF and text. From there, or straight from the list:
+
+| Key | Does |
+| --- | --- |
+| `o` | Open the PDF in your computer's default PDF reader |
+| `w` | Open the paper's page on the web in your browser: where its DOI leads, else an open copy's page, else its OpenAlex page |
+| `f` | Open the paper's folder in File Explorer, Finder or your file manager |
+| `c` | Copy the DOI |
+| `n` | List the paper's neighbours, what it cites and what cites it; Esc comes back |
+| `g` | Get the PDF, for a paper without one (on its details) |
+| `Esc` | Back a step; from the first list, back to the prompt |
+
+Only files inside your library folder and `http`/`https` addresses are opened, and never through a
+shell.
+
 Every command has `--help`. Exit codes are distinct per outcome (not found, ambiguous, network, and
 so on), so scripts can branch on them. `--library <name>` picks a library for any command, and
 `--plain` turns colour off.
