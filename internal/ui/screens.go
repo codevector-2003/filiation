@@ -120,6 +120,47 @@ type nodeJSON struct {
 	Step   int    `json:"step"`
 }
 
+type graphNodeJSON struct {
+	ID    string `json:"id"`
+	Title string `json:"title"` // "" while OpenAlex's record has not been read
+	By    string `json:"by"`
+	Seed  bool   `json:"seed"`
+	PDF   bool   `json:"pdf"`
+	Stub  bool   `json:"stub"`
+	Cited int    `json:"cited"` // by papers in this library
+}
+
+// wholeGraph is every paper and citation. Papers keep the order they arrived
+// in, and edges refer to them by position, which keeps the answer small and
+// the map's layout the same from one visit to the next.
+func (s *server) wholeGraph(w http.ResponseWriter, r *http.Request) {
+	rows, err := s.Library.List(r.Context(), library.ListOptions{Sort: "arrived"})
+	if err != nil {
+		fail(w, http.StatusInternalServerError, err)
+		return
+	}
+	citations, err := s.Library.Citations(r.Context())
+	if err != nil {
+		fail(w, http.StatusInternalServerError, err)
+		return
+	}
+	nodes := make([]graphNodeJSON, len(rows))
+	at := make(map[string]int, len(rows))
+	for i, l := range rows {
+		nodes[i] = graphNodeJSON{ID: l.FilID, Title: l.Title, By: rowBy(l), Seed: l.Seed, PDF: l.HasPDF, Stub: !l.Hydrated, Cited: l.CitedBy}
+		at[l.FilID] = i
+	}
+	edges := make([][2]int, 0, len(citations))
+	for _, c := range citations {
+		from, ok := at[c[0]]
+		to, ok2 := at[c[1]]
+		if ok && ok2 {
+			edges = append(edges, [2]int{from, to})
+		}
+	}
+	send(w, map[string]any{"nodes": nodes, "edges": edges})
+}
+
 func (s *server) mapAround(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	ctx := r.Context()

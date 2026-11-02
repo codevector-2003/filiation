@@ -136,17 +136,42 @@
   <div class="screen" id="screen-map" hidden>
     <main class="list-pane">
       <div class="map-bar">
-        <span class="map-around">Around:</span>
-        <span class="map-title" id="map-title"></span>
-        <div class="toggle" role="group" aria-label="Direction">
-          <button type="button" data-direction="cites" aria-pressed="true" class="on">What it cites</button>
-          <button type="button" data-direction="citedby" aria-pressed="false">What cites it</button>
+        <div class="toggle" role="group" aria-label="Map">
+          <button type="button" data-map-mode="whole" aria-pressed="true" class="on">Whole library</button>
+          <button type="button" data-map-mode="around" aria-pressed="false">Around a paper</button>
         </div>
-        <label for="steps">Steps</label>
-        <select id="steps"><option>1</option><option>2</option></select>
+        <div class="map-controls" id="whole-bar">
+          <label class="hidden-label" for="whole-find">Find a paper on the map</label>
+          <input id="whole-find" type="search" placeholder="Find a paper" autocomplete="off">
+          <label class="whole-check"><input type="checkbox" id="whole-all">Show every paper</label>
+          <span class="muted" id="whole-count" aria-live="polite"></span>
+          <span class="whole-filter" id="whole-filter" hidden><span id="whole-filter-text"></span><button type="button" class="link" id="whole-filter-off">Ignore</button></span>
+        </div>
+        <div class="map-controls" id="around-bar" hidden>
+          <span class="map-around">Around:</span>
+          <span class="map-title" id="map-title"></span>
+          <div class="toggle" role="group" aria-label="Direction">
+            <button type="button" data-direction="cites" aria-pressed="true" class="on">What it cites</button>
+            <button type="button" data-direction="citedby" aria-pressed="false">What cites it</button>
+          </div>
+          <label for="steps">Steps</label>
+          <select id="steps"><option>1</option><option>2</option></select>
+        </div>
         <button type="button" class="btn small" id="map-export">Export for Gephi</button>
       </div>
-      <div class="map-view" id="map-view">
+      <div class="map-view whole-view" id="whole-view">
+        <canvas id="whole-canvas" aria-label="Every paper in your library and the citations between them. Use Find a paper to reach one by title."></canvas>
+        <div class="whole-found" id="whole-found" hidden></div>
+        <div class="whole-tip" id="whole-tip" hidden></div>
+        <div class="map-empty" id="whole-note" hidden></div>
+        <div class="legend">
+          <span><i class="key dot seed"></i>Added by you</span>
+          <span><i class="key dot pdf"></i>PDF in your library</span>
+          <span><i class="key dot titled"></i>No PDF</span>
+          <span><i class="key dot unnamed"></i>Title not fetched</span>
+        </div>
+      </div>
+      <div class="map-view" id="map-view" hidden>
         <div class="map-plane" id="map-plane">
           <svg class="map-lines" id="map-lines" aria-hidden="true" width="1" height="1"></svg>
         </div>
@@ -304,6 +329,7 @@
 <script src="app.js"></script>
 <script src="search.js"></script>
 <script src="map.js"></script>
+<script src="whole.js"></script>
 <script src="inbox.js"></script>
 <script src="assistants.js"></script>
 <script src="reader.js"></script>

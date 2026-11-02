@@ -41,6 +41,7 @@ var listOrders = map[string]string{
 	"cited":      "cited_by DESC, w.rowid",
 	"citedworld": "ifnull(w.cited_by_count, 0) DESC, w.rowid",
 	"added":      "w.added_at DESC, w.rowid DESC",
+	"arrived":    "w.rowid",
 }
 
 // conditions turns the query into SQL, leaving out the filter named by skip:

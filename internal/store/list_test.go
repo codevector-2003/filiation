@@ -37,6 +37,9 @@ INSERT INTO authorship (work_id, author_id, position) VALUES ('F00000001', 'A1',
 			t.Errorf("sort %s = %s, want %s", sort, got, want)
 		}
 	}
+	if rows, _ := db.List(ctx, ListQuery{Sort: "arrived"}); len(rows) != 3 || rows[0].FilID != "F00000001" {
+		t.Errorf("arrival order = %+v", rows)
+	}
 	if _, err := db.List(ctx, ListQuery{Sort: "by mood"}); !errors.Is(err, errs.ErrInvalidInput) {
 		t.Errorf("an unknown order = %v", err)
 	}
