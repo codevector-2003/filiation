@@ -65,6 +65,8 @@ type app struct {
 	libraryFlag string
 	noCache     bool
 	plain       bool
+	// pickMode is a list command's --pick: show its papers in the picker.
+	pickMode bool
 
 	// configPath is the file to name when the fix is to edit it. Set as soon
 	// as config has been located, so an error after that point can point at it.
