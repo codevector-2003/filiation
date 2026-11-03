@@ -26,6 +26,7 @@ type work struct {
 	mu     sync.Mutex
 	job    jobJSON
 	cancel context.CancelFunc
+	done   chan struct{} // closed when the job's goroutine has returned
 
 	inbox   []*inboxItem
 	nextID  int
@@ -57,7 +58,8 @@ func (s *server) start(w http.ResponseWriter, kind string, fn func(ctx context.C
 		return
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	s.work.cancel = cancel
+	done := make(chan struct{})
+	s.work.cancel, s.work.done = cancel, done
 	s.work.job = jobJSON{Kind: kind, Running: true, Run: s.work.job.Run + 1}
 	set := func(done, total int, note string) {
 		s.work.mu.Lock()
@@ -65,6 +67,7 @@ func (s *server) start(w http.ResponseWriter, kind string, fn func(ctx context.C
 		s.work.job.Done, s.work.job.Total, s.work.job.Note = done, total, note
 	}
 	go func() {
+		defer close(done)
 		defer cancel()
 		summary, err := fn(ctx, set)
 		s.work.mu.Lock()
@@ -93,6 +96,26 @@ func (s *server) jobStop(w http.ResponseWriter, _ *http.Request) {
 		s.work.cancel()
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// stopJob stops the running job, if there is one, and waits for it to let go
+// of the library.
+func (s *server) stopJob() {
+	s.work.mu.Lock()
+	done := s.work.done
+	if s.work.job.Running {
+		s.work.cancel()
+	}
+	s.work.mu.Unlock()
+	if done != nil {
+		<-done
+	}
+}
+
+func (s *server) running() (jobJSON, bool) {
+	s.work.mu.Lock()
+	defer s.work.mu.Unlock()
+	return s.work.job, s.work.job.Running
 }
 
 func (s *server) fetch(w http.ResponseWriter, _ *http.Request) {

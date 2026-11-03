@@ -745,3 +745,32 @@ shows its type and how often it is cited, because a book's reviews carry its tit
 document keeps its fil ID, PDF, collections, labels and notes; if the library has the work
 already, the two become one through the same fold a merge uses, and the document's fil ID becomes
 an alias. Building this found that a merge deleted a work's `zotero_item` row; it now moves it.
+
+## D30 — The window has no frame, and the app switches libraries while it runs
+
+Decided 3 Nov 2026. The Windows title bar, a strip in the system's accent colour with nothing of
+the app in it, made Filiation look unfinished beside the tools researchers already use. On Windows
+the window is frameless and the page draws its own title bar, as VS Code does: the logo, the menus
+(File, Edit, View, Library, Go, Paper, Help), the library switcher in the middle, the running job,
+and minimise, maximise and close. Wails moves the window from anything marked
+`--wails-draggable: drag` and keeps the edges for resizing and snapping. macOS keeps its three
+buttons over the page, and its menu bar at the top of the screen is built from the same list
+(`ui.Menus`), each item sending its ID to the page; Edit there is the system's own. Linux keeps its
+window manager's frame, because Wails cannot resize a frameless window there, and the page draws
+the menus below it.
+
+The menus are data in Go, so the page and the Mac's menu bar cannot drift apart, and every command
+runs by its ID however it was asked for. A menu holds only what the app can do: items that need a
+paper are greyed until one is chosen. The library card, the job card and Help left the sidebar for
+the title bar.
+
+The settings could already list several libraries (`fil library new`), but the app opened only
+one. A `ui.Window` now serves one library at a time and swaps it while running: every request to
+the open library holds a read lock, and a switch waits for them, stops the running job only once
+the person has agreed, opens the new library before closing the old one (so a library that will not
+open leaves the last one on screen), and gives it a fresh server, so nothing one library's screens
+remembered follows the person into the next. The library switched to is the one the app opens next
+time. Opening a folder lists it in the settings (`config.Adopt`); an empty or new folder becomes a
+new library; any other folder must have its `filiation.toml`, so a folder of photos is refused
+rather than turned into a library. A library whose folder has gone can be taken off the list, which
+deletes nothing.

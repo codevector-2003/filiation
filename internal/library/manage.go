@@ -41,6 +41,33 @@ func Create(ctx context.Context, cfg *config.Config, dir string, makeDefault boo
 	return &nc, lib.Close()
 }
 
+// ErrNotLibrary is a folder with things in it that is not a library folder.
+var ErrNotLibrary = errors.New("not a library folder")
+
+// Adopt lists the library folder dir in the global settings, so it can be
+// opened by name, and returns its settings. A folder that does not exist or is
+// empty becomes a new library, as Create makes one; a folder with anything else
+// in it must already be a library, with its filiation.toml.
+func Adopt(ctx context.Context, cfg *config.Config, dir string) (*config.Config, error) {
+	nc := *cfg
+	nc.FirstRun = false
+	if err := nc.UseFolder(dir); err != nil {
+		return nil, err
+	}
+	if emptyOrAbsent(nc.Folder) == nil {
+		return Create(ctx, cfg, dir, false)
+	}
+	if _, err := os.Stat(nc.LibraryConfigPath); err != nil {
+		return nil, fmt.Errorf("%s has files in it but no %s, so it is %w: choose a library folder, or an empty one for a new library",
+			nc.Folder, config.FileName, ErrNotLibrary)
+	}
+	if err := nc.Adopt(dir); err != nil {
+		return nil, err
+	}
+	// Loaded afresh, so nothing of the library cfg named carries over.
+	return config.Load(config.Options{Dir: nc.Dir(), LibraryFlag: nc.Folder})
+}
+
 // Relocated is what Move did.
 type Relocated struct {
 	Folder   string // the library folder now

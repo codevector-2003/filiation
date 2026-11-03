@@ -41,11 +41,17 @@ type Options struct {
 	PickFiles func() ([]string, error)
 	// PickExport asks for a Zotero RDF export; "" when none is chosen.
 	PickExport func() (string, error)
+	// PickFolder asks for a folder, under the title given; "" when none is
+	// chosen. Only a Window uses it, to open and make libraries.
+	PickFolder func(title string) (string, error)
 
 	// Assistants is where to find AI assistants, and CallLog the record of
 	// what they asked. A nil Assistants leaves that screen out.
 	Assistants *assistants.Env
 	CallLog    string
+
+	// Version is the app's version, for About.
+	Version string
 }
 
 type server struct {
@@ -54,9 +60,13 @@ type server struct {
 	readOnly bool // assistants may read but not grow the library; guarded by work.mu
 }
 
-// New returns the handler serving the screens and their data.
+// New returns the handler serving the screens and their data, for the one
+// library opts names. A Window serves them for whichever library is open.
 func New(opts Options) http.Handler {
-	s := &server{Options: opts}
+	return (&server{Options: opts}).routes()
+}
+
+func (s *server) routes() http.Handler {
 	root, err := fs.Sub(assets, "assets")
 	if err != nil {
 		panic(err) // the embedded tree always has assets/
@@ -64,6 +74,10 @@ func New(opts Options) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("GET /", scripts(http.FileServerFS(root)))
 	mux.HandleFunc("GET /api/library", s.library)
+	mux.HandleFunc("GET /api/library/stats", s.needLibrary(s.stats))
+	mux.HandleFunc("POST /api/library/folder", s.needLibrary(s.libraryFolder))
+	mux.HandleFunc("POST /api/library/scan", s.needLibrary(s.scan))
+	mux.HandleFunc("GET /api/menus", s.menus)
 	mux.HandleFunc("GET /api/papers", s.needLibrary(s.papers))
 	mux.HandleFunc("GET /api/papers/ids", s.needLibrary(s.paperIDs))
 	mux.HandleFunc("GET /api/papers/{id}", s.needLibrary(s.paper))
@@ -103,6 +117,7 @@ func New(opts Options) http.Handler {
 	mux.HandleFunc("GET /api/job", s.jobStatus)
 	mux.HandleFunc("POST /api/job/stop", s.jobStop)
 	mux.HandleFunc("POST /api/fetch", s.needLibrary(s.fetch))
+	mux.HandleFunc("POST /api/expand", s.needLibrary(s.expand))
 	mux.HandleFunc("GET /api/inbox", s.needLibrary(s.inboxList))
 	mux.HandleFunc("POST /api/inbox/import", s.needLibrary(s.inboxImport))
 	mux.HandleFunc("POST /api/inbox/choose", s.needLibrary(s.inboxChoose))

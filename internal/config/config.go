@@ -603,6 +603,39 @@ func (c *Config) Forget(folder string) {
 	c.global.Libraries = kept
 }
 
+// Dir is the directory holding the global settings.
+func (c *Config) Dir() string { return c.appDir }
+
+// Adopt points this configuration at the library folder dir, which already
+// has its settings file, and lists it in the global settings.
+func (c *Config) Adopt(dir string) error {
+	if err := c.UseFolder(dir); err != nil {
+		return err
+	}
+	c.FirstRun = false
+	if err := c.readLibraryFile(); err != nil {
+		return err
+	}
+	return c.Save()
+}
+
+// ForgetLibrary takes the library at folder off the global list, and stops
+// opening it by default, for a library a person no longer wants offered —
+// most often one whose folder has gone. Nothing on disk changes.
+func (c *Config) ForgetLibrary(folder string) error {
+	for _, lib := range c.global.Libraries {
+		if samePath(lib.Folder, folder) && c.global.DefaultLibrary != nil && strings.EqualFold(*c.global.DefaultLibrary, lib.Name) {
+			c.global.DefaultLibrary = nil
+		}
+	}
+	c.Forget(folder)
+	if err := writeTOML(c.ConfigPath, globalHeader, c.global); err != nil {
+		return err
+	}
+	c.Libraries = append(c.Libraries[:0:0], c.global.Libraries...)
+	return nil
+}
+
 // Save writes the settings, creating directories as needed.
 //
 // It is how a location chosen on first run survives to the second. Choosing is

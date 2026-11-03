@@ -62,13 +62,13 @@ function show(name, arg) {
 async function loadLibrary() {
   const lib = await api('/api/library');
   state.lib = lib;
-  $('lib-name').textContent = lib.name;
-  $('lib-path').textContent = lib.folder || '';
+  $('lib-name').textContent = lib.ready ? lib.name : 'No library open';
+  $('tb-lib').title = lib.folder ? lib.folder + '. Switch library' : 'Switch library';
   if (!lib.ready) {
-    showNoLibrary(lib);
+    showStart(lib);
     return false;
   }
-  $('count-papers').textContent = lib.works.toLocaleString();
+  showCount(lib.works);
   const inbox = $('count-inbox');
   inbox.hidden = lib.inbox === 0;
   inbox.textContent = lib.inbox;
@@ -77,11 +77,15 @@ async function loadLibrary() {
   return true;
 }
 
-function showNoLibrary(lib) {
-  $('filter').disabled = true;
-  document.querySelectorAll('.tab, .nav:not([data-screen="papers"]), #fetch-pdfs, #add-paper, #sort, #filters-toggle, .side-add').forEach((t) => { t.disabled = true; });
-  const text = lib.problem || 'No library is open.';
-  $('rows').replaceChildren(el('div', 'note error', text));
+function showCount(works) {
+  $('count-papers').textContent = works.toLocaleString();
+  $('lib-count').textContent = works === 1 ? '1 paper' : works.toLocaleString() + ' papers';
+}
+
+// unfiltered: the list is showing the whole library, so its total is the
+// library's size. An assistant can grow the library while the window is open.
+function unfiltered() {
+  return state.show === 'all' && !state.title && !filtersOn() && !state.favourites && state.labels.length === 0;
 }
 
 function listQuery(offset) {
@@ -250,7 +254,13 @@ function renderFilters(res) {
   $('author-options').replaceChildren(...res.facets.authors.map((a) => pickOption(a, state.authors, () => state.authors)));
   $('venue-options').replaceChildren(...res.facets.venues.map((v) => pickOption(v, state.venues, () => state.venues)));
 
-  const all = state.lib ? state.lib.works : res.total;
+  if (state.lib && unfiltered() && res.total !== state.lib.works) {
+    state.lib.works = res.total;
+    showCount(res.total);
+  } else if (state.lib && res.total > state.lib.works) {
+    loadLibrary();
+  }
+  const all = state.lib ? Math.max(state.lib.works, res.total) : res.total;
   $('list-count').textContent = res.total === all
     ? all.toLocaleString() + (all === 1 ? ' paper' : ' papers')
     : res.total.toLocaleString() + ' of ' + all.toLocaleString() + ' papers';
@@ -470,7 +480,7 @@ function renderPaper(p) {
 }
 
 // Long work runs one job at a time; the sidebar shows it on every screen.
-const job = { timer: 0, run: 0, listeners: [], ticks: [], last: null };
+const job = { timer: 0, hide: 0, run: 0, listeners: [], ticks: [], last: null };
 
 async function pollJob() {
   let j;
@@ -495,12 +505,16 @@ function renderJob(j) {
   job.last = j;
   job.ticks.forEach((f) => f(j));
   const box = $('job');
+  clearTimeout(job.hide);
   if (!j.running && !j.summary && !j.error) {
     box.hidden = true;
     return;
   }
   box.hidden = false;
-  $('job-title').textContent = { import: 'Filing PDFs', zotero: 'Bringing in Zotero' }[j.kind] || 'Fetching PDFs';
+  // What a finished job did stays a while, then makes room; an error stays.
+  if (!j.running && !j.error) job.hide = setTimeout(() => { box.hidden = true; }, 12000);
+  $('job-title').textContent = { import: 'Filing PDFs', zotero: 'Bringing in Zotero', expand: 'Following citations' }[j.kind] || 'Fetching PDFs';
+  box.title = j.error || (j.running ? j.note : j.summary) || '';
   $('job-count').textContent = j.running && j.total > 0 ? j.done + ' of ' + j.total : '';
   $('job-fill').style.width = j.running ? (j.total > 0 ? Math.round((100 * j.done) / j.total) : 100) + '%' : '100%';
   $('job-note').textContent = j.error || (j.running ? j.note : j.summary) || '';
@@ -597,7 +611,6 @@ $('rows').addEventListener('keydown', (e) => {
   }
 });
 
-$('help').addEventListener('click', () => openOutside(DOCS));
 $('job-stop').addEventListener('click', () => api('/api/job/stop', 'POST'));
 $('fetch-pdfs').addEventListener('click', () => {
   startJob('/api/fetch').catch((e) => renderJob({ error: e.message }));
