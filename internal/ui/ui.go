@@ -118,6 +118,9 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("POST /api/job/stop", s.jobStop)
 	mux.HandleFunc("POST /api/fetch", s.needLibrary(s.fetch))
 	mux.HandleFunc("POST /api/expand", s.needLibrary(s.expand))
+	mux.HandleFunc("POST /api/pdfs", s.needLibrary(s.downloadPDFs))
+	mux.HandleFunc("GET /api/papers/{id}/around", s.needLibrary(s.surroundings))
+	mux.HandleFunc("POST /api/papers/{id}/around", s.needLibrary(s.bringAround))
 	mux.HandleFunc("GET /api/inbox", s.needLibrary(s.inboxList))
 	mux.HandleFunc("POST /api/inbox/import", s.needLibrary(s.inboxImport))
 	mux.HandleFunc("POST /api/inbox/choose", s.needLibrary(s.inboxChoose))
@@ -240,6 +243,7 @@ type rowJSON struct {
 	Labels      []int64 `json:"labels"`
 	Collections []int64 `json:"collections"`      // the ones it is in itself
 	Zotero      string  `json:"zotero,omitempty"` // matched, or unmatched: kept as a local document
+	Local       bool    `json:"local,omitempty"`  // OpenAlex does not know it
 }
 
 // listOptions reads what the Papers list is showing from a request.
@@ -309,7 +313,7 @@ func (s *server) papers(w http.ResponseWriter, r *http.Request) {
 	for i, l := range rows {
 		out[i] = rowJSON{ID: l.FilID, Title: l.Title, By: rowBy(l), Seed: l.Seed, PDF: l.HasPDF, Mismatch: l.Mismatch,
 			Text: textNote(l.TextStatus), Searchable: l.TextStatus == "ok", Sentences: l.Contexts, Stub: !l.Hydrated,
-			Favourite: l.Favourite, Labels: l.Labels, Collections: l.Collections, Zotero: l.Zotero}
+			Favourite: l.Favourite, Labels: l.Labels, Collections: l.Collections, Zotero: l.Zotero, Local: l.OpenAlexID == ""}
 		if out[i].Title == "" {
 			out[i].Title = "Not fetched yet: " + l.OpenAlexID
 		}
@@ -432,6 +436,9 @@ type paperJSON struct {
 	Zotero      string  `json:"zotero,omitempty"`
 	// Local: a document OpenAlex did not know, which can be matched to it.
 	Local bool `json:"local"`
+	// Downloadable: no PDF here, and asking for one may find a legal copy.
+	Downloadable bool `json:"downloadable"`
+	CitedWorld   int  `json:"citedWorld"` // by OpenAlex's count
 }
 
 func (s *server) paper(w http.ResponseWriter, r *http.Request) {
@@ -451,6 +458,12 @@ func (s *server) paper(w http.ResponseWriter, r *http.Request) {
 	out.Origin = map[model.Source]string{model.SourceSeed: "ADDED BY YOU", model.SourceUpload: "IMPORTED BY YOU",
 		model.SourceExpansion: "FOUND BY FOLLOWING CITATIONS", model.SourceZotero: "FROM YOUR ZOTERO LIBRARY"}[work.Source]
 	out.File = s.pdfName(pdf)
+	out.CitedWorld = work.CitedByCount
+	switch p.PDF.Availability {
+	case model.PDFNoOpenCopy, model.PDFOpenNoLink, model.PDFNotInOpenAlex:
+	default:
+		out.Downloadable = !out.PDF && !out.Local
+	}
 	if !out.PDF {
 		out.PDFNote = pdfNote(p)
 	} else if pdf.Mismatch {
@@ -546,7 +559,7 @@ func pdfNote(p library.Paper) string {
 	case model.PDFOpenNoLink:
 		return "Open access, but only as a web page."
 	case model.PDFNoOpenCopy:
-		return "No open-access copy is known."
+		return "No open-access copy is known. Filiation downloads only legal open-access copies, never from behind a publisher's paywall. Read it through your library, or add a copy you have with Import PDFs."
 	case model.PDFNotInOpenAlex:
 		return "Not in OpenAlex."
 	}
