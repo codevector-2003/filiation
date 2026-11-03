@@ -3,6 +3,8 @@ package graph
 import (
 	"context"
 	"fmt"
+	"slices"
+	"strings"
 	"sync"
 
 	"github.com/codevector-2003/filiation/internal/errs"
@@ -21,6 +23,7 @@ type fakeSource struct {
 	merged map[string]string             // retired ID -> surviving ID
 
 	resolved int
+	citing   int        // Citing calls
 	batches  [][]string // the IDs of every GetWorksBatch call, in order
 
 	// beforeBatch, if set, runs at the start of each batch call with its
@@ -52,6 +55,31 @@ func (f *fakeSource) Resolve(_ context.Context, id identity.ID) (model.HydratedW
 		return model.HydratedWork{}, fmt.Errorf("fake: %s: %w", id.Value, errs.ErrUnresolved)
 	}
 	return h, nil
+}
+
+// Citing answers from the reference lists held, most cited first, as
+// OpenAlex's cites: filter sorted by cited_by_count does.
+func (f *fakeSource) Citing(_ context.Context, id string, limit int) ([]model.HydratedWork, int, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.citing++
+	var out []model.HydratedWork
+	for key, w := range f.works {
+		if key != w.OpenAlexID {
+			continue // the same work held by its DOI
+		}
+		if slices.Contains(w.ReferencedWorks, id) {
+			out = append(out, w)
+		}
+	}
+	slices.SortFunc(out, func(a, b model.HydratedWork) int {
+		if a.CitedByCount != b.CitedByCount {
+			return b.CitedByCount - a.CitedByCount
+		}
+		return strings.Compare(a.OpenAlexID, b.OpenAlexID)
+	})
+	total := len(out)
+	return out[:min(limit, total)], total, nil
 }
 
 func (f *fakeSource) SearchByTitle(context.Context, string, int) ([]openalex.Candidate, error) {

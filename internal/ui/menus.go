@@ -103,6 +103,8 @@ var Menus = []Menu{
 	{"Paper", []MenuItem{
 		{ID: "paper.read", Label: "Read"},
 		{ID: "paper.open", Label: "Open PDF"},
+		{ID: "paper.download", Label: "Download PDF", Keys: "cmdorctrl+d"},
+		{ID: "paper.around", Label: "Bring In Papers Around This…", Keys: "cmdorctrl+shift+e"},
 		{ID: "paper.map", Label: "Show on Citation Map", Keys: "cmdorctrl+m"},
 		sep,
 		{ID: "paper.favourite", Label: "Favourite"},

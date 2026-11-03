@@ -444,6 +444,13 @@ function renderPaper(p) {
   const actions = el('div', 'actions');
   if (p.pdf) actions.append(button('Read', 'btn primary', () => openReader(p.id, 1, [])));
   if (p.pdf) actions.append(act('Open PDF', false, '/open'));
+  if (!p.pdf && !p.local) {
+    const get = button('Download PDF', p.downloadable ? 'btn primary' : 'btn', () => downloadPDFs([p.id]));
+    get.disabled = !p.downloadable || !!(job.last && job.last.running);
+    if (!p.downloadable) get.title = p.pdfNote || 'No legal open-access copy is known';
+    actions.append(get);
+  }
+  if (!p.local) actions.append(button('Bring in papers around this…', 'btn', () => aroundDialog(p)));
   if (p.folder) actions.append(act('Show in folder', false, '/folder'));
   actions.append(button('Citation map', 'btn', () => show('map', p.id)));
   if (p.web) actions.append(button('Website', 'btn', () => openOutside(p.web)));
@@ -513,7 +520,8 @@ function renderJob(j) {
   box.hidden = false;
   // What a finished job did stays a while, then makes room; an error stays.
   if (!j.running && !j.error) job.hide = setTimeout(() => { box.hidden = true; }, 12000);
-  $('job-title').textContent = { import: 'Filing PDFs', zotero: 'Bringing in Zotero', expand: 'Following citations' }[j.kind] || 'Fetching PDFs';
+  $('job-title').textContent = { import: 'Filing PDFs', zotero: 'Bringing in Zotero', expand: 'Following citations',
+    download: 'Downloading', around: 'Bringing in papers' }[j.kind] || 'Fetching PDFs';
   box.title = j.error || (j.running ? j.note : j.summary) || '';
   $('job-count').textContent = j.running && j.total > 0 ? j.done + ' of ' + j.total : '';
   $('job-fill').style.width = j.running ? (j.total > 0 ? Math.round((100 * j.done) / j.total) : 100) + '%' : '100%';

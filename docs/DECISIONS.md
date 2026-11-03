@@ -774,3 +774,25 @@ time. Opening a folder lists it in the settings (`config.Adopt`); an empty or ne
 new library; any other folder must have its `filiation.toml`, so a folder of photos is refused
 rather than turned into a library. A library whose folder has gone can be taken off the list, which
 deletes nothing.
+
+## D31 — Bringing in the papers around one paper, with their details only
+
+Decided 4 Nov 2026. Expand grows outward from the whole library; a researcher often wants only the
+neighbourhood of the paper in front of them. "Bring in papers around this" fetches, for one paper,
+what it cites and what cites it, one citation step and no further (`graph.BringAround`).
+
+What it cites is already recorded as stubs; their details cost one request per 100. What cites it
+is a new query, `filter=cites:W…` sorted by `cited_by_count:desc`, one request per 200, so a
+classic with ten thousand citers gives its most cited first and the person chooses how many
+(up to 1,000). Measured on PeerJ 4375: 1,238 citers worldwide, 45 references and 30 citers brought
+in by two requests and the batch for the references.
+
+By default the papers come in as stubs with their details (title, year, venue, type, citation
+count, authors) and the citations to and from this paper, not their own reference lists: 100 citing
+papers recording theirs would add about 5,000 "Not fetched" rows to the list. A citing paper stays
+off the expansion frontier until something cites it, so Expand does not wander into it later. A box
+in the dialog records their references as well, hydrating them as Expand would.
+
+Download PDF on a paper is `fil fetch <paper>`: naming a paper is asking for it, so every link is
+tried again. It is greyed when OpenAlex knows no legal copy, or only a web page, and says why.
+

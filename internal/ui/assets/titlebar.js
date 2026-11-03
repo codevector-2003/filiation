@@ -124,6 +124,8 @@ function enabled(id) {
     case 'paper.cite': case 'paper.copyId':
       return !!p;
     case 'paper.read': case 'paper.open': return !!p && p.pdf;
+    case 'paper.download': return !!p && !running() && (state.picked.size > 1 || (!p.pdf && p.downloadable));
+    case 'paper.around': return !!p && !p.local && !running();
     case 'paper.folder': return !!p && p.folder;
     case 'view.details': return onScreen() === 'papers';
   }
@@ -547,6 +549,141 @@ async function rescan() {
   loadPapers();
 }
 
+// Paper menu: one paper's PDF, and the papers one citation step from it.
+
+// tellWith is tell with a button that does something about what was said.
+function tellWith(text, label, fn) {
+  tell(text);
+  const t = $('toast');
+  t.append(' ', button(label, 'link on-accent', () => {
+    t.hidden = true;
+    fn();
+  }));
+}
+
+// afterJob runs fn once the job just started has finished.
+function afterJob(kind, fn) {
+  const once = (j) => {
+    job.listeners = job.listeners.filter((f) => f !== once);
+    if (j.kind === kind) fn(j);
+  };
+  job.listeners.push(once);
+}
+
+async function downloadPDFs(ids) {
+  try {
+    await startJob('/api/pdfs', { ids });
+  } catch (e) {
+    tell(e.message);
+    return;
+  }
+  afterJob('download', (j) => tell(j.error || j.summary));
+}
+
+async function aroundDialog(p) {
+  let a;
+  try {
+    a = await api('/api/papers/' + encodeURIComponent(p.id) + '/around');
+  } catch (e) {
+    tell(e.message);
+    return;
+  }
+  if (a.local) {
+    tell('This is your own document, which OpenAlex does not know. Match it to OpenAlex first.');
+    return;
+  }
+  const credits = (n, per) => {
+    if (n <= 0) return 'free';
+    const c = Math.ceil(n / per);
+    return c + (c === 1 ? ' credit' : ' credits');
+  };
+  const box = (on) => {
+    const b = el('input');
+    b.type = 'checkbox';
+    b.checked = on;
+    return b;
+  };
+  const option = (check, title, parts, cost) => {
+    const label = el('label', 'opt');
+    const text = el('span', 'opt-text');
+    text.append(el('b', '', title), ...parts);
+    label.append(check, text, cost);
+    return label;
+  };
+
+  const refs = box(true);
+  const follow = box(false);
+  const refNote = el('span', 'muted');
+  const refCost = el('span', 'cost');
+  // How many references a run would fetch; -1 while its own list is not here.
+  const toFetch = () => (!a.fetched ? -1 : follow.checked ? a.unfetched : a.untitled);
+  const citing = box(a.citedBy > a.here);
+  const n = el('input');
+  n.type = 'number';
+  n.min = '1';
+  n.max = '1000';
+  n.value = String(Math.min(100, Math.max(1, a.citedBy)));
+  n.className = 'num';
+  const citeNote = el('span', 'muted');
+  citeNote.append(a.citedBy.toLocaleString() + (a.citedBy === 1 ? ' paper' : ' papers') + ' worldwide, ' +
+    a.here.toLocaleString() + ' here. Most cited first, up to ', n);
+  const citeCost = el('span', 'cost');
+  const error = el('div', 'error');
+
+  const update = () => {
+    const f = toFetch();
+    refNote.textContent = f < 0 ? 'Its own reference list is fetched first.'
+      : a.cites.toLocaleString() + (a.cites === 1 ? ' paper, ' : ' papers, ') + f.toLocaleString() + ' not fetched yet';
+    refs.disabled = f === 0;
+    if (f === 0) refs.checked = false;
+    refCost.textContent = f < 0 ? '1 credit, then 1 per 100' : credits(f, 100);
+    citing.disabled = a.citedBy === 0;
+    if (a.citedBy === 0) citing.checked = false;
+    citeCost.textContent = credits(Math.min(Number(n.value) || 0, a.citedBy), 200);
+    const count = (refs.checked ? Math.max(0, f) : 0) + (citing.checked ? Math.min(Number(n.value) || 0, a.citedBy) : 0);
+    const b = $('modal').querySelector('.dialog-actions .primary');
+    if (b) {
+      b.textContent = f < 0 && refs.checked ? 'Bring them in' : 'Bring in ' + count.toLocaleString() + (count === 1 ? ' paper' : ' papers');
+      b.disabled = !(refs.checked || citing.checked) || (f >= 0 && count === 0);
+    }
+  };
+  [refs, follow, citing].forEach((b) => b.addEventListener('change', update));
+  n.addEventListener('input', update);
+
+  const followRow = el('label', 'opt-plain');
+  followRow.append(follow, el('span', 'muted', 'Also record what each of them cites. Adds their references to your list as papers not fetched yet, often thousands.'));
+  const go = {
+    label: 'Bring them in', primary: true, run: async () => {
+      const max = Number(n.value);
+      if (citing.checked && (!Number.isInteger(max) || max < 1 || max > 1000)) {
+        error.textContent = 'Choose a whole number from 1 to 1,000.';
+        return false;
+      }
+      try {
+        await startJob('/api/papers/' + encodeURIComponent(a.id) + '/around',
+          { references: refs.checked, citing: citing.checked ? max : 0, follow: follow.checked });
+      } catch (e) {
+        error.textContent = e.message;
+        return false;
+      }
+      afterJob('around', (j) => {
+        if (j.error) tell(j.error);
+        else tellWith(j.summary + '.', 'Show them on the map', () => show('map', a.id));
+      });
+      return true;
+    },
+  };
+  modal('Bring in papers around this one', [
+    el('p', 'around-title', a.title + (a.by ? ' (' + a.by + ')' : '')),
+    option(refs, 'What it cites', [refNote], refCost),
+    option(citing, 'What cites it', [citeNote], citeCost),
+    followRow,
+    el('p', 'muted small', 'They come in with their titles, authors and years, and appear on the citation map around this paper. Nothing else in the library grows. OpenAlex gives 1,000 free credits a day.'),
+    error,
+  ], [cancel, go]);
+  update();
+}
+
 // Help menu.
 function shortcuts() {
   const list = el('div', 'keys-list');
@@ -813,6 +950,8 @@ async function run(id) {
         return setTimeout(() => document.querySelector('.path-form input')?.focus(), 300);
       case 'paper.read': return openReader(p.id, 1, []);
       case 'paper.open': return await api('/api/papers/' + encodeURIComponent(p.id) + '/open', 'POST');
+      case 'paper.download': return downloadPDFs(state.picked.size > 1 ? pickedIDs() : [p.id]);
+      case 'paper.around': return aroundDialog(p);
       case 'paper.map': return show('map', p.id);
       case 'paper.favourite': return setFavourite(state.picked.size > 1 ? pickedIDs() : [p.id], !p.favourite);
       case 'paper.collect': return paperPicker('collection');

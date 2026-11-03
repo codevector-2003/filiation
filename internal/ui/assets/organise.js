@@ -606,6 +606,11 @@ function rowMenu(id, x, y) {
   if (direct || ids.length === 1) items.push('-');
   if (direct) items.push({ label: 'Remove from ' + here.name, run: () => fileIn(here.id, ids, false) });
   if (ids.length === 1) items.push({ label: 'Show on the map', run: () => show('map', ids[0]) });
+  const fetchable = known.filter((p) => !p.pdf && p.zotero !== 'unmatched' && !p.local);
+  if (fetchable.length > 0) {
+    items.push({ label: fetchable.length > 1 ? 'Download PDFs (' + fetchable.length + ')' : 'Download PDF', run: () => downloadPDFs(fetchable.map((p) => p.id)) });
+  }
+  if (ids.length === 1) items.push({ label: 'Bring in papers around this…', run: () => aroundDialog({ id: ids[0] }) });
   menu(x, y, ids.length > 1 ? ids.length + ' papers' : 'Paper', items);
 }
 
