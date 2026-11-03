@@ -83,17 +83,19 @@ ORDER BY w.openalex_id;`, args...)
 	return out, rows.Err()
 }
 
-// PutDetails gives a stub its title, year and authors without hydrating
-// it: its own references are not recorded, so the graph does not grow, and
-// it stays on the expansion frontier as a work still to fetch. A work
-// already hydrated is left alone.
+// PutDetails gives a stub its title, year, venue, type, citation count and
+// authors without hydrating it: its own references are not recorded, so the
+// graph does not grow, and it stays on the expansion frontier as a work still
+// to fetch. A work already hydrated is left alone.
 func (tx *Tx) PutDetails(ctx context.Context, h *model.HydratedWork) error {
 	fil, found, err := filIDOf(ctx, tx.tx, h.OpenAlexID)
 	if err != nil || !found {
 		return err
 	}
 	res, err := tx.tx.ExecContext(ctx, `
-UPDATE work SET title = ?1, year = ?2 WHERE fil_id = ?3 AND hydrated = 0;`, h.Title, h.Year, fil)
+UPDATE work SET title = ?1, year = ?2, venue = ifnull(?4, venue), type = ifnull(?5, type),
+       cited_by_count = max(cited_by_count, ?6)
+WHERE fil_id = ?3 AND hydrated = 0;`, h.Title, h.Year, fil, nullString(h.Venue), nullString(string(h.Type)), h.CitedByCount)
 	if err != nil {
 		return fmt.Errorf("store: details of %s: %w", h.OpenAlexID, err)
 	}

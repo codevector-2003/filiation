@@ -779,3 +779,17 @@ body[data-platform="darwin"] .tb-menus { display: none; }
 .quick .note { padding: 8px 10px; color: var(--muted); }
 
 .side.closed, .detail.closed { display: none; }
+
+/* Bring in papers around this one */
+.modal .around-title { font-family: var(--serif); font-size: 14px; font-weight: 600; color: var(--ink); }
+.modal .opt {
+  display: flex; gap: 10px; align-items: flex-start; margin-bottom: 8px; padding: 10px 12px;
+  border: 1px solid var(--line); border-radius: 6px; background: #FFFFFF;
+}
+.modal .opt input[type="checkbox"], .modal .opt-plain input { margin: 2px 0 0; accent-color: var(--accent); }
+.modal .opt-text { display: flex; flex-direction: column; gap: 4px; }
+.modal .opt-text b { font-weight: 600; }
+.modal .opt .cost { margin-left: auto; padding-left: 12px; font-size: 12px; color: var(--muted); white-space: nowrap; }
+.modal .opt .num { width: 64px; height: 24px; margin-left: 4px; padding: 0 6px; border: 1px solid var(--line-2); border-radius: 4px; }
+.modal .opt-plain { display: flex; gap: 8px; align-items: flex-start; margin: 4px 0 10px; line-height: 1.45; }
+.modal p.small { font-size: 12px; }

@@ -345,31 +345,71 @@ func (c *Client) SearchByTitle(ctx context.Context, title string, limit int) ([]
 	return out, nil
 }
 
+// MaxPerPage is the most works one list request returns (spike 2).
+const MaxPerPage = 200
+
+// Citing returns up to limit of the works that cite the work id, an OpenAlex
+// ID, most cited first, and how many cite it in all. Each request returns up
+// to MaxPerPage works for one credit.
+func (c *Client) Citing(ctx context.Context, id string, limit int) ([]model.HydratedWork, int, error) {
+	if !strings.HasPrefix(id, "W") || strings.ContainsAny(id, ",|/ ") {
+		return nil, 0, fmt.Errorf("openalex: citing: %q is not a work ID: %w", id, errs.ErrInvalidInput)
+	}
+	var out []model.HydratedWork
+	total := 0
+	for page := 1; len(out) < limit; page++ {
+		works, count, err := c.listPage(ctx, "cites:"+id, "cited_by_count:desc", min(limit-len(out), MaxPerPage), page)
+		if err != nil {
+			return out, total, fmt.Errorf("openalex: citing %s: %w", id, err)
+		}
+		total = count
+		out = append(out, works...)
+		if len(works) == 0 || page*MaxPerPage >= count {
+			break
+		}
+	}
+	return out, total, nil
+}
+
 // list runs one filtered list request and maps its results.
 func (c *Client) list(ctx context.Context, filter string, perPage int) ([]model.HydratedWork, error) {
+	works, _, err := c.listPage(ctx, filter, "", perPage, 1)
+	return works, err
+}
+
+// listPage runs one list request: a page of what filter finds, in the order
+// sort gives, or OpenAlex's own when sort is "". It returns how many the filter
+// finds in all.
+func (c *Client) listPage(ctx context.Context, filter, sort string, perPage, page int) ([]model.HydratedWork, int, error) {
 	q := url.Values{}
 	q.Set("filter", filter)
 	q.Set("per_page", fmt.Sprint(perPage))
 	q.Set("select", selectFields)
+	if sort != "" {
+		q.Set("sort", sort)
+	}
+	if page > 1 {
+		q.Set("page", fmt.Sprint(page))
+	}
 
 	body, err := c.http.Get(ctx, BaseURL+"/works?"+q.Encode())
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	var l list
 	if err := json.Unmarshal(body, &l); err != nil {
-		return nil, fmt.Errorf("decode list: %w", err)
+		return nil, 0, fmt.Errorf("decode list: %w", err)
 	}
 
 	works := make([]model.HydratedWork, 0, len(l.Results))
 	for i := range l.Results {
 		h, err := l.Results[i].hydrated()
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		works = append(works, h)
 	}
-	return works, nil
+	return works, l.Meta.Count, nil
 }
 
 // escapeDOI makes a DOI safe as a path segment while leaving its slashes
