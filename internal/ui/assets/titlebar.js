@@ -858,8 +858,7 @@ function hotQuick(i) {
 }
 function goTo(id) {
   closeQuick();
-  if (onScreen() !== 'papers') show('papers');
-  select(id);
+  openPaper(id);
 }
 $('quick-input').addEventListener('input', (e) => {
   clearTimeout(quick.timer);
