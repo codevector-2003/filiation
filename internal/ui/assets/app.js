@@ -462,7 +462,11 @@ function renderPaper(p) {
     const get = button('Download PDF', p.downloadable ? 'btn primary' : 'btn', () => downloadPDFs([p.id]));
     get.disabled = !p.downloadable || !!(job.last && job.last.running);
     if (!p.downloadable) get.title = p.pdfNote || 'No legal open-access copy is known';
-    actions.append(get);
+    // A PDF the person has: first when there is nothing to download.
+    const mine = button('Add your PDF…', p.downloadable ? 'btn' : 'btn primary', () => attachPDF(p, '', false));
+    mine.title = 'File a copy you have under this paper. Your file is copied, not moved.';
+    if (p.downloadable) actions.append(get, mine);
+    else actions.append(mine, get);
   }
   if (!p.local) actions.append(button('Bring in papers around this…', 'btn', () => aroundDialog(p)));
   if (p.folder) actions.append(act('Show in folder', false, '/folder'));

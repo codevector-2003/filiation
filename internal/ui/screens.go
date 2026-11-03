@@ -129,6 +129,8 @@ type graphNodeJSON struct {
 	Stub  bool   `json:"stub"`
 	Refs  bool   `json:"refs"`  // its reference list was read, even if empty
 	Cited int    `json:"cited"` // by papers in this library
+	World int    `json:"world"` // by OpenAlex's count
+	Year  int    `json:"year,omitempty"`
 }
 
 // wholeGraph is every paper and citation. Papers keep the order they arrived
@@ -148,7 +150,7 @@ func (s *server) wholeGraph(w http.ResponseWriter, r *http.Request) {
 	nodes := make([]graphNodeJSON, len(rows))
 	at := make(map[string]int, len(rows))
 	for i, l := range rows {
-		nodes[i] = graphNodeJSON{ID: l.FilID, Title: l.Title, By: rowBy(l), Seed: l.Seed, PDF: l.HasPDF, Stub: !l.Hydrated, Refs: l.RefsKnown, Cited: l.CitedBy}
+		nodes[i] = graphNodeJSON{ID: l.FilID, Title: l.Title, By: rowBy(l), Seed: l.Seed, PDF: l.HasPDF, Stub: !l.Hydrated, Refs: l.RefsKnown, Cited: l.CitedBy, World: l.CitedWorld, Year: l.Year}
 		at[l.FilID] = i
 	}
 	edges := make([][2]int, 0, len(citations))
