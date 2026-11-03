@@ -13,6 +13,7 @@ import (
 func (a *app) zoteroCommand() *cobra.Command {
 	var dryRun, noRefs, noPDFs, tags bool
 	var skip []string
+	var from string
 	cmd := &cobra.Command{
 		Use:   "zotero",
 		Short: "Bring in your Zotero library",
@@ -24,15 +25,21 @@ func (a *app) zoteroCommand() *cobra.Command {
 			"like fil add, with what it cites. One without, or that OpenAlex does not know,\n" +
 			"is kept as your own document: searchable, with no citation links. Titles are\n" +
 			"never searched, since each search costs OpenAlex credits.\n\n" +
-			"Running it again adds only what is new. Stopping keeps what is in so far.",
+			"Running it again adds only what is new. Stopping keeps what is in so far.\n\n" +
+			"For a Zotero that is not running here, an older one or one on another\n" +
+			"computer, export the library from Zotero (File, Export Library, Zotero RDF,\n" +
+			"with Export Files ticked) and read that with --from.\n\n" +
+			"An item kept as your own document can be matched later with fil match.",
 		Example: "  fil zotero --dry-run\n" +
 			"  fil zotero\n" +
-			"  fil zotero --skip ABCD2345 --tags",
+			"  fil zotero --skip ABCD2345 --tags\n" +
+			"  fil zotero --from \"Exported Items/Exported Items.rdf\"",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return a.zotero(cmd.Context(), dryRun, library.ZoteroOptions{Skip: skip, Refs: !noRefs, PDFs: !noPDFs, Tags: tags})
+			return a.zotero(cmd.Context(), dryRun, library.ZoteroOptions{Skip: skip, Refs: !noRefs, PDFs: !noPDFs, Tags: tags, From: from})
 		},
 	}
+	cmd.Flags().StringVar(&from, "from", "", "read a Zotero RDF export instead of the running Zotero")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "say what would come in, and write nothing")
 	cmd.Flags().BoolVar(&noRefs, "no-refs", false, "do not record what each paper cites")
 	cmd.Flags().BoolVar(&noPDFs, "no-pdfs", false, "do not copy the PDFs")
@@ -49,8 +56,11 @@ func (a *app) zotero(ctx context.Context, dryRun bool, opts library.ZoteroOption
 	defer lib.Close()
 	w := a.stdout
 
-	p, err := lib.ZoteroPreview(ctx)
+	p, err := lib.ZoteroPreview(ctx, opts.From)
 	switch {
+	case errors.Is(err, library.ErrZoteroNotExport):
+		return fmt.Errorf("%s is not a Zotero RDF export. In Zotero, choose File, Export Library, then Zotero RDF, "+
+			"and tick Export Files: %w", opts.From, err)
 	case errors.Is(err, library.ErrZoteroNotRunning):
 		return fmt.Errorf("Zotero is not running on this computer. Open Zotero 7 or later, and in Settings, Advanced, "+
 			"tick \"Allow other applications on this computer to communicate with Zotero\": %w", err)
@@ -64,6 +74,9 @@ func (a *app) zotero(ctx context.Context, dryRun bool, opts library.ZoteroOption
 	fmt.Fprintf(w, "            %s with a DOI, %s with an arXiv or PubMed ID, %s with no ID\n",
 		thousands(p.WithDOI), thousands(p.WithOtherID), thousands(p.NoID))
 	fmt.Fprintf(w, "            %s with a PDF; %s brought in before\n", thousands(p.PDFs), thousands(p.Already))
+	if p.PDFsMissing > 0 {
+		fmt.Fprintf(w, "            %s named in the export but not beside it\n", plural(p.PDFsMissing, "PDF", "PDFs"))
+	}
 	if dryRun {
 		fmt.Fprintln(w, "\nCollections, with their keys for --skip:")
 		depth := map[string]int{}
@@ -93,6 +106,9 @@ func (a *app) zotero(ctx context.Context, dryRun bool, opts library.ZoteroOption
 	fmt.Fprintf(w, "\nCollections: %s\n", thousands(r.Collections))
 	for _, u := range r.NotMatched {
 		fmt.Fprintf(w, "  %s  %s (%s)\n", u.FilID, u.Title, u.Reason)
+	}
+	if len(r.NotMatched) > 0 {
+		fmt.Fprintln(w, "\nMatch one with fil match <fil ID>, by title, or fil match <fil ID> <DOI>.")
 	}
 	if errors.Is(err, context.Canceled) {
 		fmt.Fprintln(w, "\nStopped. Everything brought in is kept; run it again to continue.")

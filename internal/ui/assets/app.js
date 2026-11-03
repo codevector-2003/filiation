@@ -422,9 +422,7 @@ function renderPaper(p) {
   if (p.authors) head.append(el('span', 'authors', p.authors));
   if (p.meta) head.append(el('span', 'meta', p.meta));
 
-  const unmatched = p.zotero === 'unmatched'
-    ? 'Not matched in OpenAlex: Zotero has no DOI, arXiv ID or PubMed ID for it that OpenAlex knows, so it has no citation links. It is kept as your own document.' : '';
-  const message = el('div', 'why', [unmatched, p.pdfNote || p.textNote || ''].filter(Boolean).join(' '));
+  const message = el('div', 'why', p.pdfNote || p.textNote || '');
   const act = (label, primary, path) => button(label, primary ? 'btn primary' : 'btn', async () => {
     try {
       await api('/api/papers/' + encodeURIComponent(p.id) + path, 'POST');
@@ -449,6 +447,7 @@ function renderPaper(p) {
     stat(p.sentences, p.sentences === 1 ? 'citation with its sentence' : 'citations with their sentence'));
 
   const parts = [head, actions, ...filedIn(p)];
+  if (p.local) parts.push(matchBox(p));
   parts.push(message, stats); // always there: a failed action reports into it
 
   if (p.sample.length > 0) {
