@@ -16,18 +16,23 @@ import (
 
 // ListQuery filters and orders a listing of the library.
 type ListQuery struct {
-	Seeds       bool     // only the papers the user added or imported
-	WithPDF     bool     // only papers with a PDF on disk
-	WithoutText bool     // only papers whose PDF gave no searchable text
-	Collection  string   // only this collection's papers
-	Title       string   // only titles containing all these words
-	YearFrom    int      // only this year or later; zero means no bound
-	YearTo      int      // only this year or earlier; zero means no bound
-	Authors     []string // only papers by any of these authors, by name
-	Venues      []string // only papers in any of these venues
-	Sort        string   // a key of listOrders; "" is seeds first, then most cited
-	Offset      int      // skip this many, for the next page
-	Limit       int      // zero means no limit
+	Seeds        bool     // only the papers the user added or imported
+	WithPDF      bool     // only papers with a PDF on disk
+	WithoutText  bool     // only papers whose PDF gave no searchable text
+	Collection   string   // only this collection's papers, by its stored name
+	CollectionID int64    // only the papers in this collection, or one inside it
+	Labels       []int64  // only papers carrying every one of these labels
+	Favourites   bool     // only starred papers
+	Title        string   // only titles containing all these words
+	YearFrom     int      // only this year or later; zero means no bound
+	YearTo       int      // only this year or earlier; zero means no bound
+	Authors      []string // only papers by any of these authors, by name
+	Venues       []string // only papers in any of these venues
+	Sort         string   // a key of listOrders; "" is seeds first, then most cited
+	Offset       int      // skip this many, for the next page
+	Limit        int      // zero means no limit
+
+	within []int64 // CollectionID and the collections inside it, as inCollection found them
 }
 
 // listOrders are the orders a listing can take. A work with no year or title
@@ -63,6 +68,19 @@ func (q ListQuery) conditions(skip string) ([]string, []any) {
 		where = append(where, "EXISTS (SELECT 1 FROM collection_work cw JOIN collection c ON c.id = cw.collection_id WHERE cw.work_id = w.fil_id AND c.name = ?)")
 		args = append(args, q.Collection)
 	}
+	if len(q.within) > 0 {
+		where = append(where, "EXISTS (SELECT 1 FROM collection_work cw WHERE cw.work_id = w.fil_id AND cw.collection_id IN (?"+strings.Repeat(",?", len(q.within)-1)+"))")
+		for _, id := range q.within {
+			args = append(args, id)
+		}
+	}
+	if q.Favourites {
+		where = append(where, "EXISTS (SELECT 1 FROM favourite v WHERE v.work_id = w.fil_id)")
+	}
+	for _, id := range q.Labels {
+		where = append(where, "EXISTS (SELECT 1 FROM work_label wl WHERE wl.work_id = w.fil_id AND wl.label_id = ?)")
+		args = append(args, id)
+	}
 	if skip != "year" && q.YearFrom > 0 {
 		where = append(where, "w.year >= ?")
 		args = append(args, q.YearFrom)
@@ -89,19 +107,22 @@ func (q ListQuery) conditions(skip string) ([]string, []any) {
 // ListRow is one paper in a listing, with its state in one row: what the
 // list shows beside each title.
 type ListRow struct {
-	FilID      string
-	OpenAlexID string
-	Title      string
-	Year       int
-	Author     string // first author's name, "" when not known
-	Seed       bool
-	Hydrated   bool
-	RefsKnown  bool   // its reference list was read, even if it turned out empty
-	CitedBy    int    // in this library
-	HasPDF     bool   // a PDF on disk
-	TextStatus string // "", ok, no-text, gibberish, unreadable, timed-out
-	Contexts   int    // references cited in a sentence fil found
-	Mismatch   bool   // its downloaded PDF names another paper or edition
+	FilID       string
+	OpenAlexID  string
+	Title       string
+	Year        int
+	Author      string // first author's name, "" when not known
+	Seed        bool
+	Hydrated    bool
+	RefsKnown   bool   // its reference list was read, even if it turned out empty
+	CitedBy     int    // in this library
+	HasPDF      bool   // a PDF on disk
+	TextStatus  string // "", ok, no-text, gibberish, unreadable, timed-out
+	Contexts    int    // references cited in a sentence fil found
+	Mismatch    bool   // its downloaded PDF names another paper or edition
+	Favourite   bool
+	Labels      []int64
+	Collections []int64 // the ones it is in itself
 }
 
 // HavePDFs reports which of these works have a PDF on disk.
@@ -138,6 +159,10 @@ func (db *DB) List(ctx context.Context, q ListQuery) ([]ListRow, error) {
 	if !ok {
 		return nil, fmt.Errorf("no order %q: %w", q.Sort, errs.ErrInvalidInput)
 	}
+	q, err := db.inCollection(ctx, q)
+	if err != nil {
+		return nil, err
+	}
 	where, args := q.conditions("")
 	// Title words are matched here in Go, not with SQL's lower() and LIKE,
 	// which fold only ASCII: "étude" must find "Étude", and "etude" too
@@ -160,7 +185,10 @@ SELECT w.fil_id, ifnull(w.openalex_id, ''), ifnull(w.title, ''), ifnull(w.year, 
        EXISTS (SELECT 1 FROM work_file f WHERE f.fil_id = w.fil_id AND f.missing = 0 AND lower(f.path) LIKE '%.pdf'),
        ifnull((SELECT t.status FROM work_text t WHERE t.fil_id = w.fil_id), ''),
        (SELECT count(*) FROM cites c WHERE c.from_work = w.fil_id AND c.context IS NOT NULL),
-       EXISTS (SELECT 1 FROM work_file f WHERE f.fil_id = w.fil_id AND f.missing = 0 AND f.identity = 'mismatch')
+       EXISTS (SELECT 1 FROM work_file f WHERE f.fil_id = w.fil_id AND f.missing = 0 AND f.identity = 'mismatch'),
+       EXISTS (SELECT 1 FROM favourite v WHERE v.work_id = w.fil_id),
+       ifnull((SELECT group_concat(wl.label_id) FROM work_label wl WHERE wl.work_id = w.fil_id), ''),
+       ifnull((SELECT group_concat(cw.collection_id) FROM collection_work cw WHERE cw.work_id = w.fil_id), '')
 FROM work w
 WHERE `+strings.Join(where, " AND ")+`
 ORDER BY `+order+limit+`;`, args...)
@@ -171,12 +199,19 @@ ORDER BY `+order+limit+`;`, args...)
 	var out []ListRow
 	for rows.Next() {
 		var r ListRow
+		var labels, collections string
 		if err := rows.Scan(&r.FilID, &r.OpenAlexID, &r.Title, &r.Year, &r.Author, &r.Seed, &r.Hydrated,
-			&r.RefsKnown, &r.CitedBy, &r.HasPDF, &r.TextStatus, &r.Contexts, &r.Mismatch); err != nil {
+			&r.RefsKnown, &r.CitedBy, &r.HasPDF, &r.TextStatus, &r.Contexts, &r.Mismatch, &r.Favourite, &labels, &collections); err != nil {
 			return nil, fmt.Errorf("store: list the library: %w", err)
 		}
 		if !hasAll(foldTitle(r.Title), words) {
 			continue
+		}
+		if r.Labels, err = idList(labels); err != nil {
+			return nil, err
+		}
+		if r.Collections, err = idList(collections); err != nil {
+			return nil, err
 		}
 		if skip > 0 {
 			skip--
@@ -224,6 +259,10 @@ const facetTop = 8
 // as List does. Each filter's options ignore that filter, so they show what
 // choosing another would give.
 func (db *DB) Facets(ctx context.Context, q ListQuery, find FacetFind) (Facets, error) {
+	q, err := db.inCollection(ctx, q)
+	if err != nil {
+		return Facets{}, err
+	}
 	years, err := db.facetCounts(ctx, q, "year", "CAST(ifnull(w.year, 0) AS TEXT)", "")
 	if err != nil {
 		return Facets{}, err
