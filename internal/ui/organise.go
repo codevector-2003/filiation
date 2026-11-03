@@ -21,6 +21,7 @@ type collectionJSON struct {
 	Path   string `json:"path"`  // as stored: what fil list --collection takes
 	Works  int    `json:"works"` // counting those in collections inside it
 	Folder bool   `json:"folder"`
+	Zotero bool   `json:"zotero"` // brought in from Zotero
 }
 
 type labelJSON struct {
@@ -39,7 +40,7 @@ func (s *server) organised(r *http.Request, out *libraryJSON) error {
 	}
 	for _, c := range cs {
 		out.Collections = append(out.Collections, collectionJSON{ID: c.ID, Parent: c.Parent, Name: c.Short,
-			Path: c.Name, Works: c.Works, Folder: c.FromFolder})
+			Path: c.Name, Works: c.Works, Folder: c.FromFolder, Zotero: c.Zotero != ""})
 	}
 	ls, err := s.Library.Labels(ctx)
 	if err != nil {

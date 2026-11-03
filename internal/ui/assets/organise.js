@@ -161,8 +161,13 @@ function treeRow(c, depth, parent) {
   }
   const pick = el('button', 'tree-pick');
   pick.type = 'button';
-  pick.append(icon(c.folder ? FOLDER : STACK, c.folder ? 'from-folder' : ''), el('span', 'tree-name', c.name),
-    el('span', 'count', c.works.toLocaleString()));
+  pick.append(icon(c.folder ? FOLDER : STACK, c.folder ? 'from-folder' : ''), el('span', 'tree-name', c.name));
+  if (c.zotero) {
+    const z = el('span', 'zmark', 'Z');
+    z.title = 'From Zotero';
+    pick.append(z);
+  }
+  pick.append(el('span', 'count', c.works.toLocaleString()));
   pick.title = c.folder ? pathOf(c.id) + ' (a folder in papers/)' : pathOf(c.id);
   pick.addEventListener('click', () => choosePlace(state.collection === c.id ? 0 : c.id, false));
   pick.addEventListener('keydown', (e) => treeKey(e, c, parent));
