@@ -210,6 +210,18 @@ CREATE TABLE IF NOT EXISTS work_label (
 
 CREATE INDEX IF NOT EXISTS idx_work_label_work ON work_label(work_id);
 
+-- Schema v12: each Zotero item brought in, and the work it became (D29), so
+-- bringing the library in again adds only what is new. matched is 0 for an
+-- item OpenAlex could not be asked about, kept as a local document.
+CREATE TABLE IF NOT EXISTS zotero_item (
+    item_key TEXT PRIMARY KEY NOT NULL,
+    fil_id   TEXT NOT NULL REFERENCES work(fil_id) ON DELETE CASCADE,
+    version  INTEGER NOT NULL DEFAULT 0,
+    matched  INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_zotero_item_work ON zotero_item(fil_id);
+
 CREATE TABLE IF NOT EXISTS favourite (
     work_id  TEXT PRIMARY KEY REFERENCES work(fil_id) ON DELETE CASCADE,
     added_at TEXT DEFAULT (datetime('now'))
@@ -363,4 +375,4 @@ CREATE TABLE IF NOT EXISTS meta (
     value TEXT
 );
 
-INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '11');
+INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '12');

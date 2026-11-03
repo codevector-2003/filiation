@@ -19,6 +19,7 @@ import (
 	"github.com/codevector-2003/filiation/internal/model"
 	"github.com/codevector-2003/filiation/internal/sources/openalex"
 	"github.com/codevector-2003/filiation/internal/sources/pdfs"
+	"github.com/codevector-2003/filiation/internal/sources/zotero"
 	"github.com/codevector-2003/filiation/internal/store"
 	"github.com/codevector-2003/filiation/internal/text"
 )
@@ -41,6 +42,10 @@ type Options struct {
 	// publishers and repositories rather than to OpenAlex. Tests point it at
 	// a local server; front doors leave it nil.
 	PDFTransport http.RoundTripper
+
+	// ZoteroBase is where Zotero's local API is: "" is Zotero's own address on
+	// this computer. Tests point it at a stand-in.
+	ZoteroBase string
 }
 
 // Library is an open library: the store, and the sources that grow it.
@@ -49,9 +54,10 @@ type Options struct {
 // and a source — but it never moves data between them. That is internal/graph's
 // job, so the two stay swappable independently.
 type Library struct {
-	db    *store.DB
-	files *blobs.Folder // nil for a library that is only a database
-	pdfs  *pdfs.Client
+	db     *store.DB
+	files  *blobs.Folder // nil for a library that is only a database
+	pdfs   *pdfs.Client
+	zotero *zotero.Client
 
 	keepMu sync.Mutex // see keep: a downloaded file's hash check and its record are one step
 	graph  *graph.Graph
@@ -117,12 +123,13 @@ func Open(ctx context.Context, cfg *config.Config, opts Options) (*Library, erro
 	}
 
 	return &Library{
-		db:    db,
-		files: files,
-		pdfs:  pc,
-		graph: graph.New(db, openalex.New(h)),
-		http:  h,
-		cfg:   *cfg,
+		db:     db,
+		files:  files,
+		pdfs:   pc,
+		zotero: zotero.New(opts.ZoteroBase, nil),
+		graph:  graph.New(db, openalex.New(h)),
+		http:   h,
+		cfg:    *cfg,
 	}, nil
 }
 

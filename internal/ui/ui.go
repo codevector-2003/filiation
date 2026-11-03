@@ -85,6 +85,8 @@ func New(opts Options) http.Handler {
 	mux.HandleFunc("POST /api/labels/{id}/delete", s.needLibrary(s.deleteLabel))
 	mux.HandleFunc("POST /api/labels/{id}/papers", s.needLibrary(s.setLabel))
 	mux.HandleFunc("POST /api/favourites", s.needLibrary(s.setFavourite))
+	mux.HandleFunc("GET /api/zotero", s.needLibrary(s.zotero))
+	mux.HandleFunc("POST /api/zotero/import", s.needLibrary(s.zoteroImport))
 	mux.HandleFunc("GET /api/search", s.needLibrary(s.search))
 	mux.HandleFunc("GET /api/map", s.needLibrary(s.mapAround))
 	mux.HandleFunc("GET /api/graph", s.needLibrary(s.wholeGraph))
@@ -215,7 +217,8 @@ type rowJSON struct {
 	Stub        bool    `json:"stub"`
 	Favourite   bool    `json:"favourite"`
 	Labels      []int64 `json:"labels"`
-	Collections []int64 `json:"collections"` // the ones it is in itself
+	Collections []int64 `json:"collections"`      // the ones it is in itself
+	Zotero      string  `json:"zotero,omitempty"` // matched, or unmatched: kept as a local document
 }
 
 // listOptions reads what the Papers list is showing from a request.
@@ -285,7 +288,7 @@ func (s *server) papers(w http.ResponseWriter, r *http.Request) {
 	for i, l := range rows {
 		out[i] = rowJSON{ID: l.FilID, Title: l.Title, By: rowBy(l), Seed: l.Seed, PDF: l.HasPDF, Mismatch: l.Mismatch,
 			Text: textNote(l.TextStatus), Searchable: l.TextStatus == "ok", Sentences: l.Contexts, Stub: !l.Hydrated,
-			Favourite: l.Favourite, Labels: l.Labels, Collections: l.Collections}
+			Favourite: l.Favourite, Labels: l.Labels, Collections: l.Collections, Zotero: l.Zotero}
 		if out[i].Title == "" {
 			out[i].Title = "Not fetched yet: " + l.OpenAlexID
 		}
@@ -405,6 +408,7 @@ type paperJSON struct {
 	Favourite   bool    `json:"favourite"`
 	Collections []int64 `json:"collections"` // the ones it is in itself
 	Labels      []int64 `json:"labels"`
+	Zotero      string  `json:"zotero,omitempty"`
 }
 
 func (s *server) paper(w http.ResponseWriter, r *http.Request) {
@@ -419,9 +423,10 @@ func (s *server) paper(w http.ResponseWriter, r *http.Request) {
 		Seed: work.IsSeed, Cites: p.Cites, CitedBy: p.CitedBy, Sentences: p.Contexts,
 		Sample: []sentenceJSON{}, PDF: hasPDF, Folder: p.Folder != "", Web: p.WebPage(),
 		Citation: citation(work), Abstract: work.Abstract,
-		Favourite: p.Organised.Favourite, Collections: p.Organised.Collections, Labels: p.Organised.Labels}
+		Favourite: p.Organised.Favourite, Collections: p.Organised.Collections, Labels: p.Organised.Labels,
+		Zotero: p.Organised.Zotero}
 	out.Origin = map[model.Source]string{model.SourceSeed: "ADDED BY YOU", model.SourceUpload: "IMPORTED BY YOU",
-		model.SourceExpansion: "FOUND BY FOLLOWING CITATIONS"}[work.Source]
+		model.SourceExpansion: "FOUND BY FOLLOWING CITATIONS", model.SourceZotero: "FROM YOUR ZOTERO LIBRARY"}[work.Source]
 	out.File = s.pdfName(pdf)
 	if !out.PDF {
 		out.PDFNote = pdfNote(p)
@@ -505,6 +510,9 @@ func pdfNote(p library.Paper) string {
 		if f.Missing && isPDF(f.Path) {
 			return "Its PDF was deleted from the library folder."
 		}
+	}
+	if p.Work.OpenAlexID == "" {
+		return "No PDF. As your own document, it has no open-access copy for Filiation to look for."
 	}
 	if len(p.Attempts) > 0 {
 		return "Every download link failed. Filiation tries again in a month."

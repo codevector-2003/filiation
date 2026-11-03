@@ -29,23 +29,28 @@ import (
 //	9  M3: work_file.identity — whether a downloaded PDF is the paper it is filed under
 //	10 M5: note.page, colour, quote, rects, file — notes the Reader keeps beside the PDF
 //	11 M5: collections inside collections, label, work_label and favourite
-const SchemaVersion = 11
+//	12 M5: zotero_item — what was brought in from Zotero (D29)
+const SchemaVersion = 12
 
 // upgrades[v] moves a library from schema v to v+1. Each runs inside
 // Migrate's one transaction, after the ones before it, so a library several
 // versions behind is upgraded all the way or not at all.
 var upgrades = map[int]func(ctx context.Context, db *DB, tx *sql.Tx) error{
-	1: upgradeV1ToV2,
-	2: upgradeV2ToV3,
-	3: upgradeV3ToV4,
-	4: upgradeV4ToV5,
-	5: upgradeV5ToV6,
-	6: upgradeV6ToV7,
-	7: upgradeV7ToV8,
-	8: upgradeV8ToV9,
+	1:  upgradeV1ToV2,
+	2:  upgradeV2ToV3,
+	3:  upgradeV3ToV4,
+	4:  upgradeV4ToV5,
+	5:  upgradeV5ToV6,
+	6:  upgradeV6ToV7,
+	7:  upgradeV7ToV8,
+	8:  upgradeV8ToV9,
 	9:  upgradeV9ToV10,
 	10: upgradeV10ToV11,
+	11: upgradeV11ToV12,
 }
+
+// upgradeV11ToV12 adds zotero_item, a new table.
+func upgradeV11ToV12(ctx context.Context, _ *DB, tx *sql.Tx) error { return addTables(ctx, tx, 12) }
 
 // upgradeV2ToV3 adds the tables for the papers/ folder, upgradeV3ToV4 those
 // for open-access links and upgradeV4ToV5 the download log. Every table in

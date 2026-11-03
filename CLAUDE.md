@@ -239,7 +239,7 @@ Phase 1 carries two extra weeks for that.
 - [ ] **M5 — The desktop app** (2–3 weeks). *In progress from 31 Oct 2026, ahead of M4.* The
       interface is `internal/ui` (`//go:embed`); a thin Wails v2 shell in `desktop/` shows it in a
       native window on all three platforms, with no port open (D24, D25). A browser version follows
-      later from the same screens (D26). Library (with sorting and filters, Favourites, nested collections and labels), Search, Citation map, Inbox, AI assistants and the Reader work. The Citation map can show the whole library.
+      later from the same screens (D26). Library (with sorting and filters, Favourites, nested collections and labels), bringing in Zotero, Search, Citation map, Inbox, AI assistants and the Reader work. The Citation map can show the whole library.
 - [ ] **M6 — Claim genealogy** (3–4 weeks). Citation intent, weighted edges, tracing a claim to
       its earliest source. **The differentiator.**
 
@@ -306,8 +306,8 @@ write our own.
 ## Still open
 
 1. ~~**Licence**~~ — **decided: Apache-2.0** (D15), 24 Sept 2026.
-2. **Zotero** — not in M3 (D19). The cheapest later route is importing a BibTeX or CSL-JSON
-   export rather than reading Zotero's database file.
+2. ~~**Zotero**~~ — **decided: the local API, read-only** (D29), 3 Nov 2026: the Inbox's Zotero
+   entry and `fil zotero`. A Zotero RDF export is the fallback, still to build.
 3. **Embeddings without Ollama** — is a pure-Go ONNX path (`onnx-gomlx`) worth the risk later,
    to restore true one-command setup? Revisit after M4 ships.
 4. **Who maintains it after the degree?**
