@@ -126,6 +126,7 @@ function enabled(id) {
     case 'paper.read': case 'paper.open': return !!p && p.pdf;
     case 'paper.download': return !!p && !running() && (state.picked.size > 1 || (!p.pdf && p.downloadable));
     case 'paper.around': return !!p && !p.local && !running();
+    case 'paper.attach': return !!p && !p.pdf && !p.local;
     case 'paper.folder': return !!p && p.folder;
     case 'view.details': return onScreen() === 'papers';
   }
@@ -145,6 +146,7 @@ function ticked(id) {
     case 'view.assistants': return screen === 'assistants';
     case 'view.sidebar': return !document.querySelector('.side').classList.contains('closed');
     case 'view.details': return !$('detail').classList.contains('closed');
+    case 'view.mapFilters': return screen === 'map' && !$('mf-panel').hidden;
   }
   return false;
 }
@@ -580,6 +582,37 @@ async function downloadPDFs(ids) {
   afterJob('download', (j) => tell(j.error || j.summary));
 }
 
+// attachPDF files a PDF the person has under the paper: one they choose, or
+// file once they have said it is the right one despite its title.
+async function attachPDF(p, file, force) {
+  let res;
+  try {
+    res = await api('/api/papers/' + encodeURIComponent(p.id) + '/attach', 'POST', { file, force });
+  } catch (e) {
+    tell(e.message);
+    return;
+  }
+  if (!res) return; // no file chosen
+  if (res.state === 'unconfirmed') {
+    const say = el('p');
+    say.append('The title of ', el('i', '', p.title), ' is not on the first pages of ', el('b', '', res.name),
+      '. It may be another paper, or a scan with no text.');
+    modal('Is this the right file?', [say], [
+      { label: 'Choose another file', run: () => { setTimeout(() => attachPDF(p, '', false), 0); } },
+      { label: 'Add it anyway', primary: true, run: () => attachPDF(p, res.file, true) },
+    ]);
+    return;
+  }
+  if (res.state === 'duplicate') {
+    tell(res.reason);
+    return;
+  }
+  tell('Added ' + res.name + ' to this paper.' + (res.pages ? ' Searchable: ' + res.pages + (res.pages === 1 ? ' page.' : ' pages.') : ''));
+  await loadLibrary();
+  loadPapers();
+  if (state.selected === p.id) select(p.id);
+}
+
 async function aroundDialog(p) {
   let a;
   try {
@@ -928,6 +961,10 @@ async function run(id) {
       case 'view.assistants': return show('assistants');
       case 'view.sidebar': return togglePane('.side', 'side');
       case 'view.details': return togglePane('#detail', 'detail');
+      case 'view.mapFilters':
+        if (onScreen() !== 'map') show('map');
+        if (mapState.mode !== 'whole') document.querySelector('[data-map-mode="whole"]').click();
+        return toggleMapFilters(onScreen() === 'map' && !$('mf-panel').hidden ? false : true);
       case 'view.zoomIn': return zoomBy(1);
       case 'view.zoomOut': return zoomBy(-1);
       case 'view.zoomReset': return zoomTo(1);
@@ -951,6 +988,7 @@ async function run(id) {
       case 'paper.open': return await api('/api/papers/' + encodeURIComponent(p.id) + '/open', 'POST');
       case 'paper.download': return downloadPDFs(state.picked.size > 1 ? pickedIDs() : [p.id]);
       case 'paper.around': return aroundDialog(p);
+      case 'paper.attach': return attachPDF(p, '', false);
       case 'paper.map': return show('map', p.id);
       case 'paper.favourite': return setFavourite(state.picked.size > 1 ? pickedIDs() : [p.id], !p.favourite);
       case 'paper.collect': return paperPicker('collection');

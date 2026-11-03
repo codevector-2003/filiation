@@ -4,10 +4,16 @@
 'use strict';
 
 const DOT = { seed: '#8A5300', pdf: '#1F5F8B', titled: '#83878E', unnamed: '#C4C7CB' };
-const LABELS = 40;
+
+// The map's own filters, kept per computer. size: what a circle's size says;
+// min: the fewest citations, by that measure, a paper needs to stay bright;
+// fade or hide what is left out; names: how many of the biggest are named.
+const MAP_DEFAULTS = { size: 'here', min: 0, from: 0, to: 0, pdf: true, nopdf: true, mine: false, stubs: true, hide: false, names: 12 };
+const mf = { ...MAP_DEFAULTS, mineSet: new Set() };
+const STEPS = [0, 1, 2, 3, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000];
 
 const whole = {
-  nodes: [], edges: [], key: '', xy: null, degree: null, around: null, byDegree: [],
+  nodes: [], edges: [], key: '', xy: null, degree: null, around: null, byDegree: [], byValue: [],
   all: false, shown: [], match: null, picked: -1, near: null, hover: -1,
   scale: 1, x: 0, y: 0, asked: 0, worker: null, queued: false,
 };
@@ -101,6 +107,41 @@ function indexGraph() {
     whole.around[b].citedBy.push(a);
   });
   whole.byDegree = Array.from({ length: n }, (_, i) => i).sort((a, b) => whole.degree[b] - whole.degree[a]);
+  // Your papers and what they link to, for Only my papers.
+  mf.mineSet = new Set();
+  whole.nodes.forEach((p, i) => {
+    if (!p.seed) return;
+    mf.mineSet.add(i);
+    whole.around[i].cites.forEach((j) => mf.mineSet.add(j));
+    whole.around[i].citedBy.forEach((j) => mf.mineSet.add(j));
+  });
+  sortByValue();
+}
+
+// measure is what a paper's size says: citations here, or worldwide.
+function measure(i) {
+  const n = whole.nodes[i];
+  return mf.size === 'world' ? n.world || 0 : n.cited;
+}
+
+function sortByValue() {
+  whole.byValue = mf.size === 'same' ? whole.byDegree
+    : Array.from({ length: whole.nodes.length }, (_, i) => i).sort((a, b) => measure(b) - measure(a));
+}
+
+// passes says whether a paper meets the map's filters.
+function passes(i) {
+  const n = whole.nodes[i];
+  if (mf.min > 0 && measure(i) < mf.min) return false;
+  if ((mf.from || mf.to) && (!n.year || (mf.from && n.year < mf.from) || (mf.to && n.year > mf.to))) return false;
+  if (n.pdf ? !mf.pdf : !mf.nopdf) return false;
+  if (!mf.stubs && !n.title) return false;
+  if (mf.mine && !mf.mineSet.has(i)) return false;
+  return true;
+}
+
+function mapFiltersOn() {
+  return [mf.min > 0, mf.from > 0 || mf.to > 0, !mf.pdf || !mf.nopdf, mf.mine, !mf.stubs].filter(Boolean).length;
 }
 
 function papersFiltered() {
@@ -121,9 +162,16 @@ async function readFilters(asked) {
 }
 
 function setShown() {
-  whole.shown = whole.nodes.map((n, i) => whole.all || whole.degree[i] >= 2 || n.seed || (whole.match !== null && whole.match.has(i)));
-  const count = whole.shown.filter(Boolean).length;
-  $('whole-count').textContent = 'Showing ' + count.toLocaleString() + ' of ' + whole.nodes.length.toLocaleString();
+  whole.shown = whole.nodes.map((n, i) => (whole.all || whole.degree[i] >= 2 || n.seed || (whole.match !== null && whole.match.has(i)))
+    && (!mf.hide || passes(i)));
+  let count = 0;
+  whole.shown.forEach((on, i) => { if (on && passes(i)) count++; });
+  const text = 'Showing ' + count.toLocaleString() + ' of ' + whole.nodes.length.toLocaleString();
+  $('whole-count').textContent = text;
+  if ($('mf-count')) $('mf-count').textContent = text + ' papers';
+  const n = mapFiltersOn();
+  $('whole-filters').textContent = n ? 'Filters (' + n + ')' : 'Filters';
+  $('whole-filters').classList.toggle('on', n > 0 || !$('mf-panel').hidden);
 }
 
 function fitWhole() {
@@ -148,7 +196,10 @@ function fitWhole() {
 }
 
 function dotSize(i) {
-  return Math.min(16, 2 + Math.sqrt(whole.nodes[i].cited) * 1.1) * Math.max(0.8, Math.min(1.8, Math.sqrt(whole.scale)));
+  const zoom = Math.max(0.8, Math.min(1.8, Math.sqrt(whole.scale)));
+  if (mf.size === 'same') return 3.5 * zoom;
+  const r = mf.size === 'world' ? 2 + Math.sqrt(measure(i)) * 0.22 : 2 + Math.sqrt(measure(i)) * 1.1;
+  return Math.min(22, r) * zoom;
 }
 
 function dotColour(n) {
@@ -159,7 +210,7 @@ function dotColour(n) {
 
 function bright(i) {
   if (whole.picked >= 0) return i === whole.picked || whole.near.has(i);
-  return whole.match === null || whole.match.has(i);
+  return (whole.match === null || whole.match.has(i)) && passes(i);
 }
 
 function drawWhole() {
@@ -207,8 +258,8 @@ function labels(ctx, w, h) {
   ctx.textBaseline = 'middle';
   ctx.lineJoin = 'round';
   const taken = [];
-  const first = whole.picked >= 0 ? [whole.picked, ...whole.byDegree] : whole.byDegree;
-  let left = LABELS;
+  const first = whole.picked >= 0 ? [whole.picked, ...whole.byValue] : whole.byValue;
+  let left = mf.names + (whole.picked >= 0 ? 1 : 0);
   for (const i of first) {
     if (left === 0) break;
     const n = whole.nodes[i];
@@ -278,7 +329,8 @@ function wholePane() {
   const parts = [el('h2', 'pane-head', 'WHOLE LIBRARY')];
   if (whole.nodes.length > 0) {
     parts.push(el('div', 'link-lead', whole.nodes.length.toLocaleString() + ' papers and ' + whole.edges.length.toLocaleString() + ' citations.'));
-    parts.push(el('div', 'muted', 'Click a paper to see its links. Bigger means cited by more papers here.'));
+    parts.push(el('div', 'muted', 'Click a paper to see its links. ' + { here: 'Bigger means cited by more papers here.',
+      world: 'Bigger means cited more worldwide, by the count OpenAlex keeps.', same: 'Every paper is drawn the same size.' }[mf.size]));
     if (known < whole.nodes.length) {
       parts.push(el('div', 'why', 'Reference lists are known for ' + known.toLocaleString() + ' of these, so citations between the others are not drawn yet.'));
     }
@@ -434,3 +486,111 @@ $('whole-canvas').addEventListener('pointermove', (e) => {
 });
 
 new ResizeObserver(drawWhole).observe($('whole-view'));
+
+// The filters panel.
+function mapFilter(change) {
+  change();
+  try {
+    const keep = {};
+    Object.keys(MAP_DEFAULTS).forEach((k) => { keep[k] = mf[k]; });
+    localStorage.setItem('fil.map', JSON.stringify(keep));
+  } catch (e) {
+    // Only a convenience: the map opens with the defaults next time.
+  }
+  renderMapFilters();
+  if (!whole.xy) return;
+  sortByValue();
+  setShown();
+  if (whole.picked >= 0 && !whole.shown[whole.picked]) dropPick();
+  else if (whole.picked < 0) wholePane();
+  drawWhole();
+}
+
+function renderMapFilters() {
+  const panel = $('mf-panel');
+  if (panel.hidden) return;
+  const seg = (options, now, set) => {
+    const box = el('div', 'seg');
+    options.forEach(([value, label]) => {
+      const b = button(label, value === now ? 'on' : '', () => mapFilter(() => set(value)));
+      b.setAttribute('aria-pressed', value === now ? 'true' : 'false');
+      box.append(b);
+    });
+    return box;
+  };
+  const check = (label, on, set) => {
+    const l = el('label', 'mf-check');
+    const b = el('input');
+    b.type = 'checkbox';
+    b.checked = on;
+    b.addEventListener('change', () => mapFilter(() => set(b.checked)));
+    l.append(b, el('span', '', label));
+    return l;
+  };
+  const head = (text) => el('div', 'mf-head', text);
+
+  let top = 0;
+  whole.nodes.forEach((_, i) => { top = Math.max(top, measure(i)); });
+  const steps = STEPS.filter((v, k) => k === 0 || v <= top);
+  const slider = el('input');
+  slider.type = 'range';
+  slider.min = '0';
+  slider.max = String(steps.length - 1);
+  slider.value = String(Math.max(0, steps.findIndex((v) => v >= mf.min)));
+  slider.setAttribute('aria-label', 'Cited at least');
+  const shown = el('b', 'mf-num', mf.min.toLocaleString());
+  slider.addEventListener('input', () => { shown.textContent = steps[Number(slider.value)].toLocaleString(); });
+  slider.addEventListener('change', () => mapFilter(() => { mf.min = steps[Number(slider.value)]; }));
+  const least = el('div', 'mf-row');
+  least.append(el('span', 'mf-label', 'Cited at least'), slider, shown);
+
+  const number = (value, label, set) => {
+    const y = el('input', 'mf-year');
+    y.type = 'number';
+    y.placeholder = label;
+    y.value = value || '';
+    y.setAttribute('aria-label', label);
+    y.addEventListener('change', () => mapFilter(() => set(Number(y.value) || 0)));
+    return y;
+  };
+  const years = el('div', 'mf-row');
+  years.append(el('span', 'mf-label', 'Years'), number(mf.from, 'From', (v) => { mf.from = v; }), el('span', 'muted', 'to'),
+    number(mf.to, 'To', (v) => { mf.to = v; }));
+
+  const names = number(mf.names, 'Names', (v) => { mf.names = Math.max(0, Math.min(200, v)); });
+  names.value = String(mf.names);
+  const nameRow = el('div', 'mf-row');
+  nameRow.append(el('span', '', 'Name the'), names, el('span', '', 'biggest papers'));
+
+  const count = el('span', 'muted');
+  count.id = 'mf-count';
+  const foot = el('div', 'mf-foot');
+  foot.append(count, button('Reset', 'btn small', () => mapFilter(() => Object.assign(mf, MAP_DEFAULTS))));
+
+  panel.replaceChildren(
+    head('SIZE BY'), seg([['here', 'Here'], ['world', 'Worldwide'], ['same', 'Same size']], mf.size, (v) => { mf.size = v; mf.min = 0; }),
+    head('SHOW'), least, years,
+    check('Papers with a PDF', mf.pdf, (v) => { mf.pdf = v; }),
+    check('Papers without one', mf.nopdf, (v) => { mf.nopdf = v; }),
+    check('Only my papers and what they link to', mf.mine, (v) => { mf.mine = v; }),
+    check('Papers not yet fetched', mf.stubs, (v) => { mf.stubs = v; }),
+    head('PAPERS LEFT OUT'), seg([[false, 'Faded'], [true, 'Hidden']], mf.hide, (v) => { mf.hide = v; }),
+    head('NAMES'), nameRow, foot);
+  if (whole.xy) setShown();
+}
+
+// toggleMapFilters opens or closes the panel; open forces it either way.
+function toggleMapFilters(open) {
+  const panel = $('mf-panel');
+  panel.hidden = open === undefined ? !panel.hidden : !open;
+  $('whole-filters').setAttribute('aria-expanded', panel.hidden ? 'false' : 'true');
+  renderMapFilters();
+  if (whole.xy) setShown();
+}
+
+try {
+  Object.assign(mf, JSON.parse(localStorage.getItem('fil.map')) || {});
+} catch (e) {
+  // The defaults, then.
+}
+$('whole-filters').addEventListener('click', () => toggleMapFilters());

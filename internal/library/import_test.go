@@ -437,3 +437,52 @@ func TestImportDuplicateMakesNoPaper(t *testing.T) {
 		t.Errorf("works %d → %d: a duplicate made a paper", before.Works, after.Works)
 	}
 }
+
+// A paper already here, with no legal copy: the person adds the PDF they
+// have, and it is filed under that paper, not made a seed.
+func TestAttachAPDFToAPaperHere(t *testing.T) {
+	t.Parallel()
+	l, _ := openImportTest(t, maps.Clone(peerj))
+	ctx := t.Context()
+	added, err := l.Add(ctx, "10.7717/peerj.4375", AddOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	refs, err := l.db.WorksCitedBy(ctx, added.Work.FilID)
+	if err != nil || len(refs) == 0 {
+		t.Fatalf("the seed's references: %v %v", refs, err)
+	}
+	ref := refs[0]
+
+	// A file that does not carry the paper's title is asked about first.
+	outside := filepath.Join(t.TempDir(), "scan-0042.pdf")
+	os.WriteFile(outside, pdftest.Make(seedFront("A field guide to the solitary bees of northern Europe")), 0o644)
+	got, err := l.AttachPDF(ctx, ref.FilID, outside, false)
+	if err != nil || got.Outcome != store.ImportUnconfirmed || got.Reason == "" {
+		t.Fatalf("an unverified file = %+v, %v; want it asked about", got, err)
+	}
+	if files, _ := l.db.FilesOf(ctx, ref.FilID); len(files) != 0 {
+		t.Fatalf("asking filed it anyway: %+v", files)
+	}
+
+	got, err = l.AttachPDF(ctx, ref.FilID, outside, true)
+	if err != nil || got.Outcome != store.ImportImported || got.Work.FilID != ref.FilID {
+		t.Fatalf("added anyway = %+v, %v", got, err)
+	}
+	if _, err := os.Stat(outside); err != nil {
+		t.Errorf("the original was moved or deleted: %v", err)
+	}
+	// It stays a paper found by following citations, not one added by the
+	// person. Filing a PDF fetches the paper, as a download does, so its
+	// folder has a name and its citations can be found in the text.
+	w, err := l.db.GetWork(ctx, ref.FilID)
+	if err != nil || w.IsSeed || w.Source != ref.Source {
+		t.Errorf("the paper became %+v %v", w, err)
+	}
+
+	// The same file again is a duplicate, not a second copy.
+	again, err := l.AttachPDF(ctx, ref.FilID, outside, true)
+	if err != nil || again.Outcome != store.ImportDuplicate {
+		t.Errorf("the same file again = %+v, %v", again, err)
+	}
+}
