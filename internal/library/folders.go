@@ -129,26 +129,6 @@ func (l *Library) ensureFolder(ctx context.Context, w model.Work) (WorkFolder, e
 	return out, nil
 }
 
-// Collection is one collection and how many works it holds.
-type Collection struct {
-	Name       string
-	Works      int
-	FromFolder bool // mirrors a folder in papers/
-}
-
-// Collections lists the library's collections.
-func (l *Library) Collections(ctx context.Context) ([]Collection, error) {
-	cs, err := l.db.Collections(ctx)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]Collection, len(cs))
-	for i, c := range cs {
-		out[i] = Collection{Name: c.Name, Works: c.Works, FromFolder: c.FromFolder}
-	}
-	return out, nil
-}
-
 // ScanReport is what a scan of papers/ found.
 type ScanReport struct {
 	Folders  int // work folders on disk, found by fil ID or by their files
