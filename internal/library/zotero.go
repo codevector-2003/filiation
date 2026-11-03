@@ -18,6 +18,7 @@ import (
 var (
 	ErrZoteroNotRunning = zotero.ErrNotRunning
 	ErrZoteroNotAllowed = zotero.ErrNotAllowed
+	ErrZoteroNotExport  = zotero.ErrNotExport
 )
 
 // ZoteroCollection is one Zotero collection and how many items are in it.
@@ -39,12 +40,16 @@ type ZoteroPreview struct {
 	Tags        int // tags the user added, as distinct names
 	Already     int // brought in before
 	Collections []ZoteroCollection
+
+	// From an export file only: PDFs it names that are not beside it.
+	PDFsMissing int
 }
 
-// ZoteroPreview reads the Zotero library on this computer and counts what
-// bringing it in would do. It writes nothing.
-func (l *Library) ZoteroPreview(ctx context.Context) (ZoteroPreview, error) {
-	cols, items, err := l.readZotero(ctx)
+// ZoteroPreview reads the Zotero library on this computer, or the Zotero RDF
+// export at from when it is not "", and counts what bringing it in would do.
+// It writes nothing.
+func (l *Library) ZoteroPreview(ctx context.Context, from string) (ZoteroPreview, error) {
+	cols, items, err := l.readZotero(ctx, from)
 	if err != nil {
 		return ZoteroPreview{}, err
 	}
@@ -67,6 +72,11 @@ func (l *Library) ZoteroPreview(ctx context.Context) (ZoteroPreview, error) {
 		if len(it.PDFs) > 0 {
 			out.PDFs++
 		}
+		for _, a := range it.PDFs {
+			if a.Path != "" && !exists(a.Path) {
+				out.PDFsMissing++
+			}
+		}
 		if _, ok := known[it.Key]; ok {
 			out.Already++
 		}
@@ -84,7 +94,15 @@ func (l *Library) ZoteroPreview(ctx context.Context) (ZoteroPreview, error) {
 	return out, nil
 }
 
-func (l *Library) readZotero(ctx context.Context) ([]zotero.Collection, []zotero.Item, error) {
+// readZotero reads the running Zotero, or the export at from.
+func (l *Library) readZotero(ctx context.Context, from string) ([]zotero.Collection, []zotero.Item, error) {
+	if from != "" {
+		ex, err := zotero.ReadExport(from)
+		if err != nil {
+			return nil, nil, err
+		}
+		return treeOrder(ex.Collections), ex.Items, nil
+	}
 	cols, err := l.zotero.Collections(ctx)
 	if err != nil {
 		return nil, nil, err
@@ -127,6 +145,7 @@ type ZoteroOptions struct {
 	Refs bool     // record what each matched paper cites, as fil add does
 	PDFs bool     // copy the PDFs into papers/ and read them
 	Tags bool     // make labels from the tags the user added
+	From string   // a Zotero RDF export to read instead of the running Zotero
 
 	// Progress, when set, hears how far it has got.
 	Progress func(done, total int, note string)
@@ -168,7 +187,7 @@ func (l *Library) ZoteroImport(ctx context.Context, opts ZoteroOptions) (ZoteroR
 	if progress == nil {
 		progress = func(int, int, string) {}
 	}
-	cols, items, err := l.readZotero(ctx)
+	cols, items, err := l.readZotero(ctx, opts.From)
 	if err != nil {
 		return ZoteroReport{}, err
 	}
@@ -301,8 +320,17 @@ func (l *Library) zoteroWork(ctx context.Context, it zotero.Item, known map[stri
 		if it.Year > 0 {
 			year = model.Ptr(it.Year)
 		}
-		var fil string
-		err := l.db.Tx(ctx, func(tx *store.Tx) error {
+		// The same item read by the other route, or from an export with
+		// different words around it, is the document already here.
+		fil, found, err := l.db.LocalWorkNamed(ctx, title, year, model.SourceZotero)
+		if err != nil {
+			return "", false, err
+		}
+		if found {
+			out.Already++
+			return fil, false, nil
+		}
+		err = l.db.Tx(ctx, func(tx *store.Tx) error {
 			var err error
 			fil, err = tx.AddLocalWorkFrom(ctx, title, year, model.SourceZotero)
 			return err
@@ -357,7 +385,10 @@ func (l *Library) zoteroWork(ctx context.Context, it zotero.Item, known map[stri
 // copies are never moved or changed.
 func (l *Library) zoteroPDFs(ctx context.Context, it zotero.Item, fil string, out *ZoteroReport) error {
 	for _, a := range it.PDFs {
-		path, err := l.zotero.FilePath(ctx, a.Key)
+		path, err := a.Path, error(nil)
+		if path == "" {
+			path, err = l.zotero.FilePath(ctx, a.Key)
+		}
 		if err != nil {
 			if errors.Is(err, zotero.ErrNotRunning) || errors.Is(err, zotero.ErrNotAllowed) || ctx.Err() != nil {
 				return err
@@ -387,4 +418,9 @@ func (l *Library) zoteroPDFs(ctx context.Context, it zotero.Item, fil string, ou
 		}
 	}
 	return nil
+}
+
+func exists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }

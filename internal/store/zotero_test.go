@@ -63,3 +63,27 @@ func TestUpgradeV11Library(t *testing.T) {
 		t.Errorf("Zotero items after the upgrade = %v, %v", items, err)
 	}
 }
+
+// Found while building linking: a merge deleted what a paper was brought in
+// from, so bringing Zotero in again added it twice.
+func TestZoteroItemFollowsAMerge(t *testing.T) {
+	t.Parallel()
+	db := openTest(t)
+	if err := db.Migrate(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	ctx := t.Context()
+	mustExec(t, db.write, `INSERT INTO work (fil_id, openalex_id) VALUES ('F00000001', 'W1'), ('F00000002', 'W2');`)
+	err := db.Tx(ctx, func(tx *Tx) error {
+		if err := tx.PutZoteroItem(ctx, ZoteroItem{Key: "ART00001", FilID: "F00000001", Matched: true}); err != nil {
+			return err
+		}
+		return tx.MergeInto(ctx, "W1", "W2")
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if items, _ := db.ZoteroItems(ctx); items["ART00001"].FilID != "F00000002" {
+		t.Errorf("Zotero items after the merge = %+v", items)
+	}
+}

@@ -307,7 +307,7 @@ write our own.
 
 1. ~~**Licence**~~ — **decided: Apache-2.0** (D15), 24 Sept 2026.
 2. ~~**Zotero**~~ — **decided: the local API, read-only** (D29), 3 Nov 2026: the Inbox's Zotero
-   entry and `fil zotero`. A Zotero RDF export is the fallback, still to build.
+   entry and `fil zotero`, with a Zotero RDF export as the fallback (`fil zotero --from`).
 3. **Embeddings without Ollama** — is a pure-Go ONNX path (`onnx-gomlx`) worth the risk later,
    to restore true one-command setup? Revisit after M4 ships.
 4. **Who maintains it after the degree?**

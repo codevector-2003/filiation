@@ -33,7 +33,8 @@ type work struct {
 
 	offered []library.Candidate // what the last Add by title offered
 
-	zotero *zoteroReportJSON // what the last Zotero import did
+	zotero     *zoteroReportJSON // what the last Zotero import did
+	zoteroFrom string            // the Zotero RDF export chosen, read instead of a running Zotero
 }
 
 type jobJSON struct {

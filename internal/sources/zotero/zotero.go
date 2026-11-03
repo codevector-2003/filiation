@@ -129,8 +129,9 @@ type Item struct {
 // Attachment is a PDF attached to an item.
 type Attachment struct {
 	Key      string
-	LinkMode string // imported_file, imported_url, linked_file
+	LinkMode string // imported_file, imported_url, linked_file; exported from a file
 	Title    string
+	Path     string // where an exported file is; "" from a running Zotero, which says with FilePath
 }
 
 type rawItem struct {
