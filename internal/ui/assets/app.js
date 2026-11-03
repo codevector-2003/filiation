@@ -7,7 +7,7 @@ const DOCS = 'https://github.com/codevector-2003/filiation#documentation';
 
 const state = {
   show: 'all', title: '', collection: 0, favourites: false, labels: [], selected: '', asked: 0, askedPaper: 0, lib: null,
-  rows: new Map(), picked: new Set(), anchor: '', paper: null,
+  rows: new Map(), picked: new Set(), anchor: '', paper: null, focus: '',
   sort: '', yearFrom: 0, yearTo: 0, authors: [], venues: [], findAuthor: '', findVenue: '',
   loaded: 0, more: false, loading: false, loadingMore: false,
 };
@@ -359,9 +359,14 @@ function renderRows(res) {
   state.loaded = 0;
   state.more = false;
   state.rows = new Map();
+  // A paper opened from elsewhere, a citation in the Reader say, stays on show
+  // whether or not the list as filtered holds it.
+  const focus = state.focus;
+  state.focus = '';
   if (res.papers.length === 0) {
     const empty = state.lib && state.lib.works === 0 && !state.title && state.show === 'all' && !filtersOn();
     box.replaceChildren(el('div', 'note', empty ? 'Your library is empty. Add your first paper to begin.' : emptyPlace()));
+    if (focus) return;
     $('detail').replaceChildren();
     state.selected = '';
     state.picked.clear();
@@ -376,8 +381,17 @@ function renderRows(res) {
     showPicked();
     return;
   }
+  if (focus) return;
   const keep = res.papers.some((p) => p.id === state.selected);
   select(keep ? state.selected : res.papers[0].id);
+}
+
+// openPaper shows the paper id on the Papers screen, from anywhere.
+function openPaper(id) {
+  state.focus = id;
+  if (document.querySelector('#screen-papers').hidden) show('papers');
+  else state.focus = '';
+  select(id);
 }
 
 function paperRows() {
@@ -465,23 +479,15 @@ function renderPaper(p) {
 
   const parts = [head, actions, ...filedIn(p)];
   if (p.local) parts.push(matchBox(p));
-  parts.push(message, stats); // always there: a failed action reports into it
+  parts.push(message); // always there: a failed action reports into it
 
-  if (p.sample.length > 0) {
-    const box = el('div', 'sentences');
-    box.append(el('h2', '', 'WHERE IT CITES ITS REFERENCES'));
-    for (const s of p.sample) {
-      const fig = el('figure');
-      const cap = el('figcaption', '', 'p. ' + s.page + ' · cites ');
-      cap.append(el('span', '', s.cites));
-      fig.append(el('blockquote', '', '“' + s.text + '”'), cap);
-      box.append(fig);
-    }
-    if (p.sentences > p.sample.length) {
-      box.append(el('div', 'muted', 'The first ' + p.sample.length + ' of ' + p.sentences + '. The citation map shows each one.'));
-    }
-    parts.push(box);
-  }
+  // The abstract says what the paper is about. Where it cites its references
+  // is on the citation map, sentence by sentence.
+  const about = el('section', 'abstract');
+  about.append(el('h2', '', 'ABSTRACT'));
+  if (p.abstract) about.append(el('p', '', p.abstract));
+  else about.append(el('p', 'muted', p.local ? 'Your own document has no abstract here.' : 'OpenAlex has no abstract for this paper.'));
+  parts.push(about, stats);
   $('detail').replaceChildren(...parts);
   $('detail').scrollTop = 0;
 }

@@ -195,11 +195,7 @@ function short(title) {
 }
 
 function openInPapers(id) {
-  state.selected = id;
-  state.title = '';
-  $('filter').value = '';
-  show('papers');
-  select(id);
+  openPaper(id);
 }
 
 // pathFinder finds the chain of citations from the selected paper to another.

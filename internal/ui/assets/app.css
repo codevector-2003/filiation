@@ -283,6 +283,10 @@ button.more:hover { color: var(--ink); }
 }
 .stat b { font-size: 20px; font-weight: 600; }
 .stat span { color: var(--muted); }
+.abstract { display: flex; flex-direction: column; gap: 8px; }
+.abstract h2 { margin: 0; font-size: 11px; font-weight: 600; color: var(--muted); letter-spacing: 0.06em; }
+.abstract p { margin: 0; font-family: var(--serif); font-size: 14px; line-height: 1.6; color: var(--ink-2); }
+.abstract p.muted { font-family: var(--ui); font-size: 13px; color: var(--muted); }
 .sentences { display: flex; flex-direction: column; gap: 12px; }
 .sentences h2 {
   margin: 0; font-size: 13px; font-weight: 600;
