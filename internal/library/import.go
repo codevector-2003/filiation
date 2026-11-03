@@ -390,6 +390,53 @@ func (l *Library) ImportAs(ctx context.Context, file, input string, force bool) 
 	return l.fileAs(ctx, abs, data, hash, h, out)
 }
 
+// AttachPDF files the PDF at file under the paper input names, a paper
+// already in the library: the PDF a person has of a paper with no legal copy
+// to download. Unlike ImportAs it does not make the paper a seed, and it
+// copies the file rather than moving it. Filing fetches a paper known only by
+// ID, as a download does, so its folder has a name. It is
+// checked against the PDF as ImportAs checks, and returned unconfirmed when
+// the paper's title is not in it, unless force.
+func (l *Library) AttachPDF(ctx context.Context, input, file string, force bool) (ImportedFile, error) {
+	if l.files == nil {
+		return ImportedFile{}, ErrNoFolder
+	}
+	found, err := l.Find(ctx, input)
+	if err != nil {
+		return ImportedFile{}, err
+	}
+	w, err := l.workWithAuthors(ctx, found.FilID)
+	if err != nil {
+		return ImportedFile{}, err
+	}
+	abs, data, hash, err := l.readImport(file)
+	if err != nil {
+		return ImportedFile{}, err
+	}
+	out := ImportedFile{File: abs, Work: w, Clue: "added by you to " + w.FilID}
+	if _, err := l.Scan(ctx); err != nil {
+		return out, err
+	}
+	if !force {
+		fctx, cancel := context.WithTimeout(ctx, ExtractTimeout)
+		front, ferr := text.Shared().Front(fctx, data)
+		cancel()
+		if ctx.Err() != nil {
+			return out, ctx.Err()
+		}
+		h := model.HydratedWork{Work: w}
+		if ferr == nil && hasText(front) && !verifies(front, h) && !resembles(front, h) {
+			out.Outcome = store.ImportUnconfirmed
+			out.Reason = "the title of " + w.DisplayTitle() + " is not on the first pages of " + filepath.Base(abs)
+			return out, nil
+		}
+	}
+	if dup, ok, err := l.duplicate(ctx, abs, hash, out); err != nil || ok {
+		return dup, err
+	}
+	return l.fileWork(ctx, abs, data, hash, w, out)
+}
+
 // ImportChosen files the PDF at file as a candidate the researcher chose
 // from an earlier import's answer. No further check: they chose.
 func (l *Library) ImportChosen(ctx context.Context, file string, c ImportCandidate) (ImportedFile, error) {

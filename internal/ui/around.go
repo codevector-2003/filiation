@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"strings"
 
 	"github.com/codevector-2003/filiation/internal/library"
@@ -144,4 +145,68 @@ func (s *server) whyNoPDF(ctx context.Context, id string) string {
 		return "No PDF could be downloaded."
 	}
 	return pdfNote(p)
+}
+
+type attachedJSON struct {
+	State  string `json:"state"` // added | unconfirmed | duplicate
+	File   string `json:"file,omitempty"`
+	Name   string `json:"name,omitempty"`
+	Reason string `json:"reason,omitempty"`
+	Pages  int    `json:"pages,omitempty"` // searchable, once read
+}
+
+// attachPDF files a PDF the person has under the paper: the file named, or
+// one they choose. A file that does not carry the paper's title is sent back
+// to be asked about; force says they have seen that and want it anyway.
+func (s *server) attachPDF(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		File  string `json:"file"`
+		Force bool   `json:"force"`
+	}
+	if !readBody(w, r, &req) {
+		return
+	}
+	file := req.File
+	if file == "" {
+		if s.PickFiles == nil {
+			fail(w, http.StatusNotImplemented, errors.New("choosing a file needs the desktop app"))
+			return
+		}
+		files, err := s.PickFiles()
+		if err != nil {
+			fail(w, http.StatusInternalServerError, err)
+			return
+		}
+		if len(files) == 0 {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		file = files[0]
+	}
+	if !isPDF(file) {
+		fail(w, http.StatusBadRequest, errors.New("only a PDF can be added"))
+		return
+	}
+	got, err := s.Library.AttachPDF(r.Context(), r.PathValue("id"), file, req.Force)
+	switch {
+	case errors.Is(err, library.ErrNoFolder):
+		fail(w, http.StatusConflict, errors.New("this library has no folder for PDFs"))
+		return
+	case err != nil:
+		failFind(w, err)
+		return
+	}
+	out := attachedJSON{File: got.File, Name: filepath.Base(got.File), Reason: got.Reason}
+	switch got.Outcome {
+	case library.ImportUnconfirmed:
+		out.State = "unconfirmed"
+	case library.ImportDuplicate:
+		out.State = "duplicate"
+	default:
+		out.State = "added"
+		if got.Text != nil && got.Text.Status == "ok" {
+			out.Pages = got.Text.Pages
+		}
+	}
+	send(w, out)
 }

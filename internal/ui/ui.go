@@ -121,6 +121,7 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("POST /api/pdfs", s.needLibrary(s.downloadPDFs))
 	mux.HandleFunc("GET /api/papers/{id}/around", s.needLibrary(s.surroundings))
 	mux.HandleFunc("POST /api/papers/{id}/around", s.needLibrary(s.bringAround))
+	mux.HandleFunc("POST /api/papers/{id}/attach", s.needLibrary(s.attachPDF))
 	mux.HandleFunc("GET /api/inbox", s.needLibrary(s.inboxList))
 	mux.HandleFunc("POST /api/inbox/import", s.needLibrary(s.inboxImport))
 	mux.HandleFunc("POST /api/inbox/choose", s.needLibrary(s.inboxChoose))
@@ -559,7 +560,7 @@ func pdfNote(p library.Paper) string {
 	case model.PDFOpenNoLink:
 		return "Open access, but only as a web page."
 	case model.PDFNoOpenCopy:
-		return "No open-access copy is known. Filiation downloads only legal open-access copies, never from behind a publisher's paywall. Read it through your library, or add a copy you have with Import PDFs."
+		return "No open-access copy is known. Filiation downloads only legal open-access copies, never from behind a publisher's paywall. Read it through your library, or add a copy you have with Add your PDF."
 	case model.PDFNotInOpenAlex:
 		return "Not in OpenAlex."
 	}

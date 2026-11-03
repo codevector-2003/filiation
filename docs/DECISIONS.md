@@ -796,3 +796,21 @@ in the dialog records their references as well, hydrating them as Expand would.
 Download PDF on a paper is `fil fetch <paper>`: naming a paper is asking for it, so every link is
 tried again. It is greyed when OpenAlex knows no legal copy, or only a web page, and says why.
 
+## D32 — The citation map sizes and filters in the page, and your own PDF goes straight onto a paper
+
+Decided 4 Nov 2026. The whole-library map sized a paper only by how often the library cites it, and
+offered no way to thin it out. The map's data now carries each paper's year and the count OpenAlex
+keeps of its citations worldwide, so a circle can say either, or nothing; papers can be kept to those
+cited at least so often, a range of years, with or without a PDF, the person's own papers and what
+they link to, and fetched or not. What is left out is faded, so the map keeps its shape, or hidden.
+All of it runs in the page over data already loaded, so a slider answers at once; the choices are
+kept per computer.
+
+A paper with no legal copy can take a PDF the person has: "Add your PDF" files it under that paper
+(`library.AttachPDF`). The Inbox already filed a PDF under the paper it names, matched by OpenAlex
+ID (hard rule 6), but made the paper a seed and needed the file identified first. Here the person
+has named the paper, so it is not made a seed, the file is copied rather than moved, and the title
+is still checked: a file that does not carry it is asked about, never attached silently. Filing
+fetches a paper known only by ID, as a download does, so its folder has a name and its citations
+can be found in its text.
+

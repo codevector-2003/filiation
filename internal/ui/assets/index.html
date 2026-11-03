@@ -199,6 +199,7 @@
           <label class="whole-check"><input type="checkbox" id="whole-all">Show every paper</label>
           <span class="muted" id="whole-count" aria-live="polite"></span>
           <span class="whole-filter" id="whole-filter" hidden><span id="whole-filter-text"></span><button type="button" class="link" id="whole-filter-off">Ignore</button></span>
+          <button type="button" class="btn small" id="whole-filters" aria-expanded="false" aria-controls="mf-panel">Filters</button>
         </div>
         <div class="map-controls" id="around-bar" hidden>
           <span class="map-around">Around:</span>
@@ -216,6 +217,7 @@
         <canvas id="whole-canvas" aria-label="Every paper in your library and the citations between them. Use Find a paper to reach one by title."></canvas>
         <div class="whole-found" id="whole-found" hidden></div>
         <div class="whole-tip" id="whole-tip" hidden></div>
+        <div class="mf-panel" id="mf-panel" role="group" aria-label="Map filters" hidden></div>
         <div class="map-empty" id="whole-note" hidden></div>
         <div class="legend">
           <span><i class="key dot seed"></i>Added by you</span>

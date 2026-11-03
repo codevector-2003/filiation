@@ -116,6 +116,7 @@ type ListRow struct {
 	Hydrated    bool
 	RefsKnown   bool   // its reference list was read, even if it turned out empty
 	CitedBy     int    // in this library
+	CitedWorld  int    // by OpenAlex's count, across everything it indexes
 	HasPDF      bool   // a PDF on disk
 	TextStatus  string // "", ok, no-text, gibberish, unreadable, timed-out
 	Contexts    int    // references cited in a sentence fil found
@@ -190,7 +191,8 @@ SELECT w.fil_id, ifnull(w.openalex_id, ''), ifnull(w.title, ''), ifnull(w.year, 
        EXISTS (SELECT 1 FROM favourite v WHERE v.work_id = w.fil_id),
        ifnull((SELECT group_concat(wl.label_id) FROM work_label wl WHERE wl.work_id = w.fil_id), ''),
        ifnull((SELECT group_concat(cw.collection_id) FROM collection_work cw WHERE cw.work_id = w.fil_id), ''),
-       ifnull((SELECT CASE max(z.matched) WHEN 1 THEN 'matched' WHEN 0 THEN 'unmatched' END FROM zotero_item z WHERE z.fil_id = w.fil_id), '')
+       ifnull((SELECT CASE max(z.matched) WHEN 1 THEN 'matched' WHEN 0 THEN 'unmatched' END FROM zotero_item z WHERE z.fil_id = w.fil_id), ''),
+       ifnull(w.cited_by_count, 0)
 FROM work w
 WHERE `+strings.Join(where, " AND ")+`
 ORDER BY `+order+limit+`;`, args...)
@@ -203,7 +205,7 @@ ORDER BY `+order+limit+`;`, args...)
 		var r ListRow
 		var labels, collections string
 		if err := rows.Scan(&r.FilID, &r.OpenAlexID, &r.Title, &r.Year, &r.Author, &r.Seed, &r.Hydrated,
-			&r.RefsKnown, &r.CitedBy, &r.HasPDF, &r.TextStatus, &r.Contexts, &r.Mismatch, &r.Favourite, &labels, &collections, &r.Zotero); err != nil {
+			&r.RefsKnown, &r.CitedBy, &r.HasPDF, &r.TextStatus, &r.Contexts, &r.Mismatch, &r.Favourite, &labels, &collections, &r.Zotero, &r.CitedWorld); err != nil {
 			return nil, fmt.Errorf("store: list the library: %w", err)
 		}
 		if !hasAll(foldTitle(r.Title), words) {
