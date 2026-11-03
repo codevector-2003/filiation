@@ -6,6 +6,7 @@ const inbox = { items: [], selected: 0, choice: {}, dropped: [] };
 
 screens.inbox = async () => {
   await loadInbox();
+  loadZotero();
   const lib = state.lib || {};
   $('inbox-tip').textContent = 'Drag PDFs anywhere into this window, or save them to ' + (lib.folder ? lib.folder + '​/Inbox' : 'the Inbox folder') + ' and open this screen.';
   lookAgain();
@@ -72,8 +73,14 @@ function renderInbox() {
     else if (it.reason) li.append(el('span', 'file-state', it.reason));
     return li;
   }));
-  if (!review.some((i) => i.id === inbox.selected)) inbox.selected = review.length > 0 ? review[0].id : 0;
-  renderItem(review.find((i) => i.id === inbox.selected));
+  $('zotero-entry').replaceChildren(zoteroEntry());
+  $('review-head').hidden = review.length === 0;
+  if (inbox.selected === 'zotero') {
+    renderZotero();
+  } else {
+    if (!review.some((i) => i.id === inbox.selected)) inbox.selected = review.length > 0 ? review[0].id : 0;
+    renderItem(review.find((i) => i.id === inbox.selected));
+  }
   document.querySelectorAll('.file.on').forEach((b) => b.classList.remove('on'));
   const on = [...$('inbox-review').querySelectorAll('button.file')][review.findIndex((i) => i.id === inbox.selected)];
   if (on) on.classList.add('on');
@@ -87,7 +94,7 @@ function selectItem(id) {
 function renderItem(it) {
   const main = $('inbox-main');
   if (!it) {
-    main.replaceChildren(el('div', 'note', inbox.items.length > 0 ? 'Everything here has been dealt with.' : 'Nothing is waiting. Add PDFs you already have, and they are identified and filed here.'));
+    main.replaceChildren(el('div', 'note', inbox.items.length > 0 ? 'Everything here has been dealt with.' : 'Nothing is waiting. Add PDFs you already have, and they are identified and filed here. To bring in a Zotero library, choose Zotero on the left.'));
     return;
   }
   const head = el('div', 'item-head');

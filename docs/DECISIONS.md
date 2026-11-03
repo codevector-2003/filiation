@@ -482,7 +482,9 @@ and some sync tools turn them into copies). None behaves the same on all three s
   searchable, without citation edges; text, chunks and FTS5 search; citation context attached to
   existing edges (ADR-015).
 - **Out, for now:** Zotero. M3 is already the largest milestone; the cheapest later route is a
-  BibTeX or CSL-JSON export, not Zotero's database file.
+  BibTeX or CSL-JSON export, not Zotero's database file. *Superseded 3 Nov 2026 by D29:* Zotero
+  comes in through its local API, with a Zotero RDF export as the fallback, since BibTeX and
+  CSL-JSON lose both the collection tree and the PDFs.
 - **Measured, not built:** citation edges parsed from a local document's reference list. Rule 2
   allows parsing "only for works with no DOI and no index entry, and only later". Spike 11
   measures matching against OpenAlex's own reference lists; the feature follows M3 if the numbers
@@ -692,3 +694,30 @@ drag and drop. The desktop window sets `DisableWebViewDrop` so files dropped fro
 the Inbox, and on macOS and Linux Wails then stops a drop inside the page from arriving at all.
 Pointer events behave the same on all three. Every drag has a menu equivalent: the right-click
 menu and the bar that appears when several papers are selected do everything a drag does.
+
+## D29 — Zotero comes in through its local API, read-only (supersedes D19's route)
+
+Zotero 7 and later serve the library on this computer at `http://127.0.0.1:23119/api/` once the
+user ticks "Allow other applications on this computer to communicate with Zotero". It needs no
+account or key, works offline, and gives the collection tree, every item, its attachments and the
+path of each file on disk. `internal/sources/zotero` sends GET requests and nothing else, to this
+computer only: Zotero 10 lets other programs write through the same API, and Filiation never will.
+Reading Zotero's database file was ruled out: it is locked while Zotero runs, and its layout is
+Zotero's to change. A Zotero RDF export (File, Export Library, with Export Files) is the fallback
+for an older Zotero or one on another computer, and comes in a later change.
+
+An item with a DOI, arXiv ID or PubMed ID is looked up in OpenAlex (free) and added as a seed with
+what it cites, as `fil add` does; the user can turn the references off. One without, or that
+OpenAlex does not know, is kept as a local document. A title is never searched on its own: each
+search costs 10 of the day's 1,000 credits, so it is the user's to ask for. A PDF attached in Zotero
+is copied into `papers/` without the identity check `fil import` makes (ADR-014): the user filed it
+under that item, which is the evidence the check looks for. Zotero's own files are never moved.
+
+Schema v12 records each item brought in (`zotero_item`), so bringing the library in again adds only
+what is new, and a collection keeps its Zotero key, so it follows a rename in Zotero. Nothing is
+ever deleted because it went from Zotero, and a collection the user made with the same name in the
+same place is adopted rather than doubled. Only tags the user added become labels, and only when
+asked: publishers' automatic tags often run to hundreds.
+
+Not tested against a real Zotero yet when this was written: the client follows Zotero's documented
+local API and is tested against a stand-in. A real read is to be run before release.

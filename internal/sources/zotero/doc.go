@@ -1,7 +1,7 @@
-// Package zotero reads a user's existing Zotero library.
+// Package zotero reads a user's Zotero library through the local API that
+// Zotero 7 and later serve on this computer (D29).
 //
-// Still undecided — see "Still open" in CLAUDE.md. It is the cheapest route to
-// real users, because it turns an empty tool into a populated one on first run.
-// Read-only in every version under consideration: Filiation must never write to
-// somebody's reference manager.
+// Read-only, always: Filiation must never write to somebody's reference
+// manager. The client sends GET requests and nothing else, to 127.0.0.1 only,
+// so nothing about the library leaves the computer through it.
 package zotero

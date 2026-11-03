@@ -123,6 +123,7 @@ type ListRow struct {
 	Favourite   bool
 	Labels      []int64
 	Collections []int64 // the ones it is in itself
+	Zotero      string  // "" not from Zotero; "matched", or "unmatched": kept as a local document
 }
 
 // HavePDFs reports which of these works have a PDF on disk.
@@ -188,7 +189,8 @@ SELECT w.fil_id, ifnull(w.openalex_id, ''), ifnull(w.title, ''), ifnull(w.year, 
        EXISTS (SELECT 1 FROM work_file f WHERE f.fil_id = w.fil_id AND f.missing = 0 AND f.identity = 'mismatch'),
        EXISTS (SELECT 1 FROM favourite v WHERE v.work_id = w.fil_id),
        ifnull((SELECT group_concat(wl.label_id) FROM work_label wl WHERE wl.work_id = w.fil_id), ''),
-       ifnull((SELECT group_concat(cw.collection_id) FROM collection_work cw WHERE cw.work_id = w.fil_id), '')
+       ifnull((SELECT group_concat(cw.collection_id) FROM collection_work cw WHERE cw.work_id = w.fil_id), ''),
+       ifnull((SELECT CASE max(z.matched) WHEN 1 THEN 'matched' WHEN 0 THEN 'unmatched' END FROM zotero_item z WHERE z.fil_id = w.fil_id), '')
 FROM work w
 WHERE `+strings.Join(where, " AND ")+`
 ORDER BY `+order+limit+`;`, args...)
@@ -201,7 +203,7 @@ ORDER BY `+order+limit+`;`, args...)
 		var r ListRow
 		var labels, collections string
 		if err := rows.Scan(&r.FilID, &r.OpenAlexID, &r.Title, &r.Year, &r.Author, &r.Seed, &r.Hydrated,
-			&r.RefsKnown, &r.CitedBy, &r.HasPDF, &r.TextStatus, &r.Contexts, &r.Mismatch, &r.Favourite, &labels, &collections); err != nil {
+			&r.RefsKnown, &r.CitedBy, &r.HasPDF, &r.TextStatus, &r.Contexts, &r.Mismatch, &r.Favourite, &labels, &collections, &r.Zotero); err != nil {
 			return nil, fmt.Errorf("store: list the library: %w", err)
 		}
 		if !hasAll(foldTitle(r.Title), words) {

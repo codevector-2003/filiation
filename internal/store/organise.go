@@ -21,6 +21,7 @@ type Collection struct {
 	Short      string // as a tree shows it, inside its parent
 	Works      int    // distinct papers in it and in every collection inside it
 	FromFolder bool   // mirrors a folder in papers/, so only moving folders changes it
+	Zotero     string // the Zotero collection it was brought in from, if any
 }
 
 // Collections returns the library's collections, each after the one it sits
@@ -66,7 +67,7 @@ func (db *DB) Collections(ctx context.Context) ([]Collection, error) {
 // collectionTree reads every collection and orders them as a tree.
 func collectionTree(ctx context.Context, q queryer) ([]Collection, error) {
 	rows, err := q.QueryContext(ctx, `
-SELECT c.id, ifnull(c.parent_id, 0), c.name, fc.folder IS NOT NULL, ifnull(fc.folder, '')
+SELECT c.id, ifnull(c.parent_id, 0), c.name, fc.folder IS NOT NULL, ifnull(fc.folder, ''), ifnull(c.zotero_key, '')
 FROM collection c LEFT JOIN folder_collection fc ON fc.collection_id = c.id;`)
 	if err != nil {
 		return nil, fmt.Errorf("store: list collections: %w", err)
@@ -77,7 +78,7 @@ FROM collection c LEFT JOIN folder_collection fc ON fc.collection_id = c.id;`)
 	for rows.Next() {
 		var c Collection
 		var folder string
-		if err := rows.Scan(&c.ID, &c.Parent, &c.Name, &c.FromFolder, &folder); err != nil {
+		if err := rows.Scan(&c.ID, &c.Parent, &c.Name, &c.FromFolder, &folder, &c.Zotero); err != nil {
 			return nil, fmt.Errorf("store: list collections: %w", err)
 		}
 		c.Short = c.Name
@@ -418,6 +419,7 @@ type Organised struct {
 	Favourite   bool
 	Collections []int64 // the collections it is in itself, not through one inside
 	Labels      []int64
+	Zotero      string // "" not from Zotero; matched, or unmatched
 }
 
 // OrganisedOf says how the user has filed a paper.
@@ -427,7 +429,9 @@ func (db *DB) OrganisedOf(ctx context.Context, filID string) (Organised, error) 
 	err := db.read.QueryRowContext(ctx, `
 SELECT EXISTS (SELECT 1 FROM favourite WHERE work_id = ?1),
        ifnull((SELECT group_concat(collection_id) FROM collection_work WHERE work_id = ?1), ''),
-       ifnull((SELECT group_concat(label_id) FROM work_label WHERE work_id = ?1), '');`, filID).Scan(&out.Favourite, &cs, &ls)
+       ifnull((SELECT group_concat(label_id) FROM work_label WHERE work_id = ?1), ''),
+       ifnull((SELECT CASE max(matched) WHEN 1 THEN 'matched' WHEN 0 THEN 'unmatched' END FROM zotero_item WHERE fil_id = ?1), '');`,
+		filID).Scan(&out.Favourite, &cs, &ls, &out.Zotero)
 	if err != nil {
 		return Organised{}, fmt.Errorf("store: read how %s is filed: %w", filID, err)
 	}

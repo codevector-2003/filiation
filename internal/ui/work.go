@@ -32,10 +32,12 @@ type work struct {
 	skipped map[string]bool // files the person passed over
 
 	offered []library.Candidate // what the last Add by title offered
+
+	zotero *zoteroReportJSON // what the last Zotero import did
 }
 
 type jobJSON struct {
-	Kind    string `json:"kind,omitempty"` // fetch | import
+	Kind    string `json:"kind,omitempty"` // fetch | import | zotero
 	Running bool   `json:"running"`
 	Done    int    `json:"done"`
 	Total   int    `json:"total"`

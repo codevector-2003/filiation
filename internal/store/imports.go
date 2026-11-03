@@ -72,10 +72,15 @@ FROM import_attempt WHERE sha256 = ?;`, sha256).Scan(&a.SHA256, &a.Path, &a.Outc
 // title the user gave it, no OpenAlex ID and no references (ADR-014). It is
 // a seed the user uploaded, and it is never on the expansion frontier.
 func (tx *Tx) AddLocalWork(ctx context.Context, title string, year *int) (string, error) {
+	return tx.AddLocalWorkFrom(ctx, title, year, model.SourceUpload)
+}
+
+// AddLocalWorkFrom adds a local document that came from source.
+func (tx *Tx) AddLocalWorkFrom(ctx context.Context, title string, year *int, source model.Source) (string, error) {
 	fil := tx.newID()
 	_, err := tx.tx.ExecContext(ctx, `
 INSERT INTO work (fil_id, title, year, hydrated, fetched_refs, depth, is_seed, source)
-VALUES (?, ?, ?, 1, 1, 0, 1, ?);`, fil, title, year, string(model.SourceUpload))
+VALUES (?, ?, ?, 1, 1, 0, 1, ?);`, fil, title, year, string(source))
 	if err != nil {
 		return "", fmt.Errorf("store: add local document %q: %w", title, err)
 	}

@@ -300,7 +300,9 @@ function renderFilters(res) {
 
 function chips(p) {
   const out = [];
-  if (p.seed) out.push(el('span', 'chip', 'Added by you'));
+  if (p.zotero) out.push(el('span', 'chip', 'From Zotero'));
+  else if (p.seed) out.push(el('span', 'chip', 'Added by you'));
+  if (p.zotero === 'unmatched') out.push(el('span', 'chip warn', 'Not matched'));
   if (p.pdf) out.push(el('span', 'chip pdf', 'PDF'));
   if (p.mismatch) out.push(el('span', 'chip warn', 'Another edition?'));
   if (p.text) out.push(el('span', p.searchable ? 'chip text' : 'chip', p.text));
@@ -420,7 +422,9 @@ function renderPaper(p) {
   if (p.authors) head.append(el('span', 'authors', p.authors));
   if (p.meta) head.append(el('span', 'meta', p.meta));
 
-  const message = el('div', 'why', p.pdfNote || p.textNote || '');
+  const unmatched = p.zotero === 'unmatched'
+    ? 'Not matched in OpenAlex: Zotero has no DOI, arXiv ID or PubMed ID for it that OpenAlex knows, so it has no citation links. It is kept as your own document.' : '';
+  const message = el('div', 'why', [unmatched, p.pdfNote || p.textNote || ''].filter(Boolean).join(' '));
   const act = (label, primary, path) => button(label, primary ? 'btn primary' : 'btn', async () => {
     try {
       await api('/api/papers/' + encodeURIComponent(p.id) + path, 'POST');
@@ -467,7 +471,7 @@ function renderPaper(p) {
 }
 
 // Long work runs one job at a time; the sidebar shows it on every screen.
-const job = { timer: 0, run: 0, listeners: [] };
+const job = { timer: 0, run: 0, listeners: [], ticks: [], last: null };
 
 async function pollJob() {
   let j;
@@ -489,13 +493,15 @@ async function pollJob() {
 }
 
 function renderJob(j) {
+  job.last = j;
+  job.ticks.forEach((f) => f(j));
   const box = $('job');
   if (!j.running && !j.summary && !j.error) {
     box.hidden = true;
     return;
   }
   box.hidden = false;
-  $('job-title').textContent = j.kind === 'import' ? 'Filing PDFs' : 'Fetching PDFs';
+  $('job-title').textContent = { import: 'Filing PDFs', zotero: 'Bringing in Zotero' }[j.kind] || 'Fetching PDFs';
   $('job-count').textContent = j.running && j.total > 0 ? j.done + ' of ' + j.total : '';
   $('job-fill').style.width = j.running ? (j.total > 0 ? Math.round((100 * j.done) / j.total) : 100) + '%' : '100%';
   $('job-note').textContent = j.error || (j.running ? j.note : j.summary) || '';
