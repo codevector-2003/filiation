@@ -16,7 +16,8 @@ if (window.runtime && window.runtime.OnFileDrop) {
   window.runtime.OnFileDrop((x, y, paths) => { dropPDFs(paths); }, false);
 }
 
-loadLibrary()
+startTitleBar()
+  .then(() => loadLibrary())
   .then((ready) => {
     if (!ready) return undefined;
     pollJob();
