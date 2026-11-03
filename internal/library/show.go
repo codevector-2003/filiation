@@ -68,6 +68,9 @@ type Paper struct {
 	// cited in; Sample is the first few, in reading order.
 	Contexts int
 	Sample   []CitedIn
+
+	// Organised is how the user filed it: starred, its collections and labels.
+	Organised store.Organised
 }
 
 // PaperFile is one of a paper's files.
@@ -107,6 +110,9 @@ func (l *Library) Show(ctx context.Context, input string) (Paper, error) {
 		return Paper{}, err
 	}
 	p := Paper{Work: w}
+	if p.Organised, err = l.db.OrganisedOf(ctx, w.FilID); err != nil {
+		return Paper{}, err
+	}
 	n, err := l.Neighbours(ctx, w.FilID)
 	if err != nil {
 		return Paper{}, err

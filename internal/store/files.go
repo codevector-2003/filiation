@@ -156,7 +156,9 @@ func (tx *Tx) MoveFile(ctx context.Context, from string, to File) error {
 // SyncFolderCollections makes the collections that mirror folders match want,
 // a map from folder path to the collection name and its members' fil IDs. A
 // folder collection not in want is deleted; the user's own collections are
-// never touched, except that one whose name a folder now claims is adopted.
+// never touched, except that one at the top whose name a folder now claims is
+// adopted. Folder collections all sit at the top: Collections nests them by
+// their paths.
 func (tx *Tx) SyncFolderCollections(ctx context.Context, want map[string]FolderCollection) error {
 	rows, err := tx.tx.QueryContext(ctx, `SELECT collection_id, folder FROM folder_collection;`)
 	if err != nil {
@@ -179,7 +181,13 @@ func (tx *Tx) SyncFolderCollections(ctx context.Context, want map[string]FolderC
 
 	for folder, id := range have {
 		if _, ok := want[folder]; !ok {
-			if _, err := tx.tx.ExecContext(ctx, `DELETE FROM collection WHERE id = ?;`, id); err != nil {
+			// One the user had made, and put collections inside, before a
+			// folder took its name stays theirs: deleting it would take those.
+			if _, err := tx.tx.ExecContext(ctx, `
+DELETE FROM collection WHERE id = ?1 AND NOT EXISTS (SELECT 1 FROM collection k WHERE k.parent_id = ?1);`, id); err != nil {
+				return fmt.Errorf("store: remove collection for %s: %w", folder, err)
+			}
+			if _, err := tx.tx.ExecContext(ctx, `DELETE FROM folder_collection WHERE collection_id = ?;`, id); err != nil {
 				return fmt.Errorf("store: remove collection for %s: %w", folder, err)
 			}
 		}
@@ -192,10 +200,11 @@ func (tx *Tx) SyncFolderCollections(ctx context.Context, want map[string]FolderC
 				return fmt.Errorf("store: rename collection for %s: %w", folder, err)
 			}
 		} else {
-			err := tx.tx.QueryRowContext(ctx, `
-INSERT INTO collection (name) VALUES (?)
-ON CONFLICT (name) DO UPDATE SET name = excluded.name
-RETURNING id;`, fc.Name).Scan(&id)
+			err := tx.tx.QueryRowContext(ctx,
+				`SELECT id FROM collection WHERE parent_id IS NULL AND name = ?;`, fc.Name).Scan(&id)
+			if errors.Is(err, sql.ErrNoRows) {
+				err = tx.tx.QueryRowContext(ctx, `INSERT INTO collection (name) VALUES (?) RETURNING id;`, fc.Name).Scan(&id)
+			}
 			if err != nil {
 				return fmt.Errorf("store: create collection for %s: %w", folder, err)
 			}
@@ -222,36 +231,6 @@ RETURNING id;`, fc.Name).Scan(&id)
 type FolderCollection struct {
 	Name  string
 	Works []string // fil IDs
-}
-
-// Collections returns every collection's name and member count, in name order.
-func (db *DB) Collections(ctx context.Context) ([]CollectionSize, error) {
-	rows, err := db.read.QueryContext(ctx, `
-SELECT c.name, count(cw.work_id), fc.folder IS NOT NULL
-FROM collection c
-LEFT JOIN collection_work cw ON cw.collection_id = c.id
-LEFT JOIN folder_collection fc ON fc.collection_id = c.id
-GROUP BY c.id ORDER BY c.name;`)
-	if err != nil {
-		return nil, fmt.Errorf("store: list collections: %w", err)
-	}
-	defer rows.Close()
-	var out []CollectionSize
-	for rows.Next() {
-		var c CollectionSize
-		if err := rows.Scan(&c.Name, &c.Works, &c.FromFolder); err != nil {
-			return nil, fmt.Errorf("store: list collections: %w", err)
-		}
-		out = append(out, c)
-	}
-	return out, rows.Err()
-}
-
-// CollectionSize is one line of a collection listing.
-type CollectionSize struct {
-	Name       string
-	Works      int
-	FromFolder bool
 }
 
 func queryFolders(ctx context.Context, q queryer, query string, args ...any) ([]Folder, error) {

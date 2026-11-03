@@ -673,3 +673,22 @@ there is still no build step. Measured on a real library of 3,132 papers and 4,5
 to arrange in the desktop window, about 3 ms to redraw. d3-force starts from fixed places with a
 fixed random seed, so the same library gets the same map. It opens on papers with two or more
 links, since a paper with one link is mostly a reference-list entry nothing else is known about.
+
+## D28 — Collections nest, labels sit across them, and papers are dragged with the pointer
+
+Schema v11. A collection can sit inside another, and its name only has to be unique among the
+collections beside it, so two chapters can each hold "Methods". Choosing a collection shows the
+papers in it and in every collection inside it, and its count is of distinct papers. Labels are
+separate from collections: a paper can carry several, and choosing several shows the papers that
+carry all of them. Favourites are a star on the paper. None of these moves or changes a PDF, and
+deleting a collection or a label never deletes a paper.
+
+A collection made from a folder in `papers/` stays the folder's (ADR-012): it cannot be renamed,
+moved, deleted or filled here, and nothing can be made inside it. Folder collections nest by their
+paths rather than by a stored parent, so a rescan never has to reparent anything.
+
+Dragging papers onto a collection, a label or Favourites uses pointer events, not the browser's
+drag and drop. The desktop window sets `DisableWebViewDrop` so files dropped from outside reach
+the Inbox, and on macOS and Linux Wails then stops a drop inside the page from arriving at all.
+Pointer events behave the same on all three. Every drag has a menu equivalent: the right-click
+menu and the bar that appears when several papers are selected do everything a drag does.

@@ -167,16 +167,24 @@ CREATE TABLE IF NOT EXISTS note (
     file       TEXT       -- schema v10: the PDF marked, in the library folder; another edition has other pages
 );
 
+-- A collection sits inside another, or at the top. Names are unique among
+-- the collections beside each other, so two chapters can each hold "Methods".
 CREATE TABLE IF NOT EXISTS collection (
-    id   INTEGER PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE
+    id         INTEGER PRIMARY KEY,
+    parent_id  INTEGER REFERENCES collection(id) ON DELETE CASCADE,  -- schema v11: NULL at the top
+    name       TEXT NOT NULL,
+    zotero_key TEXT  -- schema v11: the Zotero collection it was read from, if any
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_collection_name ON collection(ifnull(parent_id, 0), name);
 
 CREATE TABLE IF NOT EXISTS collection_work (
     collection_id INTEGER NOT NULL REFERENCES collection(id) ON DELETE CASCADE,
     work_id       TEXT NOT NULL REFERENCES work(fil_id) ON DELETE CASCADE,
     PRIMARY KEY (collection_id, work_id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_collection_work_work ON collection_work(work_id);
 
 -- A collection that mirrors a folder in papers/ (ADR-012): papers/Chapter 2/Key
 -- studies appears as the collection "Chapter 2/Key studies". Rescans keep its
@@ -185,6 +193,26 @@ CREATE TABLE IF NOT EXISTS collection_work (
 CREATE TABLE IF NOT EXISTS folder_collection (
     collection_id INTEGER PRIMARY KEY REFERENCES collection(id) ON DELETE CASCADE,
     folder        TEXT NOT NULL UNIQUE  -- relative to the library folder
+);
+
+-- Schema v11: labels the user puts on papers, and the papers they starred.
+CREATE TABLE IF NOT EXISTS label (
+    id     INTEGER PRIMARY KEY,
+    name   TEXT NOT NULL UNIQUE,
+    colour TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS work_label (
+    label_id INTEGER NOT NULL REFERENCES label(id) ON DELETE CASCADE,
+    work_id  TEXT NOT NULL REFERENCES work(fil_id) ON DELETE CASCADE,
+    PRIMARY KEY (label_id, work_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_work_label_work ON work_label(work_id);
+
+CREATE TABLE IF NOT EXISTS favourite (
+    work_id  TEXT PRIMARY KEY REFERENCES work(fil_id) ON DELETE CASCADE,
+    added_at TEXT DEFAULT (datetime('now'))
 );
 
 -- ---------------------------------------------------------------- papers on disk
@@ -335,4 +363,4 @@ CREATE TABLE IF NOT EXISTS meta (
     value TEXT
 );
 
-INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '10');
+INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '11');

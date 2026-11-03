@@ -168,7 +168,8 @@ func (tx *Tx) MarkSeed(ctx context.Context, id string) error {
 //     survivor. An edge that would already exist, or would become a
 //     self-citation, is dropped;
 //   - moves what the user attached to the old record — notes, collections,
-//     text, folders and files — so a fold never deletes a person's work;
+//     labels, its star, text, folders and files — so a fold never deletes a
+//     person's work;
 //   - records the old record's fil ID and OpenAlex ID as aliases of the
 //     survivor (D17), and repoints any aliases the old record already had, so
 //     everything that named the old record still finds the paper;
@@ -226,6 +227,10 @@ func (tx *Tx) MergeInto(ctx context.Context, oldID, newID string) error {
 		`UPDATE note SET work_id = ?1 WHERE work_id = ?2;`,
 		`INSERT OR IGNORE INTO collection_work (collection_id, work_id)
 		 SELECT collection_id, ?1 FROM collection_work WHERE work_id = ?2;`,
+		`INSERT OR IGNORE INTO work_label (label_id, work_id)
+		 SELECT label_id, ?1 FROM work_label WHERE work_id = ?2;`,
+		`INSERT OR IGNORE INTO favourite (work_id, added_at)
+		 SELECT ?1, added_at FROM favourite WHERE work_id = ?2;`,
 		// Its text too, unless the survivor has its own: a paper's text is one
 		// reading of one PDF, never two mixed.
 		`DELETE FROM chunk WHERE work_id = ?2 AND EXISTS (SELECT 1 FROM work_text WHERE fil_id = ?1);`,

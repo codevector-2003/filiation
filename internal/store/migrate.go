@@ -28,7 +28,8 @@ import (
 //	8  M3: mention — every citation found in a PDF, with its sentence (ADR-015)
 //	9  M3: work_file.identity — whether a downloaded PDF is the paper it is filed under
 //	10 M5: note.page, colour, quote, rects, file — notes the Reader keeps beside the PDF
-const SchemaVersion = 10
+//	11 M5: collections inside collections, label, work_label and favourite
+const SchemaVersion = 11
 
 // upgrades[v] moves a library from schema v to v+1. Each runs inside
 // Migrate's one transaction, after the ones before it, so a library several
@@ -42,7 +43,8 @@ var upgrades = map[int]func(ctx context.Context, db *DB, tx *sql.Tx) error{
 	6: upgradeV6ToV7,
 	7: upgradeV7ToV8,
 	8: upgradeV8ToV9,
-	9: upgradeV9ToV10,
+	9:  upgradeV9ToV10,
+	10: upgradeV10ToV11,
 }
 
 // upgradeV2ToV3 adds the tables for the papers/ folder, upgradeV3ToV4 those
@@ -72,6 +74,81 @@ func upgradeV9ToV10(ctx context.Context, _ *DB, tx *sql.Tx) error {
 		}
 	}
 	return addTables(ctx, tx, 10)
+}
+
+// upgradeV10ToV11 lets collections sit inside one another, and adds labels and
+// favourites.
+//
+// collection.name was UNIQUE across the library, which SQLite cannot drop in
+// place, so the three collection tables are rebuilt the way upgradeV1ToV2
+// rebuilds a work's: set aside, made again by schema.sql, copied, dropped
+// children first so nothing cascades, and counted before anything goes.
+func upgradeV10ToV11(ctx context.Context, _ *DB, tx *sql.Tx) error {
+	aside := []string{
+		// Named indexes move with their table, and schema.sql would then find
+		// the names taken.
+		`DROP INDEX IF EXISTS idx_collection_name;`,
+		`DROP INDEX IF EXISTS idx_collection_work_work;`,
+	}
+	for _, t := range collectionTables {
+		aside = append(aside, `ALTER TABLE `+t+` RENAME TO v10_`+t+`;`)
+	}
+	for _, q := range aside {
+		if _, err := tx.ExecContext(ctx, q); err != nil {
+			return fmt.Errorf("set collections aside: %s: %w", q, err)
+		}
+	}
+	if err := applySchema(ctx, tx, Schema); err != nil {
+		return err
+	}
+	copies := []string{
+		// Every collection was at the top before v11.
+		`INSERT INTO collection (id, name) SELECT id, name FROM v10_collection;`,
+		`INSERT INTO collection_work (collection_id, work_id) SELECT collection_id, work_id FROM v10_collection_work;`,
+		`INSERT INTO folder_collection (collection_id, folder) SELECT collection_id, folder FROM v10_folder_collection;`,
+	}
+	for _, q := range copies {
+		if _, err := tx.ExecContext(ctx, q); err != nil {
+			return fmt.Errorf("copy collections: %w", err)
+		}
+	}
+	for _, t := range collectionTables {
+		var before, after int
+		if err := tx.QueryRowContext(ctx,
+			`SELECT (SELECT count(*) FROM v10_`+t+`), (SELECT count(*) FROM `+t+`);`).Scan(&before, &after); err != nil {
+			return fmt.Errorf("count %s: %w", t, err)
+		}
+		if before != after {
+			return fmt.Errorf("%s had %d rows and would have %d; nothing was changed", t, before, after)
+		}
+	}
+	for _, t := range []string{"folder_collection", "collection_work", "collection"} {
+		if _, err := tx.ExecContext(ctx, `DROP TABLE v10_`+t+`;`); err != nil {
+			return fmt.Errorf("drop old %s: %w", t, err)
+		}
+	}
+	return addTables(ctx, tx, 11)
+}
+
+// collectionTables are the tables upgradeV10ToV11 rebuilds, parent first.
+var collectionTables = []string{"collection", "collection_work", "folder_collection"}
+
+// readyCollections gives a collection table from before schema v11 the
+// columns schema.sql's index names, so an older library can take the current
+// schema on its way to v11, where the table is rebuilt.
+func readyCollections(ctx context.Context, tx *sql.Tx) error {
+	var n int
+	if err := tx.QueryRowContext(ctx,
+		`SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'collection';`).Scan(&n); err != nil {
+		return fmt.Errorf("look for collection table: %w", err)
+	}
+	if n == 0 {
+		return nil
+	}
+	if err := addColumnIfMissing(ctx, tx, "collection", "parent_id", "INTEGER REFERENCES collection(id) ON DELETE CASCADE"); err != nil {
+		return err
+	}
+	return addColumnIfMissing(ctx, tx, "collection", "zotero_key", "TEXT")
 }
 
 // addColumnIfMissing adds a column to a table that already exists.
@@ -256,6 +333,9 @@ var pragmaStatement = regexp.MustCompile(`(?im)^\s*PRAGMA\s+[^;]*;\s*$`)
 // argument rather than reading the embedded Schema directly so that a test can
 // hand it a broken schema and check nothing survives.
 func applySchema(ctx context.Context, tx *sql.Tx, ddl string) error {
+	if err := readyCollections(ctx, tx); err != nil {
+		return fmt.Errorf("store: apply schema: %w", err)
+	}
 	if _, err := tx.ExecContext(ctx, stripPragmas(ddl)); err != nil {
 		return fmt.Errorf("store: apply schema: %w", err)
 	}

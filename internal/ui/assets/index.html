@@ -16,6 +16,9 @@
     <button class="nav on" type="button" data-screen="papers">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v16H4zM14 4h6v16h-6z"/></svg>Papers<span class="count" id="count-papers"></span>
     </button>
+    <button class="nav" type="button" id="favourites" data-drop="favourite">
+      <svg class="fav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4l2.5 5.2 5.7.8-4.1 4 1 5.7-5.1-2.7-5.1 2.7 1-5.7-4.1-4 5.7-.8z"/></svg>Favourites<span class="count" id="count-favourites"></span>
+    </button>
     <button class="nav" type="button" data-screen="search">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg>Search
     </button>
@@ -28,8 +31,16 @@
     <button class="nav" type="button" data-screen="assistants">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7V4M15 7V4M7 7h10v5a5 5 0 0 1-10 0zM12 17v3"/></svg>AI assistants
     </button>
-    <div class="side-head" id="collections-head" hidden>COLLECTIONS</div>
-    <div class="collections" id="collections"></div>
+    <div class="side-head-row" id="collections-head" data-drop="top">
+      <span class="side-head">COLLECTIONS</span>
+      <button type="button" class="side-add" id="new-collection" aria-label="New collection">+</button>
+    </div>
+    <div class="tree" id="collections" role="tree" aria-label="Collections"></div>
+    <div class="side-head-row">
+      <span class="side-head">LABELS</span>
+      <button type="button" class="side-add" id="new-label" aria-label="New label">+</button>
+    </div>
+    <div class="labels" id="labels" role="group" aria-label="Labels"></div>
     <div class="grow"></div>
     <div class="job" id="job" hidden>
       <div class="job-head"><span id="job-title"></span><span id="job-count"></span></div>
@@ -44,6 +55,14 @@
   <!-- Papers -->
   <div class="screen" id="screen-papers">
     <main class="list-pane">
+      <div class="sel-bar" id="sel-bar" hidden>
+        <span id="sel-count" aria-live="polite"></span>
+        <div class="grow-h"></div>
+        <button type="button" class="btn on-accent" id="sel-fav">Favourite</button>
+        <button type="button" class="btn on-accent" id="sel-collect">Add to collection</button>
+        <button type="button" class="btn on-accent" id="sel-label">Label</button>
+        <button type="button" class="link on-accent" id="sel-clear">Clear</button>
+      </div>
       <div class="toolbar">
         <label class="hidden-label" for="filter">Filter papers by title</label>
         <input id="filter" type="search" placeholder="Filter by title" autocomplete="off">
@@ -325,8 +344,12 @@
   </form>
 </dialog>
 
+<div class="pop" id="pop" hidden></div>
+<div class="drag-badge" id="drag-badge" hidden></div>
+<div class="toast" id="toast" role="status" hidden></div>
 <div id="logos" hidden></div>
 <script src="app.js"></script>
+<script src="organise.js"></script>
 <script src="search.js"></script>
 <script src="map.js"></script>
 <script src="whole.js"></script>

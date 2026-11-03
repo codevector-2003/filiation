@@ -75,6 +75,16 @@ func New(opts Options) http.Handler {
 	mux.HandleFunc("POST /api/notes/{note}", s.needLibrary(s.changeNote))
 	mux.HandleFunc("POST /api/notes/{note}/delete", s.needLibrary(s.deleteNote))
 	mux.HandleFunc("GET /api/papers/{id}/cited/{n}", s.needLibrary(s.citedOnPage))
+	mux.HandleFunc("POST /api/collections", s.needLibrary(s.createCollection))
+	mux.HandleFunc("POST /api/collections/{id}/rename", s.needLibrary(s.renameCollection))
+	mux.HandleFunc("POST /api/collections/{id}/move", s.needLibrary(s.moveCollection))
+	mux.HandleFunc("POST /api/collections/{id}/delete", s.needLibrary(s.deleteCollection))
+	mux.HandleFunc("POST /api/collections/{id}/papers", s.needLibrary(s.fileInCollection))
+	mux.HandleFunc("POST /api/labels", s.needLibrary(s.createLabel))
+	mux.HandleFunc("POST /api/labels/{id}", s.needLibrary(s.changeLabel))
+	mux.HandleFunc("POST /api/labels/{id}/delete", s.needLibrary(s.deleteLabel))
+	mux.HandleFunc("POST /api/labels/{id}/papers", s.needLibrary(s.setLabel))
+	mux.HandleFunc("POST /api/favourites", s.needLibrary(s.setFavourite))
 	mux.HandleFunc("GET /api/search", s.needLibrary(s.search))
 	mux.HandleFunc("GET /api/map", s.needLibrary(s.mapAround))
 	mux.HandleFunc("GET /api/graph", s.needLibrary(s.wholeGraph))
@@ -140,11 +150,6 @@ func failFind(w http.ResponseWriter, err error) {
 	fail(w, http.StatusInternalServerError, err)
 }
 
-type collectionJSON struct {
-	Name  string `json:"name"`
-	Works int    `json:"works"`
-}
-
 type libraryJSON struct {
 	Ready       bool             `json:"ready"`
 	Name        string           `json:"name"`
@@ -155,10 +160,14 @@ type libraryJSON struct {
 	Searchable  int              `json:"searchable"`
 	Inbox       int              `json:"inbox"`
 	Collections []collectionJSON `json:"collections"`
+	Labels      []labelJSON      `json:"labels"`
+	Colours     []string         `json:"colours"` // what a label can take
+	Favourites  int              `json:"favourites"`
 }
 
 func (s *server) library(w http.ResponseWriter, r *http.Request) {
-	out := libraryJSON{Name: s.Name, Problem: s.Problem, Collections: []collectionJSON{}}
+	out := libraryJSON{Name: s.Name, Problem: s.Problem, Collections: []collectionJSON{},
+		Labels: []labelJSON{}, Colours: library.LabelColours}
 	if out.Name == "" {
 		out.Name = "My Library"
 	}
@@ -186,34 +195,33 @@ func (s *server) library(w http.ResponseWriter, r *http.Request) {
 	out.Searchable = counts["ok"]
 	// A library with no folder has no Inbox, so nothing is waiting in it.
 	out.Inbox, _ = s.Library.InboxWaiting()
-	cs, err := s.Library.Collections(ctx)
-	if err != nil {
+	if err := s.organised(r, &out); err != nil {
 		fail(w, http.StatusInternalServerError, err)
 		return
-	}
-	for _, c := range cs {
-		out.Collections = append(out.Collections, collectionJSON{c.Name, c.Works})
 	}
 	send(w, out)
 }
 
 type rowJSON struct {
-	ID         string `json:"id"`
-	Title      string `json:"title"`
-	By         string `json:"by"`
-	Seed       bool   `json:"seed"`
-	PDF        bool   `json:"pdf"`
-	Mismatch   bool   `json:"mismatch,omitempty"`
-	Text       string `json:"text,omitempty"` // searchable, or why not
-	Searchable bool   `json:"searchable"`
-	Sentences  int    `json:"sentences"`
-	Stub       bool   `json:"stub"`
+	ID          string  `json:"id"`
+	Title       string  `json:"title"`
+	By          string  `json:"by"`
+	Seed        bool    `json:"seed"`
+	PDF         bool    `json:"pdf"`
+	Mismatch    bool    `json:"mismatch,omitempty"`
+	Text        string  `json:"text,omitempty"` // searchable, or why not
+	Searchable  bool    `json:"searchable"`
+	Sentences   int     `json:"sentences"`
+	Stub        bool    `json:"stub"`
+	Favourite   bool    `json:"favourite"`
+	Labels      []int64 `json:"labels"`
+	Collections []int64 `json:"collections"` // the ones it is in itself
 }
 
 // listOptions reads what the Papers list is showing from a request.
 func listOptions(q url.Values) (library.ListOptions, error) {
-	opts := library.ListOptions{Title: q.Get("title"), Collection: q.Get("collection"), Authors: q["author"], Venues: q["venue"],
-		Sort: q.Get("sort")}
+	opts := library.ListOptions{Title: q.Get("title"), Authors: q["author"], Venues: q["venue"],
+		Sort: q.Get("sort"), Favourites: q.Get("favourites") == "1"}
 	for name, to := range map[string]*int{"year_from": &opts.YearFrom, "year_to": &opts.YearTo, "offset": &opts.Offset} {
 		if v := q.Get(name); v != "" {
 			n, err := strconv.Atoi(v)
@@ -222,6 +230,20 @@ func listOptions(q url.Values) (library.ListOptions, error) {
 			}
 			*to = n
 		}
+	}
+	if v := q.Get("collection"); v != "" {
+		n, err := strconv.ParseInt(v, 10, 64)
+		if err != nil || n <= 0 {
+			return opts, fmt.Errorf("no collection %q", v)
+		}
+		opts.CollectionID = n
+	}
+	for _, v := range q["label"] {
+		n, err := strconv.ParseInt(v, 10, 64)
+		if err != nil || n <= 0 {
+			return opts, fmt.Errorf("no label %q", v)
+		}
+		opts.Labels = append(opts.Labels, n)
 	}
 	switch q.Get("show") {
 	case "", "all":
@@ -262,7 +284,8 @@ func (s *server) papers(w http.ResponseWriter, r *http.Request) {
 	out := make([]rowJSON, len(rows))
 	for i, l := range rows {
 		out[i] = rowJSON{ID: l.FilID, Title: l.Title, By: rowBy(l), Seed: l.Seed, PDF: l.HasPDF, Mismatch: l.Mismatch,
-			Text: textNote(l.TextStatus), Searchable: l.TextStatus == "ok", Sentences: l.Contexts, Stub: !l.Hydrated}
+			Text: textNote(l.TextStatus), Searchable: l.TextStatus == "ok", Sentences: l.Contexts, Stub: !l.Hydrated,
+			Favourite: l.Favourite, Labels: l.Labels, Collections: l.Collections}
 		if out[i].Title == "" {
 			out[i].Title = "Not fetched yet: " + l.OpenAlexID
 		}
@@ -378,6 +401,10 @@ type paperJSON struct {
 	Citation  string         `json:"citation,omitempty"`
 	File      string         `json:"file,omitempty"` // the PDF the Reader opens
 	Abstract  string         `json:"abstract,omitempty"`
+
+	Favourite   bool    `json:"favourite"`
+	Collections []int64 `json:"collections"` // the ones it is in itself
+	Labels      []int64 `json:"labels"`
 }
 
 func (s *server) paper(w http.ResponseWriter, r *http.Request) {
@@ -391,7 +418,8 @@ func (s *server) paper(w http.ResponseWriter, r *http.Request) {
 	out := paperJSON{ID: work.FilID, Title: work.DisplayTitle(), Authors: authors(work), Meta: meta(work),
 		Seed: work.IsSeed, Cites: p.Cites, CitedBy: p.CitedBy, Sentences: p.Contexts,
 		Sample: []sentenceJSON{}, PDF: hasPDF, Folder: p.Folder != "", Web: p.WebPage(),
-		Citation: citation(work), Abstract: work.Abstract}
+		Citation: citation(work), Abstract: work.Abstract,
+		Favourite: p.Organised.Favourite, Collections: p.Organised.Collections, Labels: p.Organised.Labels}
 	out.Origin = map[model.Source]string{model.SourceSeed: "ADDED BY YOU", model.SourceUpload: "IMPORTED BY YOU",
 		model.SourceExpansion: "FOUND BY FOLLOWING CITATIONS"}[work.Source]
 	out.File = s.pdfName(pdf)

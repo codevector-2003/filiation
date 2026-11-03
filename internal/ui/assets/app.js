@@ -6,7 +6,8 @@
 const DOCS = 'https://github.com/codevector-2003/filiation#documentation';
 
 const state = {
-  show: 'all', title: '', collection: '', selected: '', asked: 0, askedPaper: 0, lib: null,
+  show: 'all', title: '', collection: 0, favourites: false, labels: [], selected: '', asked: 0, askedPaper: 0, lib: null,
+  rows: new Map(), picked: new Set(), anchor: '', paper: null,
   sort: '', yearFrom: 0, yearTo: 0, authors: [], venues: [], findAuthor: '', findVenue: '',
   loaded: 0, more: false, loading: false, loadingMore: false,
 };
@@ -55,6 +56,7 @@ function show(name, arg) {
   document.querySelectorAll('.nav').forEach((b) => { b.classList.toggle('on', b.dataset.screen === name); });
   document.querySelector('.side').hidden = name === 'reader'; // the page needs the room
   if (screens[name]) screens[name](arg);
+  markPlace();
 }
 
 async function loadLibrary() {
@@ -71,37 +73,22 @@ async function loadLibrary() {
   inbox.hidden = lib.inbox === 0;
   inbox.textContent = lib.inbox;
 
-  $('collections-head').hidden = lib.collections.length === 0;
-  const box = $('collections');
-  box.replaceChildren(...lib.collections.map((c) => {
-    const b = el('button', 'collection');
-    b.type = 'button';
-    b.dataset.name = c.name;
-    b.classList.toggle('on', c.name === state.collection);
-    b.append(el('span', '', c.name), el('span', 'count', c.works.toLocaleString()));
-    b.addEventListener('click', () => chooseCollection(c.name));
-    return b;
-  }));
+  renderOrganised();
   return true;
 }
 
 function showNoLibrary(lib) {
   $('filter').disabled = true;
-  document.querySelectorAll('.tab, .nav:not([data-screen="papers"]), #fetch-pdfs, #add-paper, #sort, #filters-toggle').forEach((t) => { t.disabled = true; });
+  document.querySelectorAll('.tab, .nav:not([data-screen="papers"]), #fetch-pdfs, #add-paper, #sort, #filters-toggle, .side-add').forEach((t) => { t.disabled = true; });
   const text = lib.problem || 'No library is open.';
   $('rows').replaceChildren(el('div', 'note error', text));
 }
 
-function chooseCollection(name) {
-  state.collection = state.collection === name ? '' : name;
-  document.querySelectorAll('.collection').forEach((b) => {
-    b.classList.toggle('on', b.dataset.name === state.collection);
-  });
-  show('papers');
-}
-
 function listQuery(offset) {
-  const q = new URLSearchParams({ show: state.show, title: state.title, collection: state.collection, sort: state.sort });
+  const q = new URLSearchParams({ show: state.show, title: state.title, sort: state.sort });
+  if (state.collection) q.set('collection', state.collection);
+  if (state.favourites) q.set('favourites', '1');
+  state.labels.forEach((l) => q.append('label', l));
   if (state.yearFrom) q.set('year_from', state.yearFrom);
   if (state.yearTo) q.set('year_to', state.yearTo);
   state.authors.forEach((a) => q.append('author', a));
@@ -159,6 +146,7 @@ function showMore(text) {
 }
 
 function addRows(res) {
+  res.papers.forEach((p) => state.rows.set(p.id, p));
   $('rows').append(...res.papers.map(rowFor));
   state.loaded += res.papers.length;
   state.more = res.more;
@@ -166,7 +154,7 @@ function addRows(res) {
 }
 
 function filtersOn() {
-  return state.yearFrom + state.yearTo + state.authors.length + state.venues.length > 0;
+  return state.yearFrom + state.yearTo + state.authors.length + state.venues.length > 0 || placeChosen();
 }
 
 function changeFilter(change) {
@@ -273,7 +261,12 @@ function renderFilters(res) {
     return b;
   };
   const chips = [];
-  if (state.collection) chips.push(chip(state.collection, () => chooseCollection(state.collection)));
+  if (state.collection) chips.push(chip(pathOf(state.collection), () => choosePlace(0, false)));
+  if (state.favourites) chips.push(chip('Favourites', () => choosePlace(0, false)));
+  state.labels.forEach((id) => {
+    const l = labelById(id);
+    chips.push(chip(l ? l.name : 'A deleted label', () => toggleLabelFilter(id)));
+  });
   if (filtersYear()) {
     const label = state.yearFrom && state.yearTo
       ? (state.yearFrom === state.yearTo ? '' + state.yearFrom : state.yearFrom + ' to ' + state.yearTo)
@@ -284,8 +277,10 @@ function renderFilters(res) {
   state.venues.forEach((v) => chips.push(chip(v, () => changeFilter(() => { state.venues = state.venues.filter((o) => o !== v); }))));
   if (chips.length > 1) {
     chips.push(button('Clear all', 'link', () => {
-      state.collection = '';
-      document.querySelectorAll('.collection').forEach((b) => { b.classList.remove('on'); });
+      state.collection = 0;
+      state.favourites = false;
+      state.labels = [];
+      markPlace();
       $('find-author').value = '';
       $('find-venue').value = '';
       changeFilter(() => {
@@ -305,73 +300,105 @@ function renderFilters(res) {
 
 function chips(p) {
   const out = [];
+  if (p.seed) out.push(el('span', 'chip', 'Added by you'));
   if (p.pdf) out.push(el('span', 'chip pdf', 'PDF'));
   if (p.mismatch) out.push(el('span', 'chip warn', 'Another edition?'));
   if (p.text) out.push(el('span', p.searchable ? 'chip text' : 'chip', p.text));
   if (p.sentences > 0) out.push(el('span', 'chip', p.sentences === 1 ? '1 sentence' : p.sentences + ' sentences'));
   if (p.stub) out.push(el('span', 'chip', 'Not fetched'));
+  out.push(...p.labels.map(labelChip).filter(Boolean));
   return out;
 }
 
+// rowFor draws one paper: a box to pick it among several, its star, and the
+// paper itself, which opens it.
 function rowFor(p) {
-  const b = el('button', 'row');
-  b.type = 'button';
-  b.dataset.id = p.id;
+  const row = el('div', 'row paper-row');
+  row.dataset.id = p.id;
+  const box = el('input', 'pick');
+  box.type = 'checkbox';
+  box.tabIndex = -1;
+  box.setAttribute('aria-label', 'Select: ' + p.title);
+  box.addEventListener('click', (e) => {
+    e.stopPropagation();
+    togglePick(p.id);
+  });
+  const main = el('button', 'row-main');
+  main.type = 'button';
   const head = el('div', 'row-title');
-  if (p.seed) {
-    const star = el('span', 'star', '★');
-    star.setAttribute('aria-label', 'Added by you');
-    head.append(star);
-  }
   head.append(el('span', 'title-text', p.title));
   const meta = el('div', 'row-meta');
   if (p.by) meta.append(el('span', '', p.by));
   meta.append(...chips(p));
-  b.append(head, meta);
-  b.addEventListener('click', () => select(p.id));
-  return b;
+  main.append(head, meta);
+  main.addEventListener('click', (e) => clickRow(p.id, e));
+  row.append(box, starButton(p), main);
+  row.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    rowMenu(p.id, e.clientX, e.clientY);
+  });
+  row.addEventListener('pointerdown', (e) => dragPapers(e, p.id));
+  markRow(row);
+  return row;
 }
 
 function renderRows(res) {
   const box = $('rows');
   state.loaded = 0;
   state.more = false;
+  state.rows = new Map();
   if (res.papers.length === 0) {
-    const empty = state.lib && state.lib.works === 0 && !state.title && !state.collection && state.show === 'all' && !filtersOn();
-    box.replaceChildren(el('div', 'note', empty ? 'Your library is empty. Add your first paper to begin.' : 'No papers match.'));
+    const empty = state.lib && state.lib.works === 0 && !state.title && state.show === 'all' && !filtersOn();
+    box.replaceChildren(el('div', 'note', empty ? 'Your library is empty. Add your first paper to begin.' : emptyPlace()));
     $('detail').replaceChildren();
     state.selected = '';
+    state.picked.clear();
+    showPicked();
     return;
   }
   box.replaceChildren();
   addRows(res);
   box.scrollTop = 0;
+  [...state.picked].forEach((id) => { if (!state.rows.has(id)) state.picked.delete(id); });
+  if (state.picked.size > 1) {
+    showPicked();
+    return;
+  }
   const keep = res.papers.some((p) => p.id === state.selected);
   select(keep ? state.selected : res.papers[0].id);
 }
 
-function move(by) {
-  const rows = [...document.querySelectorAll('.row')];
+function paperRows() {
+  return [...document.querySelectorAll('#rows .paper-row')];
+}
+
+// move goes up or down the list; with Shift it picks the papers it passes.
+function move(by, extend) {
+  const rows = paperRows();
   const at = rows.findIndex((r) => r.dataset.id === state.selected);
   const next = rows[at + by];
-  if (next) {
-    next.focus();
-    select(next.dataset.id);
+  if (!next) return;
+  next.querySelector('.row-main').focus();
+  if (extend) {
+    if (state.picked.size === 0) state.picked.add(state.selected);
+    if (state.picked.has(next.dataset.id)) state.picked.delete(state.selected);
+    else state.picked.add(next.dataset.id);
+    state.selected = next.dataset.id;
+    showPicked();
+    return;
   }
+  select(next.dataset.id);
 }
 
 async function select(id) {
   state.selected = id;
-  document.querySelectorAll('.row').forEach((r) => {
-    const on = r.dataset.id === id;
-    r.classList.toggle('on', on);
-    if (on) r.setAttribute('aria-current', 'true');
-    else r.removeAttribute('aria-current');
-  });
+  state.anchor = id;
+  state.picked.clear();
+  showPicked();
   const asked = ++state.askedPaper;
   try {
     const p = await api('/api/papers/' + encodeURIComponent(id));
-    if (asked === state.askedPaper) renderPaper(p);
+    if (asked === state.askedPaper && state.picked.size < 2) renderPaper(p);
   } catch (e) {
     if (asked === state.askedPaper) $('detail').replaceChildren(el('div', 'error', e.message));
   }
@@ -384,8 +411,11 @@ function stat(n, label) {
 }
 
 function renderPaper(p) {
+  state.paper = p;
   const head = el('div', 'head');
-  if (p.origin) head.append(el('span', 'origin', (p.seed ? '★ ' : '') + p.origin));
+  const top = el('div', 'head-top');
+  top.append(el('span', 'origin', p.origin || ''), favouriteButton(p));
+  head.append(top);
   head.append(el('h1', '', p.title));
   if (p.authors) head.append(el('span', 'authors', p.authors));
   if (p.meta) head.append(el('span', 'meta', p.meta));
@@ -414,7 +444,7 @@ function renderPaper(p) {
       : stat(p.citedBy, p.citedBy === 1 ? 'paper here cites it' : 'papers here cite it'),
     stat(p.sentences, p.sentences === 1 ? 'citation with its sentence' : 'citations with their sentence'));
 
-  const parts = [head, actions];
+  const parts = [head, actions, ...filedIn(p)];
   parts.push(message, stats); // always there: a failed action reports into it
 
   if (p.sample.length > 0) {
@@ -533,14 +563,32 @@ $('rows').addEventListener('scroll', (e) => {
   if (box.scrollHeight - box.scrollTop - box.clientHeight < 400) loadMore();
 });
 
-document.querySelectorAll('.nav').forEach((b) => {
-  b.addEventListener('click', () => show(b.dataset.screen));
+document.querySelectorAll('.nav[data-screen]').forEach((b) => {
+  b.addEventListener('click', () => {
+    // Papers is the whole library: it leaves a collection or Favourites.
+    if (b.dataset.screen === 'papers' && (state.collection || state.favourites)) {
+      choosePlace(0, false);
+      return;
+    }
+    show(b.dataset.screen);
+  });
 });
 
 $('rows').addEventListener('keydown', (e) => {
   if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
     e.preventDefault();
-    move(e.key === 'ArrowDown' ? 1 : -1);
+    move(e.key === 'ArrowDown' ? 1 : -1, e.shiftKey);
+  } else if (e.key === 'a' && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    pickAll();
+  } else if (e.key === 'Escape' && state.picked.size > 1) {
+    select(state.selected);
+  } else if (e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey)) {
+    const row = e.target.closest('.paper-row');
+    if (!row) return;
+    e.preventDefault();
+    const r = row.getBoundingClientRect();
+    rowMenu(row.dataset.id, r.left + 40, r.top + r.height / 2);
   }
 });
 

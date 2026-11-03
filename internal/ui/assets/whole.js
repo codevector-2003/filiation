@@ -104,7 +104,7 @@ function indexGraph() {
 }
 
 function papersFiltered() {
-  return state.show !== 'all' || state.title !== '' || state.collection !== '' || filtersOn();
+  return state.show !== 'all' || state.title !== '' || filtersOn();
 }
 
 // readFilters brightens what the Papers list is filtered to, and fades the rest.
