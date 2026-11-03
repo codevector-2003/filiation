@@ -41,6 +41,10 @@ func main() {
 		return wruntime.OpenMultipleFilesDialog(appCtx, wruntime.OpenDialogOptions{Title: "Add PDFs",
 			Filters: []wruntime.FileFilter{{DisplayName: "PDF files", Pattern: "*.pdf"}}})
 	}
+	opts.PickExport = func() (string, error) {
+		return wruntime.OpenFileDialog(appCtx, wruntime.OpenDialogOptions{Title: "Choose a Zotero RDF export",
+			Filters: []wruntime.FileFilter{{DisplayName: "Zotero RDF export", Pattern: "*.rdf"}}})
+	}
 	err := run(ui.New(opts), func(ctx context.Context) { appCtx = ctx })
 	if opts.Library != nil {
 		opts.Library.Close()

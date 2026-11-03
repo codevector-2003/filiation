@@ -1,0 +1,115 @@
+<rdf:RDF
+ xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+ xmlns:z="http://www.zotero.org/namespaces/export#"
+ xmlns:dcterms="http://purl.org/dc/terms/"
+ xmlns:bib="http://purl.org/net/biblio#"
+ xmlns:foaf="http://xmlns.com/foaf/0.1/"
+ xmlns:link="http://purl.org/rss/1.0/modules/link/"
+ xmlns:dc="http://purl.org/dc/elements/1.1/"
+ xmlns:prism="http://prismstandard.org/namespaces/1.2/basic/">
+    <bib:Article rdf:about="https://peerj.com/articles/4375">
+        <z:itemType>journalArticle</z:itemType>
+        <dcterms:isPartOf rdf:resource="urn:issn:2167-8359"/>
+        <bib:authors>
+            <rdf:Seq>
+                <rdf:li>
+                    <foaf:Person>
+                        <foaf:surname>Piwowar</foaf:surname>
+                        <foaf:givenName>Heather</foaf:givenName>
+                    </foaf:Person>
+                </rdf:li>
+                <rdf:li>
+                    <foaf:Person>
+                        <foaf:surname>Priem</foaf:surname>
+                        <foaf:givenName>Jason</foaf:givenName>
+                    </foaf:Person>
+                </rdf:li>
+            </rdf:Seq>
+        </bib:authors>
+        <link:link rdf:resource="#item_13"/>
+        <link:link rdf:resource="#item_14"/>
+        <dc:subject>key paper</dc:subject>
+        <dc:subject>
+           <z:AutomaticTag>
+              <rdf:value>Open Access</rdf:value>
+           </z:AutomaticTag>
+        </dc:subject>
+        <dc:title>The state of OA</dc:title>
+        <dc:date>2018-02-13</dc:date>
+        <dc:identifier>
+            <dcterms:URI>
+               <rdf:value>https://peerj.com/articles/4375</rdf:value>
+            </dcterms:URI>
+        </dc:identifier>
+    </bib:Article>
+    <bib:Journal rdf:about="urn:issn:2167-8359">
+        <prism:volume>6</prism:volume>
+        <dc:title>PeerJ</dc:title>
+        <dc:identifier>DOI 10.7717/peerj.4375</dc:identifier>
+        <dc:identifier>ISSN 2167-8359</dc:identifier>
+    </bib:Journal>
+    <z:Attachment rdf:about="#item_13">
+        <z:itemType>attachment</z:itemType>
+        <rdf:resource rdf:resource="files/13/Piwowar%202018.pdf"/>
+        <dc:title>Full Text PDF</dc:title>
+        <link:type>application/pdf</link:type>
+    </z:Attachment>
+    <z:Attachment rdf:about="#item_14">
+        <z:itemType>attachment</z:itemType>
+        <rdf:resource rdf:resource="files/14/snapshot.html"/>
+        <dc:title>Snapshot</dc:title>
+        <link:type>text/html</link:type>
+    </z:Attachment>
+    <bib:Article rdf:about="#item_20">
+        <z:itemType>journalArticle</z:itemType>
+        <dcterms:isPartOf>
+            <bib:Journal>
+                <dc:title>Scientometrics</dc:title>
+                <dc:identifier>DOI 10.1007/s11192-015-1765-5</dc:identifier>
+            </bib:Journal>
+        </dcterms:isPartOf>
+        <link:link rdf:resource="#item_21"/>
+        <dc:title>Growth rates of modern science</dc:title>
+        <dc:date>2015</dc:date>
+    </bib:Article>
+    <z:Attachment rdf:about="#item_21">
+        <z:itemType>attachment</z:itemType>
+        <z:path rdf:resource="files/21/Bornmann.pdf"/>
+        <link:type>application/pdf</link:type>
+    </z:Attachment>
+    <rdf:Description rdf:about="https://arxiv.org/abs/1706.03762v5">
+        <z:itemType>preprint</z:itemType>
+        <dc:title>Attention Is All You Need</dc:title>
+        <dc:date>2017-06-12</dc:date>
+    </rdf:Description>
+    <bib:Book rdf:about="urn:isbn:978-0-226-45808-3">
+        <z:itemType>book</z:itemType>
+        <bib:authors>
+            <rdf:Seq>
+                <rdf:li>
+                    <foaf:Person>
+                        <foaf:surname>Kuhn</foaf:surname>
+                        <foaf:givenName>Thomas S.</foaf:givenName>
+                    </foaf:Person>
+                </rdf:li>
+            </rdf:Seq>
+        </bib:authors>
+        <dcterms:isReferencedBy rdf:resource="#item_31"/>
+        <dc:identifier>ISBN 978-0-226-45808-3</dc:identifier>
+        <dc:title>The Structure of Scientific Revolutions</dc:title>
+        <dc:date>1962</dc:date>
+        <dc:description>Original Date: 1962</dc:description>
+    </bib:Book>
+    <bib:Memo rdf:about="#item_31">
+       <rdf:value>&lt;p&gt;Read chapter 9&lt;/p&gt;</rdf:value>
+    </bib:Memo>
+    <z:Collection rdf:about="#collection_4">
+        <dc:title>Thesis</dc:title>
+        <dcterms:hasPart rdf:resource="#collection_5"/>
+        <dcterms:hasPart rdf:resource="#item_20"/>
+    </z:Collection>
+    <z:Collection rdf:about="#collection_5">
+        <dc:title>Chapter 2</dc:title>
+        <dcterms:hasPart rdf:resource="https://peerj.com/articles/4375"/>
+    </z:Collection>
+</rdf:RDF>

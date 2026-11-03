@@ -207,10 +207,20 @@ func (tx *Tx) MergeInto(ctx context.Context, oldID, newID string) error {
 	if err != nil {
 		return fmt.Errorf("store: merge %s into %s: %w", oldID, newID, err)
 	}
+	if err := tx.fold(ctx, *old, newFil); err != nil {
+		return fmt.Errorf("store: merge %s into %s: %w", oldID, newID, err)
+	}
+	return nil
+}
+
+// fold moves everything about old onto the work newFil and deletes old,
+// keeping old's fil ID and OpenAlex ID, if it has one, as aliases.
+func (tx *Tx) fold(ctx context.Context, old model.Work, newFil string) error {
+	oldFil := old.FilID
 	if old.IsSeed {
 		if _, err := tx.tx.ExecContext(ctx,
 			`UPDATE work SET is_seed = 1 WHERE fil_id = ?;`, newFil); err != nil {
-			return fmt.Errorf("store: merge %s into %s: %w", oldID, newID, err)
+			return err
 		}
 	}
 
@@ -248,15 +258,17 @@ func (tx *Tx) MergeInto(ctx context.Context, oldID, newID string) error {
 		// Names the old record already answered to now answer for the
 		// survivor, and so do its own two.
 		`UPDATE work_alias SET fil_id = ?1 WHERE fil_id = ?2;`,
+		// So is what it was brought in from.
+		`UPDATE zotero_item SET fil_id = ?1 WHERE fil_id = ?2;`,
 	}
 	for _, q := range moves {
 		if _, err := tx.tx.ExecContext(ctx, q, newFil, oldFil); err != nil {
-			return fmt.Errorf("store: merge %s into %s: %w", oldID, newID, err)
+			return err
 		}
 	}
 
 	if _, err := tx.tx.ExecContext(ctx, `DELETE FROM work WHERE fil_id = ?;`, oldFil); err != nil {
-		return fmt.Errorf("store: merge %s into %s: delete old record: %w", oldID, newID, err)
+		return fmt.Errorf("delete old record: %w", err)
 	}
 	// Mentions moved with the record attach only to edges that still exist —
 	// one that became a self-citation does not — and the survivor's edges'
@@ -264,15 +276,19 @@ func (tx *Tx) MergeInto(ctx context.Context, oldID, newID string) error {
 	if _, err := tx.tx.ExecContext(ctx, `
 DELETE FROM mention WHERE (from_work = ?1 OR to_work = ?1)
   AND NOT EXISTS (SELECT 1 FROM cites c WHERE c.from_work = mention.from_work AND c.to_work = mention.to_work);`, newFil); err != nil {
-		return fmt.Errorf("store: merge %s into %s: mentions: %w", oldID, newID, err)
+		return fmt.Errorf("mentions: %w", err)
 	}
 	if err := refreshContexts(ctx, tx.tx, newFil); err != nil {
-		return fmt.Errorf("store: merge %s into %s: contexts: %w", oldID, newID, err)
+		return fmt.Errorf("contexts: %w", err)
 	}
-	if _, err := tx.tx.ExecContext(ctx,
-		`INSERT OR REPLACE INTO work_alias (alias, fil_id) VALUES (?1, ?3), (?2, ?3);`,
-		oldFil, oldID, newFil); err != nil {
-		return fmt.Errorf("store: merge %s into %s: record aliases: %w", oldID, newID, err)
+	for _, alias := range []string{oldFil, old.OpenAlexID} {
+		if alias == "" {
+			continue
+		}
+		if _, err := tx.tx.ExecContext(ctx,
+			`INSERT OR REPLACE INTO work_alias (alias, fil_id) VALUES (?, ?);`, alias, newFil); err != nil {
+			return fmt.Errorf("record aliases: %w", err)
+		}
 	}
 	return nil
 }

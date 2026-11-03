@@ -39,6 +39,8 @@ type Options struct {
 
 	// PickFiles asks the person for PDFs in the system's file dialog.
 	PickFiles func() ([]string, error)
+	// PickExport asks for a Zotero RDF export; "" when none is chosen.
+	PickExport func() (string, error)
 
 	// Assistants is where to find AI assistants, and CallLog the record of
 	// what they asked. A nil Assistants leaves that screen out.
@@ -87,6 +89,10 @@ func New(opts Options) http.Handler {
 	mux.HandleFunc("POST /api/favourites", s.needLibrary(s.setFavourite))
 	mux.HandleFunc("GET /api/zotero", s.needLibrary(s.zotero))
 	mux.HandleFunc("POST /api/zotero/import", s.needLibrary(s.zoteroImport))
+	mux.HandleFunc("POST /api/zotero/export", s.needLibrary(s.zoteroExport))
+	mux.HandleFunc("POST /api/zotero/live", s.needLibrary(s.zoteroLive))
+	mux.HandleFunc("POST /api/papers/{id}/candidates", s.needLibrary(s.paperCandidates))
+	mux.HandleFunc("POST /api/papers/{id}/link", s.needLibrary(s.paperLink))
 	mux.HandleFunc("GET /api/search", s.needLibrary(s.search))
 	mux.HandleFunc("GET /api/map", s.needLibrary(s.mapAround))
 	mux.HandleFunc("GET /api/graph", s.needLibrary(s.wholeGraph))
@@ -409,6 +415,8 @@ type paperJSON struct {
 	Collections []int64 `json:"collections"` // the ones it is in itself
 	Labels      []int64 `json:"labels"`
 	Zotero      string  `json:"zotero,omitempty"`
+	// Local: a document OpenAlex did not know, which can be matched to it.
+	Local bool `json:"local"`
 }
 
 func (s *server) paper(w http.ResponseWriter, r *http.Request) {
@@ -424,7 +432,7 @@ func (s *server) paper(w http.ResponseWriter, r *http.Request) {
 		Sample: []sentenceJSON{}, PDF: hasPDF, Folder: p.Folder != "", Web: p.WebPage(),
 		Citation: citation(work), Abstract: work.Abstract,
 		Favourite: p.Organised.Favourite, Collections: p.Organised.Collections, Labels: p.Organised.Labels,
-		Zotero: p.Organised.Zotero}
+		Zotero: p.Organised.Zotero, Local: work.OpenAlexID == ""}
 	out.Origin = map[model.Source]string{model.SourceSeed: "ADDED BY YOU", model.SourceUpload: "IMPORTED BY YOU",
 		model.SourceExpansion: "FOUND BY FOLLOWING CITATIONS", model.SourceZotero: "FROM YOUR ZOTERO LIBRARY"}[work.Source]
 	out.File = s.pdfName(pdf)

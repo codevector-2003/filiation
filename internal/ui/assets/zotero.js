@@ -9,8 +9,9 @@ function zoteroEntry() {
   const b = el('button', 'file zotero-entry' + (inbox.selected === 'zotero' ? ' on' : ''));
   b.type = 'button';
   const line = !zot.data ? 'Bring in your Zotero library'
-    : zot.data.state !== 'ready' ? 'Not found on this computer'
-      : zot.data.items.toLocaleString() + (zot.data.items === 1 ? ' item' : ' items') + (zot.data.already ? ', ' + zot.data.already.toLocaleString() + ' in already' : '');
+    : zot.data.state === 'notExport' ? 'Not a Zotero export'
+      : zot.data.state !== 'ready' ? 'Not found on this computer'
+        : (zot.data.from ? zot.data.from + ', ' : '') + zot.data.items.toLocaleString() + (zot.data.items === 1 ? ' item' : ' items') + (zot.data.already ? ', ' + zot.data.already.toLocaleString() + ' in already' : '');
   b.append(el('span', 'file-name', 'Zotero'), el('span', 'file-state', line));
   b.addEventListener('click', () => {
     inbox.selected = 'zotero';
@@ -44,6 +45,7 @@ function renderZotero() {
   }
   const j = job.last || {};
   if (j.running && j.kind === 'zotero') main.replaceChildren(zoteroRunning(j));
+  else if (d.state === 'notExport') main.replaceChildren(zoteroNotExport(d));
   else if (d.state !== 'ready') main.replaceChildren(zoteroConnect(d.state));
   else if (d.last && zot.showLast) main.replaceChildren(zoteroDone(d.last));
   else main.replaceChildren(zoteroPreview(d));
@@ -61,7 +63,54 @@ function zoteroConnect(why) {
   ['Open Zotero 7 or later.', 'In Zotero, choose Edit, then Settings, then Advanced.',
     'Tick “Allow other applications on this computer to communicate with Zotero”.'].forEach((s) => steps.append(el('li', '', s)));
   card.append(steps, button('Look again', 'btn primary', loadZotero));
-  box.append(card);
+  box.append(card, zoteroExportWay());
+  return box;
+}
+
+// zoteroExportWay is the way in for a Zotero that is not running here.
+function zoteroExportWay() {
+  const way = el('div', 'zot-export');
+  const steps = el('ol', 'zot-steps');
+  ['In Zotero, choose File, then Export Library.', 'Choose Zotero RDF and tick Export Files.',
+    'Copy the folder it makes to this computer, then choose the .rdf file inside it.'].forEach((s) => steps.append(el('li', '', s)));
+  const error = el('div', 'error');
+  way.append(el('strong', '', 'Zotero on another computer, or an older Zotero?'), steps,
+    button('Choose an export file', 'btn', () => zoteroChoose(error)), error);
+  return way;
+}
+
+async function zoteroChoose(error) {
+  if (error) error.textContent = '';
+  let data;
+  try {
+    data = await api('/api/zotero/export', 'POST');
+  } catch (e) {
+    if (error) error.textContent = e.message;
+    return;
+  }
+  if (!data) return; // the dialog was closed
+  zot.data = data;
+  zot.skip.clear();
+  zot.showLast = false;
+  $('zotero-entry').replaceChildren(zoteroEntry());
+  renderZotero();
+}
+
+async function zoteroLive() {
+  zot.data = await api('/api/zotero/live', 'POST');
+  zot.skip.clear();
+  $('zotero-entry').replaceChildren(zoteroEntry());
+  renderZotero();
+}
+
+function zoteroNotExport(d) {
+  const box = el('div', 'zot');
+  box.append(el('h1', '', 'That file is not a Zotero RDF export'),
+    el('p', 'zot-lead', d.from + ' is not one Filiation can read. A BibTeX or CSL JSON export leaves out your collections and your PDFs, so Filiation reads only Zotero RDF. In Zotero, choose File, Export Library, then Zotero RDF, and tick Export Files.'));
+  const error = el('div', 'error');
+  const actions = el('div', 'actions');
+  actions.append(button('Choose another file', 'btn primary', () => zoteroChoose(error)), button('Back', 'btn', zoteroLive));
+  box.append(actions, error);
   return box;
 }
 
@@ -75,12 +124,26 @@ function zoteroUnder(key) {
 function zoteroPreview(d) {
   const box = el('div', 'zot');
   const head = el('div', 'zot-head');
-  head.append(el('h1', '', d.items.toLocaleString() + (d.items === 1 ? ' item in your Zotero library' : ' items in your Zotero library')),
-    el('span', 'muted', 'Read from Zotero just now. Nothing is written yet.'));
+  const things = d.items === 1 ? ' item' : ' items';
+  head.append(el('h1', '', d.items.toLocaleString() + things + (d.from ? ' in the export' : ' in your Zotero library')));
+  if (d.from) {
+    const where = el('span', 'muted', 'Read from ' + d.from + ' in ' + d.folder + '. Nothing is written yet. ');
+    const other = el('a', '', 'Choose another file');
+    other.href = '#';
+    other.addEventListener('click', (e) => { e.preventDefault(); zoteroChoose(); });
+    where.append(other);
+    head.append(where);
+  } else {
+    head.append(el('span', 'muted', 'Read from Zotero just now. Nothing is written yet.'));
+  }
   const stats = el('div', 'zot-stats');
   [[d.withDOI, 'with a DOI'], [d.withOtherID, 'with an arXiv or PubMed ID'], [d.noID, 'with no ID: kept as your own documents'],
-    [d.pdfs, 'with a PDF on this computer']].forEach(([n, text]) => stats.append(stat(n, text)));
+    [d.pdfs, d.from ? 'with a PDF in the export' : 'with a PDF on this computer']].forEach(([n, text]) => stats.append(stat(n, text)));
   box.append(head, stats);
+  if (d.pdfsMissing > 0) {
+    box.append(el('div', 'zot-warn', (d.pdfsMissing === 1 ? '1 PDF is' : d.pdfsMissing.toLocaleString() + ' PDFs are') +
+      ' named in the export but not beside it. Export Files was probably not ticked, or the files folder was left behind. Those papers still come in, without their PDFs.'));
+  }
   if (d.already > 0) box.append(el('p', 'muted', d.already.toLocaleString() + ' were brought in before. Bringing them in again adds only what is new, and changes nothing you did here.'));
 
   const cols = el('div', 'zot-cols');
@@ -125,6 +188,10 @@ function zoteroPreview(d) {
     option('tags', 'Make labels from my Zotero tags', d.tags > 0
       ? 'Only tags you added yourself: ' + d.tags.toLocaleString() + (d.tags === 1 ? ' of them.' : ' of them.') + ' Tags publishers added are left out.'
       : 'You have not added tags of your own in Zotero.'));
+  if (d.from) {
+    right.append(el('h2', '', 'BRINGING IT IN AGAIN'),
+      el('span', 'muted', 'An export has no Zotero keys. Next time, papers matched in OpenAlex are known by their DOI, and your own documents by their title and year, so a newer export adds only what is new.'));
+  }
   cols.append(left, right);
   box.append(cols);
 
@@ -143,6 +210,7 @@ function zoteroPreview(d) {
   });
   foot.append(el('span', 'zot-estimate', lookups === 0 ? 'Nothing to look up in OpenAlex.'
     : 'About ' + minutes + (minutes === 1 ? ' minute' : ' minutes') + ': ' + lookups.toLocaleString() + (lookups === 1 ? ' lookup' : ' lookups') + ' in OpenAlex, at up to 5 a second.'), go);
+  if (d.from) go.before(button('Not now', 'btn', zoteroLive));
   box.append(foot, error);
   return box;
 }
@@ -190,7 +258,7 @@ function zoteroDone(r) {
       b.addEventListener('click', () => openInPapers(u.id));
       list.append(b);
     });
-    box.append(list, el('p', 'muted', 'These are in your library as your own documents, with their PDFs and collections, searchable but without citation links. Add a DOI in Zotero and check again to match them.'));
+    box.append(list, el('p', 'muted', 'These are in your library as your own documents, with their PDFs and collections, searchable but without citation links. Open one to give its DOI or find it by title. Adding a DOI in Zotero and checking again matches them too.'));
   }
   return box;
 }

@@ -2,6 +2,7 @@ package library
 
 import (
 	"encoding/json"
+	"errors"
 	"maps"
 	"net/http"
 	"net/http/httptest"
@@ -81,7 +82,7 @@ func TestZoteroPreviewAndImport(t *testing.T) {
 	ctx := t.Context()
 	before, _ := os.ReadFile(pdf)
 
-	p, err := l.ZoteroPreview(ctx)
+	p, err := l.ZoteroPreview(ctx, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -164,5 +165,98 @@ func TestZoteroImportLeavesSkippedCollectionsOut(t *testing.T) {
 		if row.Zotero == "matched" && row.RefsKnown == false {
 			t.Errorf("seed %+v: references are recorded unless asked not to", row)
 		}
+	}
+}
+
+// exportOf writes a Zotero RDF export, as Zotero's translator does, of the
+// stand-in library's seed (its DOI on its journal, its PDF under files/),
+// the lecture, and one PDF the export names but left out.
+func exportOf(t *testing.T, dir string) string {
+	t.Helper()
+	ex := filepath.Join(dir, "Exported Items")
+	if err := os.MkdirAll(filepath.Join(ex, "files", "13"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(ex, "files", "13", "Piwowar 2018.pdf"), pdftest.Make(seedFront(seedTitle)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	rdf := `<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:z="http://www.zotero.org/namespaces/export#"
+ xmlns:dcterms="http://purl.org/dc/terms/" xmlns:bib="http://purl.org/net/biblio#" xmlns:foaf="http://xmlns.com/foaf/0.1/"
+ xmlns:link="http://purl.org/rss/1.0/modules/link/" xmlns:dc="http://purl.org/dc/elements/1.1/">
+ <bib:Article rdf:about="#item_12">
+  <z:itemType>journalArticle</z:itemType>
+  <dcterms:isPartOf><bib:Journal><dc:title>PeerJ</dc:title><dc:identifier>DOI 10.7717/peerj.4375</dc:identifier></bib:Journal></dcterms:isPartOf>
+  <link:link rdf:resource="#item_13"/>
+  <dc:title>` + seedTitle + `</dc:title>
+  <dc:date>2018</dc:date>
+ </bib:Article>
+ <z:Attachment rdf:about="#item_13"><z:itemType>attachment</z:itemType>
+  <rdf:resource rdf:resource="files/13/Piwowar%202018.pdf"/><link:type>application/pdf</link:type></z:Attachment>
+ <bib:Document rdf:about="#item_20">
+  <z:itemType>document</z:itemType>
+  <bib:authors><rdf:Seq><rdf:li><foaf:Person><foaf:surname>Lovelace</foaf:surname><foaf:givenName>Ada</foaf:givenName></foaf:Person></rdf:li></rdf:Seq></bib:authors>
+  <link:link rdf:resource="#item_21"/>
+  <dc:title>Lecture notes, week 4</dc:title>
+  <dc:date>2019</dc:date>
+ </bib:Document>
+ <z:Attachment rdf:about="#item_21"><z:itemType>attachment</z:itemType>
+  <z:path rdf:resource="files/21/week4.pdf"/><link:type>application/pdf</link:type></z:Attachment>
+ <z:Collection rdf:about="#collection_1"><dc:title>Thesis</dc:title>
+  <dcterms:hasPart rdf:resource="#collection_2"/><dcterms:hasPart rdf:resource="#item_20"/></z:Collection>
+ <z:Collection rdf:about="#collection_2"><dc:title>Chapter 2</dc:title>
+  <dcterms:hasPart rdf:resource="#item_12"/></z:Collection>
+</rdf:RDF>`
+	file := filepath.Join(ex, "Exported Items.rdf")
+	if err := os.WriteFile(file, []byte(rdf), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return file
+}
+
+func TestZoteroFromAnExport(t *testing.T) {
+	t.Parallel()
+	l, _ := zoteroTest(t)
+	ctx := t.Context()
+	file := exportOf(t, t.TempDir())
+
+	p, err := l.ZoteroPreview(ctx, file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Items != 2 || p.WithDOI != 1 || p.NoID != 1 || p.PDFs != 2 || p.PDFsMissing != 1 || len(p.Collections) != 2 {
+		t.Errorf("preview = %+v", p)
+	}
+	r, err := l.ZoteroImport(ctx, ZoteroOptions{Refs: true, PDFs: true, From: file})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Matched != 1 || r.Unmatched != 1 || r.PDFs != 1 || r.PDFsMissing != 1 || r.Collections != 2 {
+		t.Errorf("report = %+v", r)
+	}
+
+	// The same library read from the running Zotero: the seed is the same
+	// paper, the lecture the same document, the collections the same ones.
+	again, err := l.ZoteroImport(ctx, ZoteroOptions{Refs: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if again.Matched != 1 || again.Unmatched != 1 || again.Already != 1 {
+		t.Errorf("from Zotero after the export = %+v; the lecture is in already", again)
+	}
+	if n, _ := l.Summarise(ctx); n.Works != 57 {
+		t.Errorf("works = %d, want 57: the seed, its 54 references, the lecture and the lost paper", n.Works)
+	}
+	cs, _ := l.Collections(ctx)
+	if len(cs) != 3 {
+		t.Errorf("collections = %+v; Thesis and Chapter 2 once each, and Teaching", cs)
+	}
+	// And the export once more adds nothing.
+	third, err := l.ZoteroImport(ctx, ZoteroOptions{Refs: true, From: file})
+	if err != nil || third.Already != 2 || third.Matched+third.Unmatched != 0 {
+		t.Errorf("the export again = %+v, %v", third, err)
+	}
+
+	if _, err := l.ZoteroPreview(ctx, filepath.Join(filepath.Dir(file), "files", "13", "Piwowar 2018.pdf")); !errors.Is(err, ErrZoteroNotExport) {
+		t.Errorf("a PDF as the export: %v", err)
 	}
 }

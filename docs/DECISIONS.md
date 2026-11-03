@@ -721,3 +721,27 @@ asked: publishers' automatic tags often run to hundreds.
 
 Not tested against a real Zotero yet when this was written: the client follows Zotero's documented
 local API and is tested against a stand-in. A real read is to be run before release.
+
+**The export fallback, built 3 Nov 2026.** `zotero.ReadExport` reads a Zotero RDF export into the
+same items and collections, and the import runs unchanged. Read from Zotero's own "Zotero RDF"
+translator, not from documentation, because three things in it matter:
+
+- An item's subject is its ISBN, its URL or `#item_` and Zotero's local row number. None is the
+  Zotero key, so an exported item is keyed by a hash of its type, title, year, first author and
+  identifiers (`rdf:...`), and a collection by a hash of its path of names. A later export of the
+  same library has the same keys.
+- A journal article's DOI is written on its journal, the node `dcterms:isPartOf` points to, not on
+  the article. Reading only the article would miss most DOIs.
+- Tags a publisher or Zotero added are nodes typed `z:AutomaticTag`; the user's own are literals.
+
+Reading the same library by both routes adds nothing twice: a matched paper is the same OpenAlex
+work, a local document is found again by its title and year (`LocalWorkNamed`), and a collection
+with the same name in the same place is adopted whichever route brought it.
+
+**Matching later.** A local document, from Zotero or not, can be linked to OpenAlex afterwards: by
+an identifier the user gives, which is free, or by choosing from a title search, which costs 10
+credits and runs only when asked (`fil match`, or "Find it by title" on the paper). Each result
+shows its type and how often it is cited, because a book's reviews carry its title (D14). The
+document keeps its fil ID, PDF, collections, labels and notes; if the library has the work
+already, the two become one through the same fold a merge uses, and the document's fil ID becomes
+an alias. Building this found that a merge deleted a work's `zotero_item` row; it now moves it.
