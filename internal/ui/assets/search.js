@@ -38,6 +38,7 @@ async function runSearch() {
   const asked = ++found.asked;
   const q = new URLSearchParams({ q: words, references: $('with-refs').checked });
   if (found.paper && $('only-paper').checked) q.set('paper', found.paper.id);
+  searchScope(q);
   try {
     const res = await api('/api/search?' + q);
     if (asked !== found.asked) return;
@@ -45,6 +46,10 @@ async function runSearch() {
     let note = res.hits.length === 0 ? 'No passage contains any of those words.'
       : res.hits.length + (res.hits.length === 1 ? ' passage' : ' passages') + ' in ' + papers + (papers === 1 ? ' paper' : ' papers') + ', best match first.';
     if (res.partial) note = 'No passage has all of those words. These have some of them. ' + note;
+    if (res.within) {
+      note = 'Searching ' + res.papers.toLocaleString() + (res.papers === 1 ? ' paper' : ' papers') + ', ' +
+        res.readable.toLocaleString() + ' of them readable. ' + (res.papers === 0 ? 'Nothing matches those filters.' : note);
+    }
     if (res.capped) note += ' Only the best are shown.';
     if (res.unread > 0) note += ' ' + res.unread + (res.unread === 1 ? ' PDF is' : ' PDFs are') + ' not read yet, so not searched.';
     $('search-note').textContent = note;

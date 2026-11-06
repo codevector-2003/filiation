@@ -293,6 +293,7 @@ with its `status` (`no-text` for a scan, `gibberish`, `unreadable`, `timed-out`)
 | `paper` | all papers | Search one paper: its `fil_id`, as every result carries |
 | `limit` | 10 | Passages to return. At most 50, and at most 3 from one paper |
 | `include_references` | `false` | Search reference lists too; otherwise an author's name finds every bibliography citing them |
+| `view` | none | Search only the papers in one of the user's saved views, by its name |
 
 Returns `passages`, best first: each with its `paper`, `page`, the matching `text` (matched words
 between `[[` and `]]`), and the `pdf_path` on the user's disk. `partial: true` means no passage had

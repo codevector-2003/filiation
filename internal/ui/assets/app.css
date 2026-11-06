@@ -820,3 +820,13 @@ body[data-platform="darwin"] .tb-menus { display: none; }
 .mf-check input { margin: 0; accent-color: var(--accent); }
 .mf-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--line-3); font-size: 12px; }
 
+/* Saved views and Search's filters (D33) */
+.views { flex: none; display: flex; flex-direction: column; gap: 1px; }
+.view-row { font-weight: inherit; }
+.view-row svg { width: 14px; height: 14px; stroke: var(--muted); }
+.search-scope { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink-2); }
+.search-scope select { height: 28px; max-width: 280px; padding: 0 6px; border: 1px solid var(--line-2); border-radius: 5px; background: #FFFFFF; }
+.search-scope input { width: 72px; height: 28px; padding: 0 6px; border: 1px solid var(--line-2); border-radius: 5px; background: #FFFFFF; }
+.save-view { margin-left: auto; }
+.view-keeps { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: #FFFFFF; }
+

@@ -58,6 +58,11 @@
     <button class="nav" type="button" data-screen="assistants">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7V4M15 7V4M7 7h10v5a5 5 0 0 1-10 0zM12 17v3"/></svg>AI assistants
     </button>
+    <div class="side-head-row">
+      <span class="side-head">VIEWS</span>
+      <button type="button" class="side-add" id="new-view" aria-label="Save the Papers list's filters as a view">+</button>
+    </div>
+    <div class="views" id="views" role="group" aria-label="Saved views"></div>
     <div class="side-head-row" id="collections-head" data-drop="top">
       <span class="side-head">COLLECTIONS</span>
       <button type="button" class="side-add" id="new-collection" aria-label="New collection">+</button>
@@ -163,6 +168,16 @@
         <div class="search-row">
           <input id="q" type="search" autocomplete="off">
           <button class="btn primary big" type="submit">Search</button>
+        </div>
+        <div class="search-scope">
+          <label for="search-in">In</label>
+          <select id="search-in"><option value="">All papers</option></select>
+          <span>Years</span>
+          <label class="hidden-label" for="search-from">From year</label>
+          <input id="search-from" type="number" placeholder="From" min="1" step="1">
+          <span>to</span>
+          <label class="hidden-label" for="search-to">To year</label>
+          <input id="search-to" type="number" placeholder="To" min="1" step="1">
         </div>
         <div class="search-opts">
           <label id="only-label" hidden><input type="checkbox" id="only-paper"><span id="only-text">Only this paper</span></label>
@@ -397,6 +412,7 @@
 <script src="app.js"></script>
 <script src="organise.js"></script>
 <script src="search.js"></script>
+<script src="views.js"></script>
 <script src="map.js"></script>
 <script src="whole.js"></script>
 <script src="inbox.js"></script>

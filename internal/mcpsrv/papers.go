@@ -65,6 +65,7 @@ type searchIn struct {
 	Paper             string `json:"paper,omitempty" jsonschema:"search only this paper: its fil_id, as every passage and paper returned carries (or a DOI, OpenAlex ID, or its exact title)"`
 	Limit             int    `json:"limit,omitempty" jsonschema:"how many passages (default 10, at most 50)"`
 	IncludeReferences bool   `json:"include_references,omitempty" jsonschema:"search reference lists too"`
+	View              string `json:"view,omitempty" jsonschema:"search only the papers in one of the user's saved views, by its name"`
 }
 
 // Passage is one passage that matched.
@@ -89,7 +90,7 @@ func (t tools) searchLibrary(ctx context.Context, _ *mcp.CallToolRequest, in sea
 		limit = defaultSearchPassages
 	}
 	res, err := t.lib.Search(ctx, in.Query, library.SearchOptions{Limit: min(limit, maxSearchPassages),
-		Paper: in.Paper, References: in.IncludeReferences})
+		Paper: in.Paper, References: in.IncludeReferences, View: in.View})
 	if errors.Is(err, errs.ErrEmptyQuery) {
 		return nil, searchOut{}, errors.New("give at least one word to search for")
 	}
