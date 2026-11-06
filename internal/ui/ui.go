@@ -101,6 +101,9 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("POST /api/labels/{id}/delete", s.needLibrary(s.deleteLabel))
 	mux.HandleFunc("POST /api/labels/{id}/papers", s.needLibrary(s.setLabel))
 	mux.HandleFunc("POST /api/favourites", s.needLibrary(s.setFavourite))
+	mux.HandleFunc("POST /api/views", s.needLibrary(s.createView))
+	mux.HandleFunc("POST /api/views/{id}", s.needLibrary(s.changeView))
+	mux.HandleFunc("POST /api/views/{id}/delete", s.needLibrary(s.deleteView))
 	mux.HandleFunc("GET /api/zotero", s.needLibrary(s.zotero))
 	mux.HandleFunc("POST /api/zotero/import", s.needLibrary(s.zoteroImport))
 	mux.HandleFunc("POST /api/zotero/export", s.needLibrary(s.zoteroExport))
@@ -190,6 +193,7 @@ type libraryJSON struct {
 	Labels      []labelJSON      `json:"labels"`
 	Colours     []string         `json:"colours"` // what a label can take
 	Favourites  int              `json:"favourites"`
+	Views       []viewJSON       `json:"views"`
 }
 
 func (s *server) library(w http.ResponseWriter, r *http.Request) {

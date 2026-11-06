@@ -49,7 +49,11 @@ func (s *server) organised(r *http.Request, out *libraryJSON) error {
 	for _, l := range ls {
 		out.Labels = append(out.Labels, labelJSON{ID: l.ID, Name: l.Name, Colour: l.Colour, Works: l.Works})
 	}
-	out.Favourites, err = s.Library.Favourites(ctx)
+	if out.Favourites, err = s.Library.Favourites(ctx); err != nil {
+		return err
+	}
+	vs, err := s.Library.Views(ctx)
+	out.Views = viewsOut(vs)
 	return err
 }
 

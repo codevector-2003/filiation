@@ -81,6 +81,7 @@ function toggleLabelFilter(id) {
 }
 
 function markPlace() {
+  renderViews();
   const papers = !$('screen-papers').hidden;
   document.querySelector('.nav[data-screen="papers"]').classList.toggle('on', papers && !state.collection && !state.favourites);
   $('favourites').classList.toggle('on', papers && state.favourites);
