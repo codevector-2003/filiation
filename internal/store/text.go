@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -184,6 +185,11 @@ type SearchQuery struct {
 	PerPaper   int    // most passages from one paper; zero means no limit
 	FilID      string // only this paper, when set
 	References bool   // include reference lists, left out by default
+	// Within keeps the search to these papers, by fil ID, when InSet is set:
+	// a filter of the Papers list, applied before the best passages are
+	// chosen so that none of its papers' matches are lost to others.
+	Within []string
+	InSet  bool
 	// Any matches passages with any of the words rather than all of them —
 	// the fallback when no passage has them all. bm25 still ranks a passage
 	// with more of the words higher.
@@ -231,6 +237,14 @@ func (db *DB) Search(ctx context.Context, q SearchQuery) ([]Hit, error) {
 	if perPaper <= 0 {
 		perPaper = q.Limit
 	}
+	within := ""
+	if q.InSet {
+		b, err := json.Marshal(append([]string{}, q.Within...))
+		if err != nil {
+			return nil, err
+		}
+		within = string(b)
+	}
 	rows, err := db.read.QueryContext(ctx, `
 WITH hits AS (
   SELECT c.work_id, c.page, ifnull(c.section, '') AS section, bm25(chunk_fts) AS rank,
@@ -239,6 +253,7 @@ WITH hits AS (
   WHERE chunk_fts MATCH ?1
     AND (?2 OR c.section IS NULL)
     AND (?3 = '' OR c.work_id = ?3)
+    AND (?8 = '' OR c.work_id IN (SELECT value FROM json_each(?8)))
 ), ranked AS (
   SELECT *, row_number() OVER (PARTITION BY work_id ORDER BY rank) AS n FROM hits
 )
@@ -249,7 +264,7 @@ SELECT r.work_id, r.page, r.section, r.snip, r.rank,
 FROM ranked r JOIN work_text t ON t.fil_id = r.work_id
 WHERE r.n <= ?4
 ORDER BY r.rank
-LIMIT ?7;`, match, q.References, fil, perPaper, MarkStart, MarkEnd, q.Limit)
+LIMIT ?7;`, match, q.References, fil, perPaper, MarkStart, MarkEnd, q.Limit, within)
 	if err != nil {
 		return nil, fmt.Errorf("store: search for %q: %w", q.Words, err)
 	}

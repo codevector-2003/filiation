@@ -32,7 +32,8 @@ func (a *app) searchCommand() *cobra.Command {
 		Example: "  fil search open data citation advantage\n" +
 			"  fil search '\"nine percent\" citations'\n" +
 			"  fil search replicat* --paper 10.7717/peerj.4375\n" +
-			"  fil search Piwowar --references",
+			"  fil search Piwowar --references\n" +
+			"  fil search \"citation advantage\" --view \"Chapter 2, since 2015\"",
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if opts.Limit < 0 {
@@ -48,6 +49,7 @@ func (a *app) searchCommand() *cobra.Command {
 	cmd.Flags().IntVar(&opts.Limit, "limit", 0, fmt.Sprintf("most passages to show (default %d)", library.DefaultSearchLimit))
 	cmd.Flags().StringVar(&opts.Paper, "paper", "", "search only this paper (fil ID, DOI, OpenAlex ID or title)")
 	cmd.Flags().BoolVar(&opts.References, "references", false, "search reference lists too")
+	cmd.Flags().StringVar(&opts.View, "view", "", "search only the papers a saved view finds, by its name")
 	cmd.Flags().BoolVar(&a.pickMode, "pick", false, "move through the results with the arrow keys; Enter for the paper, o to open its PDF")
 	return cmd
 }
@@ -59,6 +61,10 @@ func (a *app) search(ctx context.Context, words string, opts library.SearchOptio
 	}
 	defer lib.Close()
 	res, err := lib.Search(ctx, words, opts)
+	if errors.Is(err, library.ErrNoView) {
+		fmt.Fprintf(a.stderr, "fil: no view is called %q. Views are saved from the Papers list in the desktop app.\n", opts.View)
+		return exitCode(exitNotFound)
+	}
 	if err != nil {
 		return a.explainFind(err)
 	}

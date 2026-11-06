@@ -303,7 +303,13 @@ function renderFilters(res) {
       });
     }));
   }
+  // Filters worth keeping, not kept yet, can be saved under a name.
+  const now = currentFilters();
+  if (!emptyFilters(now) && !views().some((v) => sameFilters(now, v.filters))) {
+    chips.push(button('Save as view…', 'btn small save-view', () => saveViewDialog(null)));
+  }
   $('active-filters').replaceChildren(...chips);
+  renderViews();
   const n = (filtersYear() ? 1 : 0) + state.authors.length + state.venues.length;
   $('filters-toggle').textContent = n > 0 ? 'Filters (' + n + ')' : 'Filters';
 }

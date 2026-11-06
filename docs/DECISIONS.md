@@ -814,3 +814,21 @@ is still checked: a file that does not carry it is asked about, never attached s
 fetches a paper known only by ID, as a download does, so its folder has a name and its citations
 can be found in its text.
 
+## D33 — Search takes the Papers list's filters, and a view is a saved question
+
+Decided 6 Nov 2026. Search looked across the whole library and kept the best 20 passages; a filter
+applied after that would have been left with whatever of those 20 fell inside it, often nothing.
+Search now takes the Papers list's filters (a collection with those inside it, a label,
+Favourites, years, authors, venues, a tab) and they are applied inside the full-text query: the
+papers they find are passed to SQLite as one JSON list (`json_each`), so the best passages are
+chosen among those papers only. The answer says how many papers were searched and how many of
+them have text, because a filter can land on papers with no PDF.
+
+A saved view is the Papers list's filters under a name (schema v13, `saved_view`). It keeps the
+filters as JSON, not the papers, so a paper filed or fetched later that matches shows up in it,
+and deleting a view touches no paper. A view that keeps every paper is refused, since it would only
+be the Papers list again. Opening a view puts its filters on the list as chips that can still be
+changed; the view itself changes only on "Update to these filters". A view whose collection is
+deleted finds nothing rather than everything. `fil search --view` and search_library's `view`
+search inside one.
+

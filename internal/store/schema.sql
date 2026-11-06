@@ -222,6 +222,15 @@ CREATE TABLE IF NOT EXISTS zotero_item (
 
 CREATE INDEX IF NOT EXISTS idx_zotero_item_work ON zotero_item(fil_id);
 
+-- Schema v13: saved views. Each is the Papers list's filters, kept as JSON,
+-- so a view is a question asked again each time, never a list of papers.
+CREATE TABLE IF NOT EXISTS saved_view (
+    id         INTEGER PRIMARY KEY,
+    name       TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    filters    TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS favourite (
     work_id  TEXT PRIMARY KEY REFERENCES work(fil_id) ON DELETE CASCADE,
     added_at TEXT DEFAULT (datetime('now'))
@@ -375,4 +384,4 @@ CREATE TABLE IF NOT EXISTS meta (
     value TEXT
 );
 
-INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '12');
+INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '13');

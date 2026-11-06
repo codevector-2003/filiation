@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/codevector-2003/filiation/internal/assistants"
+	"github.com/codevector-2003/filiation/internal/errs"
 	"github.com/codevector-2003/filiation/internal/library"
 	"github.com/codevector-2003/filiation/internal/model"
 )
@@ -72,7 +73,17 @@ func (s *server) search(w http.ResponseWriter, r *http.Request) {
 	if q.Get("limit") == "all" {
 		limit = searchEverything
 	}
-	res, err := s.Library.Search(r.Context(), words, library.SearchOptions{Limit: limit, Paper: q.Get("paper"), References: q.Get("references") == "true"})
+	within, err := s.searchWithin(r, q)
+	switch {
+	case errors.Is(err, errs.ErrNotFound):
+		fail(w, http.StatusNotFound, errors.New("that view is no longer saved"))
+		return
+	case err != nil:
+		fail(w, http.StatusBadRequest, err)
+		return
+	}
+	res, err := s.Library.Search(r.Context(), words, library.SearchOptions{Limit: limit, Paper: q.Get("paper"),
+		References: q.Get("references") == "true", Within: within})
 	if err != nil {
 		failFind(w, err)
 		return
@@ -83,7 +94,7 @@ func (s *server) search(w http.ResponseWriter, r *http.Request) {
 			References: h.Section != "", Parts: snippetParts(h.Snippet)}
 	}
 	send(w, map[string]any{"hits": hits, "partial": res.Partial, "unread": res.Unread,
-		"capped": len(hits) == limit})
+		"capped": len(hits) == limit, "within": within != nil, "papers": res.Papers, "readable": res.Readable})
 }
 
 func (s *server) page(w http.ResponseWriter, r *http.Request) {

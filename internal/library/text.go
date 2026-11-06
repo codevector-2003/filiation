@@ -337,6 +337,12 @@ type SearchOptions struct {
 	PerPaper   int    // most passages from one paper; zero means DefaultPerPaper
 	Paper      string // only this paper, by any identifier
 	References bool   // search reference lists too
+	// Within keeps the search to the papers these filters of the Papers
+	// list find, applied before the best passages are chosen.
+	Within *ListOptions
+	// View keeps the search to a saved view's papers, named or numbered;
+	// Within, when also set, wins.
+	View string
 }
 
 // SearchHit is one passage that matched.
@@ -360,6 +366,9 @@ type Searched struct {
 	// search cannot see: fil extract reads them. Search does not scan
 	// papers/, so a PDF put there since the last scan is not counted.
 	Unread int
+	// Papers and Readable say, for a search kept Within filters, how many
+	// papers the filters found and how many of those have searchable text.
+	Papers, Readable int
 }
 
 // Search finds passages in the library's PDFs by keyword: every word must
@@ -383,11 +392,35 @@ func (l *Library) Search(ctx context.Context, words string, opts SearchOptions) 
 		q.FilID = w.FilID
 		q.PerPaper = opts.Limit
 	}
+	var out Searched
+	if opts.View != "" && opts.Within == nil {
+		v, err := l.ViewNamed(ctx, opts.View)
+		if err != nil {
+			return Searched{}, err
+		}
+		f := v.Filters.List()
+		opts.Within = &f
+	}
+	if opts.Within != nil {
+		f := *opts.Within
+		f.Offset, f.Limit = 0, 0
+		rows, err := l.db.List(ctx, f)
+		if err != nil {
+			return Searched{}, err
+		}
+		q.InSet = true
+		for _, r := range rows {
+			q.Within = append(q.Within, r.FilID)
+		}
+		out.Papers = len(rows)
+		if out.Readable, err = l.db.ReadableAmong(ctx, q.Within); err != nil {
+			return Searched{}, err
+		}
+	}
 	hits, err := l.db.Search(ctx, q)
 	if err != nil {
 		return Searched{}, err
 	}
-	var out Searched
 	if len(hits) == 0 {
 		// No passage has every word: rather than nothing, the passages with
 		// some of them, labelled as such.
