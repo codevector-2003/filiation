@@ -63,6 +63,12 @@
       <button type="button" class="side-add" id="new-view" aria-label="Save the Papers list's filters as a view">+</button>
     </div>
     <div class="views" id="views" role="group" aria-label="Saved views"></div>
+    <div class="side-head-row">
+      <span class="side-head">GROUPS</span>
+    </div>
+    <button class="nav" type="button" data-screen="groups" title="Topics found from who cites whom in your library">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="9" r="4"/><circle cx="16" cy="15" r="4"/></svg>Suggested<span class="count" id="count-groups"></span>
+    </button>
     <div class="side-head-row" id="collections-head" data-drop="top">
       <span class="side-head">COLLECTIONS</span>
       <button type="button" class="side-add" id="new-collection" aria-label="New collection">+</button>
@@ -234,7 +240,7 @@
         <div class="whole-tip" id="whole-tip" hidden></div>
         <div class="mf-panel" id="mf-panel" role="group" aria-label="Map filters" hidden></div>
         <div class="map-empty" id="whole-note" hidden></div>
-        <div class="legend">
+        <div class="legend" id="whole-legend">
           <span><i class="key dot seed"></i>Added by you</span>
           <span><i class="key dot pdf"></i>PDF in your library</span>
           <span><i class="key dot titled"></i>No PDF</span>
@@ -312,6 +318,25 @@
       </section>
     </main>
     <aside class="assist-side" id="assist-side" aria-label="Connect and activity"></aside>
+  </div>
+
+  <!-- Citation groups (D34) -->
+  <div class="screen" id="screen-groups" hidden>
+    <main class="groups-main">
+      <div class="groups-head">
+        <h1>Suggested groups</h1>
+        <div class="grow-h"></div>
+        <span class="muted" id="group-detail-label">Detail</span>
+        <div class="seg" id="group-detail" role="group" aria-labelledby="group-detail-label">
+          <button type="button" data-detail="broad" aria-pressed="false" title="Fewer, larger groups">Broad</button>
+          <button type="button" data-detail="normal" aria-pressed="true">Normal</button>
+          <button type="button" data-detail="fine" aria-pressed="false" title="More, smaller groups">Fine</button>
+        </div>
+      </div>
+      <p class="groups-note" id="groups-note"></p>
+      <div class="groups-list" id="groups-list" aria-label="Suggested groups"></div>
+      <div class="groups-foot" id="groups-foot"></div>
+    </main>
   </div>
 
   <!-- Reader -->
@@ -413,6 +438,7 @@
 <script src="organise.js"></script>
 <script src="search.js"></script>
 <script src="views.js"></script>
+<script src="groups.js"></script>
 <script src="map.js"></script>
 <script src="whole.js"></script>
 <script src="inbox.js"></script>

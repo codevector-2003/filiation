@@ -49,6 +49,7 @@ search_library finds passages by keyword, with their page: quote them rather tha
 paraphrasing from memory. fetch_pdfs downloads more; most papers have no open PDF.
 get_paper tells everything about one paper, including why it has no PDF or text.
 neighbours gives the sentence a paper cites each reference in, when one was found.
+citation_groups names the library's topics, found from its citations alone.
 
 Works marked stub: true have not been fetched — something cites them; their title may
 be known, their abstract and references are not. Never describe a stub's content. A
@@ -116,6 +117,7 @@ func New(lib *library.Library, version string) *mcp.Server {
 	}, t.libraryStats)
 
 	addPaperTools(s, t, readOnly, grows)
+	addGroupTools(s, t, readOnly)
 	return s
 }
 

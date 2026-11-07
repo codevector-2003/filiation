@@ -126,6 +126,7 @@ Eight tools, named for what a researcher wants rather than for how fil works ins
 | [`search_library`](#search_library) | Passages from the library's PDFs, by keyword, with their page | No |
 | [`get_paper`](#get_paper) | Everything about one paper: its PDF or why none, its text or why none, its citation sentences | No |
 | [`fetch_pdfs`](#fetch_pdfs) | Download the legal open-access PDFs of the library's papers, and read them | Yes |
+| [`citation_groups`](#citation_groups) | The library's topics, found from its citations alone | No |
 
 Things to ask once it's connected:
 
@@ -327,6 +328,23 @@ call, with progress notifications, and keeps every finished download if cancelle
 open PDF: about one in eight overall, nearly half in physics, almost none in the humanities
 ([D21](DECISIONS.md#d21--what-fil-can-promise-about-pdfs-and-how-fetching-runs)). A library that is a
 single database file has no folder for PDFs, and `fetch_pdfs` says how to give it one.
+
+### `citation_groups`
+
+| Argument | Default | |
+| --- | --- | --- |
+| `group` | all groups | One group to list the papers of: its `number`, its `name`, or its `anchor` fil ID |
+| `detail` | `normal` | `broad` for fewer, larger groups; `fine` for more, smaller ones |
+| `limit` | 50 | With `group`, how many of its papers. At most 200 |
+
+Groups of papers that cite one another more than they cite the rest of the library, found by
+Louvain clustering over the citations; no model guesses what a paper is about
+([D34](DECISIONS.md#d34--citation-groups-are-found-from-the-citations-and-suggested-never-filed)).
+Each is named after the paper its members cite most, and returns `number`, `name`, `anchor`,
+`papers`, `fetched`, the years, and in `papers_list` its five most cited papers, each with
+`cited_within_group`, or with `group`, its papers. Only papers linked to at least two others are
+grouped (`papers_grouped_from`); those linked to only one are counted in `papers_not_grouped`. Few
+reference lists, common outside STEM, mean few groups, and the `note` says so.
 
 ### Errors
 

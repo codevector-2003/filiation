@@ -4,11 +4,17 @@
 'use strict';
 
 const DOT = { seed: '#8A5300', pdf: '#1F5F8B', titled: '#83878E', unnamed: '#C4C7CB' };
+// The eight largest citation groups' colours, told apart by lightness as well
+// as hue, and the colour of every paper in none of them (D34).
+const GROUP_COLOURS = ['#2F6FA3', '#C8702A', '#2A8C82', '#7A5AA6', '#A8445E', '#5E7F1F', '#9A7B12', '#18324D'];
+const NO_GROUP = '#C9C6BE';
 
 // The map's own filters, kept per computer. size: what a circle's size says;
 // min: the fewest citations, by that measure, a paper needs to stay bright;
-// fade or hide what is left out; names: how many of the biggest are named.
-const MAP_DEFAULTS = { size: 'here', min: 0, from: 0, to: 0, pdf: true, nopdf: true, mine: false, stubs: true, hide: false, names: 12 };
+// fade or hide what is left out; names: how many of the biggest are named;
+// colour: by PDF and seeds, or by citation group; only: one group's anchor.
+const MAP_DEFAULTS = { size: 'here', min: 0, from: 0, to: 0, pdf: true, nopdf: true, mine: false, stubs: true, hide: false, names: 12,
+  colour: 'state', only: '' };
 const mf = { ...MAP_DEFAULTS, mineSet: new Set() };
 const STEPS = [0, 1, 2, 3, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000];
 
@@ -16,6 +22,7 @@ const whole = {
   nodes: [], edges: [], key: '', xy: null, degree: null, around: null, byDegree: [], byValue: [],
   all: false, shown: [], match: null, picked: -1, near: null, hover: -1,
   scale: 1, x: 0, y: 0, asked: 0, worker: null, queued: false,
+  groupOf: null, groups: [], groupsKey: '',
 };
 
 function foldText(s) {
@@ -68,6 +75,8 @@ async function loadWhole() {
   }
   note.hidden = true;
   await readFilters(asked);
+  if (asked !== whole.asked) return;
+  await loadMapGroups();
   if (asked !== whole.asked) return;
   setShown();
   fitWhole();
@@ -137,11 +146,75 @@ function passes(i) {
   if (n.pdf ? !mf.pdf : !mf.nopdf) return false;
   if (!mf.stubs && !n.title) return false;
   if (mf.mine && !mf.mineSet.has(i)) return false;
+  const only = onlyGroup();
+  if (only >= 0 && whole.groupOf[i] !== only) return false;
   return true;
 }
 
 function mapFiltersOn() {
-  return [mf.min > 0, mf.from > 0 || mf.to > 0, !mf.pdf || !mf.nopdf, mf.mine, !mf.stubs].filter(Boolean).length;
+  return [mf.min > 0, mf.from > 0 || mf.to > 0, !mf.pdf || !mf.nopdf, mf.mine, !mf.stubs, onlyGroup() >= 0].filter(Boolean).length;
+}
+
+// loadMapGroups reads the citation groups when the map is coloured by them,
+// once for each state of the library and detail.
+async function loadMapGroups() {
+  renderWholeLegend();
+  if (mf.colour !== 'group' || whole.nodes.length === 0) return;
+  const key = whole.key + '/' + groupDetail();
+  if (key === whole.groupsKey && whole.groupOf) return;
+  let res;
+  try {
+    res = await api('/api/groups?members=1&detail=' + groupDetail());
+  } catch (e) {
+    // Drawn without groups; asked again when the library changes.
+    whole.groupOf = null;
+    whole.groups = [];
+    whole.groupsKey = key;
+    return;
+  }
+  const at = new Map(whole.nodes.map((n, i) => [n.id, i]));
+  whole.groupOf = new Int8Array(whole.nodes.length).fill(-1);
+  whole.groups = res.groups.filter((g) => !g.dismissed).slice(0, GROUP_COLOURS.length).map((g, k) => {
+    g.members.forEach((id) => {
+      const i = at.get(id);
+      if (i !== undefined) whole.groupOf[i] = k;
+    });
+    return { anchor: g.anchor, name: g.name, papers: g.papers, colour: GROUP_COLOURS[k] };
+  });
+  whole.groupsKey = key;
+  renderWholeLegend();
+  renderMapFilters();
+}
+
+// onlyGroup is the place of the one group shown, or -1 for all of them.
+function onlyGroup() {
+  if (mf.colour !== 'group' || !mf.only || !whole.groupOf) return -1;
+  return whole.groups.findIndex((g) => g.anchor === mf.only);
+}
+
+function renderWholeLegend() {
+  const box = $('whole-legend');
+  const key = (cls, text) => {
+    const s = el('span');
+    s.append(el('i', 'key dot ' + cls), text);
+    return s;
+  };
+  if (mf.colour === 'group') {
+    const parts = whole.groups.map((g) => {
+      const s = el('span');
+      const dot = el('i', 'key dot');
+      dot.style.background = g.colour;
+      s.append(dot, g.name);
+      return s;
+    });
+    const rest = el('span');
+    const dot = el('i', 'key dot');
+    dot.style.background = NO_GROUP;
+    rest.append(dot, whole.groups.length ? 'Other groups, or none' : 'Finding groups…');
+    box.replaceChildren(...parts, rest);
+    return;
+  }
+  box.replaceChildren(key('seed', 'Added by you'), key('pdf', 'PDF in your library'), key('titled', 'No PDF'), key('unnamed', 'Title not fetched'));
 }
 
 function papersFiltered() {
@@ -202,7 +275,11 @@ function dotSize(i) {
   return Math.min(22, r) * zoom;
 }
 
-function dotColour(n) {
+function dotColour(n, i) {
+  if (mf.colour === 'group' && whole.groupOf) {
+    const k = whole.groupOf[i];
+    return k >= 0 ? whole.groups[k].colour : NO_GROUP;
+  }
   if (n.seed) return DOT.seed;
   if (n.pdf) return DOT.pdf;
   return n.title ? DOT.titled : DOT.unnamed;
@@ -229,7 +306,7 @@ function dots(ctx, w, h, wanted, alpha) {
     const x = whole.xy[2 * i] * whole.scale + whole.x;
     const y = whole.xy[2 * i + 1] * whole.scale + whole.y;
     if (x < -20 || y < -20 || x > w + 20 || y > h + 20) return;
-    const c = dotColour(whole.nodes[i]);
+    const c = dotColour(whole.nodes[i], i);
     (groups[c] = groups[c] || new Path2D()).moveTo(x + dotSize(i), y);
     groups[c].arc(x, y, dotSize(i), 0, 2 * Math.PI);
   });
@@ -499,6 +576,10 @@ function mapFilter(change) {
   }
   renderMapFilters();
   if (!whole.xy) return;
+  if (mf.colour === 'group' && whole.groupsKey !== whole.key + '/' + groupDetail()) {
+    loadMapGroups().then(() => mapFilter(() => {}));
+  }
+  renderWholeLegend();
   sortByValue();
   setShown();
   if (whole.picked >= 0 && !whole.shown[whole.picked]) dropPick();
@@ -567,7 +648,25 @@ function renderMapFilters() {
   const foot = el('div', 'mf-foot');
   foot.append(count, button('Reset', 'btn small', () => mapFilter(() => Object.assign(mf, MAP_DEFAULTS))));
 
+  const colours = [head('COLOUR'), seg([['state', 'PDF and seeds'], ['group', 'Group']], mf.colour, (v) => { mf.colour = v; mf.only = ''; })];
+  if (mf.colour === 'group') {
+    const only = onlyGroup();
+    whole.groups.forEach((g, k) => {
+      const b = button('', 'mf-group' + (only === k ? ' on' : ''), () => mapFilter(() => { mf.only = only === k ? '' : g.anchor; }));
+      const dot = el('i', 'key dot');
+      dot.style.background = g.colour;
+      b.append(dot, el('span', 'mf-group-name', g.name), el('span', 'muted', g.papers.toLocaleString()));
+      b.setAttribute('aria-pressed', only === k ? 'true' : 'false');
+      b.title = only === k ? 'Show every group' : 'Show only this group';
+      colours.push(b);
+    });
+    colours.push(el('div', 'muted mf-note', whole.groups.length
+      ? 'The eight largest groups get a colour. Click one to show only it.'
+      : 'No groups found yet. The Suggested groups screen says why.'));
+  }
+
   panel.replaceChildren(
+    ...colours,
     head('SIZE BY'), seg([['here', 'Here'], ['world', 'Worldwide'], ['same', 'Same size']], mf.size, (v) => { mf.size = v; mf.min = 0; }),
     head('SHOW'), least, years,
     check('Papers with a PDF', mf.pdf, (v) => { mf.pdf = v; }),

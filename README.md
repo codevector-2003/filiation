@@ -42,6 +42,7 @@ Most citation-map tools are session-shaped: you run a query, get a picture, and 
 - **Best-first expansion under a budget.** The papers your library cites most are fetched first, so 500 works cover the literature that matters rather than whatever happened to be nearby. Stop at any time; the next run carries on where this one left off.
 - **Lineage, not just links.** `fil path` finds how one paper descends from another through its references. Citation cycles are real, and the search is safe on them.
 - **The papers themselves, searchable.** `fil fetch` downloads the legal open-access PDFs into readable folders and reads them, so `fil search` finds a passage and names its page. PDFs you already have are identified and filed for you.
+- **Topics from the citations alone.** `fil groups` finds the clusters of papers that cite one another, the debates your library holds, and offers them as collections. No model guesses what a paper is about.
 - **The sentence behind each citation.** fil keeps the sentence each reference is cited in, so you can see why one paper cites another.
 - **Duplicates handled carefully.** The same paper under two IDs, or a merged record, becomes one node. Papers that only *share a title* are reported for you to judge and never merged automatically: a book review carries the title of the book it reviews.
 - **Honest about the data.** Every run reports how many works came with a reference list, and why that varies by field.
@@ -79,7 +80,7 @@ Building from source, where your library lives, and the next steps: **[Getting s
 claude mcp add filiation -- fil mcp
 ```
 
-Set-up for other clients, all eight tools, limits and troubleshooting: **[MCP guide](docs/MCP.md)**.
+Set-up for other clients, all nine tools, limits and troubleshooting: **[MCP guide](docs/MCP.md)**.
 
 ## Roadmap
 

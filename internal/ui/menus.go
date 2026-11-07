@@ -71,6 +71,7 @@ var Menus = []Menu{
 		{ID: "view.map", Label: "Citation Map", Keys: "cmdorctrl+4"},
 		{ID: "view.inbox", Label: "Inbox", Keys: "cmdorctrl+5"},
 		{ID: "view.assistants", Label: "AI Assistants", Keys: "cmdorctrl+6"},
+		{ID: "view.groups", Label: "Suggested Groups", Keys: "cmdorctrl+7"},
 		sep,
 		{ID: "view.sidebar", Label: "Sidebar", Keys: "cmdorctrl+b"},
 		{ID: "view.details", Label: "Paper Details", Keys: "cmdorctrl+j"},

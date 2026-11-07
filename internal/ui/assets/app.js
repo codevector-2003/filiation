@@ -7,7 +7,7 @@ const DOCS = 'https://github.com/codevector-2003/filiation#documentation';
 
 const state = {
   show: 'all', title: '', collection: 0, favourites: false, labels: [], selected: '', asked: 0, askedPaper: 0, lib: null,
-  rows: new Map(), picked: new Set(), anchor: '', paper: null, focus: '',
+  rows: new Map(), picked: new Set(), anchor: '', paper: null, focus: '', group: null,
   sort: '', yearFrom: 0, yearTo: 0, authors: [], venues: [], findAuthor: '', findVenue: '',
   loaded: 0, more: false, loading: false, loadingMore: false,
 };
@@ -74,6 +74,7 @@ async function loadLibrary() {
   inbox.textContent = lib.inbox;
 
   renderOrganised();
+  refreshGroupCount();
   return true;
 }
 
@@ -85,13 +86,17 @@ function showCount(works) {
 // unfiltered: the list is showing the whole library, so its total is the
 // library's size. An assistant can grow the library while the window is open.
 function unfiltered() {
-  return state.show === 'all' && !state.title && !filtersOn() && !state.favourites && state.labels.length === 0;
+  return state.show === 'all' && !state.title && !filtersOn() && !state.favourites && state.labels.length === 0 && !state.group;
 }
 
 function listQuery(offset) {
   const q = new URLSearchParams({ show: state.show, title: state.title, sort: state.sort });
   if (state.collection) q.set('collection', state.collection);
   if (state.favourites) q.set('favourites', '1');
+  if (state.group) {
+    q.set('group', state.group.anchor);
+    q.set('detail', state.group.detail);
+  }
   state.labels.forEach((l) => q.append('label', l));
   if (state.yearFrom) q.set('year_from', state.yearFrom);
   if (state.yearTo) q.set('year_to', state.yearTo);
@@ -271,6 +276,7 @@ function renderFilters(res) {
     return b;
   };
   const chips = [];
+  if (state.group) chips.push(chip('Group: ' + state.group.name, () => choosePlace(0, false)));
   if (state.collection) chips.push(chip(pathOf(state.collection), () => choosePlace(0, false)));
   if (state.favourites) chips.push(chip('Favourites', () => choosePlace(0, false)));
   state.labels.forEach((id) => {
@@ -289,6 +295,7 @@ function renderFilters(res) {
     chips.push(button('Clear all', 'link', () => {
       state.collection = 0;
       state.favourites = false;
+      state.group = null;
       state.labels = [];
       markPlace();
       $('find-author').value = '';
@@ -305,7 +312,12 @@ function renderFilters(res) {
   }
   // Filters worth keeping, not kept yet, can be saved under a name.
   const now = currentFilters();
-  if (!emptyFilters(now) && !views().some((v) => sameFilters(now, v.filters))) {
+  if (state.group) {
+    // A group is worked out from the citations, so it is kept as a
+    // collection, not a view.
+    const g = state.group;
+    chips.push(button('Make collection…', 'btn small save-view', () => groupCollectionDialog(g)));
+  } else if (!emptyFilters(now) && !views().some((v) => sameFilters(now, v.filters))) {
     chips.push(button('Save as view…', 'btn small save-view', () => saveViewDialog(null)));
   }
   $('active-filters').replaceChildren(...chips);
@@ -609,7 +621,7 @@ $('rows').addEventListener('scroll', (e) => {
 document.querySelectorAll('.nav[data-screen]').forEach((b) => {
   b.addEventListener('click', () => {
     // Papers is the whole library: it leaves a collection or Favourites.
-    if (b.dataset.screen === 'papers' && (state.collection || state.favourites)) {
+    if (b.dataset.screen === 'papers' && (state.collection || state.favourites || state.group)) {
       choosePlace(0, false);
       return;
     }

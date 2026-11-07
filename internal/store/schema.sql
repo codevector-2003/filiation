@@ -231,6 +231,16 @@ CREATE TABLE IF NOT EXISTS saved_view (
     created_at TEXT DEFAULT (datetime('now'))
 );
 
+-- Schema v14: what the user chose about a suggested citation group (D34). The
+-- groups themselves are worked out from the citations each time and never
+-- stored; a group is known by its anchor, the paper its members cite most.
+CREATE TABLE IF NOT EXISTS group_choice (
+    anchor        TEXT PRIMARY KEY REFERENCES work(fil_id) ON DELETE CASCADE,
+    dismissed     INTEGER NOT NULL DEFAULT 0,
+    collection_id INTEGER REFERENCES collection(id) ON DELETE SET NULL,
+    chosen_at     TEXT DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS favourite (
     work_id  TEXT PRIMARY KEY REFERENCES work(fil_id) ON DELETE CASCADE,
     added_at TEXT DEFAULT (datetime('now'))
@@ -384,4 +394,4 @@ CREATE TABLE IF NOT EXISTS meta (
     value TEXT
 );
 
-INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '13');
+INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '14');

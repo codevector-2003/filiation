@@ -143,7 +143,7 @@ func (a *app) rootCommand() *cobra.Command {
 	root.PersistentPreRun = func(*cobra.Command, []string) { a.setUpColour() }
 
 	root.AddCommand(a.addCommand(), a.expandCommand(), a.neighboursCommand(), a.pathCommand(),
-		a.statsCommand(), a.listCommand(), a.showCommand(), a.fetchCommand(), a.importCommand(), a.zoteroCommand(), a.matchCommand(), a.extractCommand(), a.searchCommand(), a.exportCommand(), a.libraryCommand(), a.mcpCommand(), a.whereCommand(),
+		a.statsCommand(), a.groupsCommand(), a.listCommand(), a.showCommand(), a.fetchCommand(), a.importCommand(), a.zoteroCommand(), a.matchCommand(), a.extractCommand(), a.searchCommand(), a.exportCommand(), a.libraryCommand(), a.mcpCommand(), a.whereCommand(),
 		a.versionCommand(), a.cacheCommand(), a.themeCommand())
 	return root
 }

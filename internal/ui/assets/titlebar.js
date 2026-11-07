@@ -144,6 +144,7 @@ function ticked(id) {
     case 'view.map': return screen === 'map';
     case 'view.inbox': return screen === 'inbox';
     case 'view.assistants': return screen === 'assistants';
+    case 'view.groups': return screen === 'groups';
     case 'view.sidebar': return !document.querySelector('.side').classList.contains('closed');
     case 'view.details': return !$('detail').classList.contains('closed');
     case 'view.mapFilters': return screen === 'map' && !$('mf-panel').hidden;
@@ -956,6 +957,7 @@ async function run(id) {
       case 'view.papers': return document.querySelector('.nav[data-screen="papers"]').click();
       case 'view.favourites': return $('favourites').click();
       case 'view.search': return show('search');
+      case 'view.groups': return show('groups');
       case 'view.map': return show('map');
       case 'view.inbox': return show('inbox');
       case 'view.assistants': return show('assistants');

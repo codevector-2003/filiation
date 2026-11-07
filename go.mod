@@ -24,9 +24,11 @@ go 1.26.0
 //                                                    (BSD-3). Requires Go 1.26. Adds ~10 MB.
 //   M3  github.com/tetratelabs/wazero                runs PDFium · Apache-2.0, pure Go. Named
 //                                                    directly for its runtime and cache config.
+//   M5  gonum.org/v1/gonum                           citation groups by Louvain (D34) · BSD-3,
+//                                                    pure Go. Only graph/community and
+//                                                    graph/simple are linked.
 //
 // Planned:
-//   M1  gonum.org/v1/gonum/graph                     PageRank, communities
 //   M4  github.com/asg017/sqlite-vec-go-bindings     vectors, pairs with the driver above
 //
 // Not taken:
@@ -37,6 +39,7 @@ go 1.26.0
 
 require (
 	github.com/BurntSushi/toml v1.6.0
+	github.com/atotto/clipboard v0.1.4
 	github.com/charmbracelet/bubbles v1.0.0
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
@@ -48,10 +51,10 @@ require (
 	golang.org/x/sys v0.48.0
 	golang.org/x/text v0.42.0
 	golang.org/x/time v0.15.0
+	gonum.org/v1/gonum v0.17.0
 )
 
 require (
-	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/charmbracelet/colorprofile v0.4.1 // indirect
 	github.com/charmbracelet/x/ansi v0.11.6 // indirect
