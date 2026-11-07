@@ -66,12 +66,13 @@ function inside(id) {
 // Where the list is: the whole library, Favourites, or one collection.
 
 function placeChosen() {
-  return state.collection !== 0 || state.favourites || state.labels.length > 0;
+  return state.collection !== 0 || state.favourites || state.labels.length > 0 || state.group !== null;
 }
 
 function choosePlace(collection, favourites) {
   state.collection = collection;
   state.favourites = favourites;
+  state.group = null;
   show('papers');
 }
 
@@ -83,7 +84,7 @@ function toggleLabelFilter(id) {
 function markPlace() {
   renderViews();
   const papers = !$('screen-papers').hidden;
-  document.querySelector('.nav[data-screen="papers"]').classList.toggle('on', papers && !state.collection && !state.favourites);
+  document.querySelector('.nav[data-screen="papers"]').classList.toggle('on', papers && !state.collection && !state.favourites && !state.group);
   $('favourites').classList.toggle('on', papers && state.favourites);
   document.querySelectorAll('.tree-row').forEach((r) => {
     const on = Number(r.dataset.collection) === state.collection;

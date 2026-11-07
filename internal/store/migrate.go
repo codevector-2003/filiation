@@ -31,7 +31,8 @@ import (
 //	11 M5: collections inside collections, label, work_label and favourite
 //	12 M5: zotero_item — what was brought in from Zotero (D29)
 //	13 M5: saved_view — the Papers list's filters, saved under a name (D33)
-const SchemaVersion = 13
+//	14 M5: group_choice — a suggested citation group dismissed, or made a collection (D34)
+const SchemaVersion = 14
 
 // upgrades[v] moves a library from schema v to v+1. Each runs inside
 // Migrate's one transaction, after the ones before it, so a library several
@@ -49,7 +50,11 @@ var upgrades = map[int]func(ctx context.Context, db *DB, tx *sql.Tx) error{
 	10: upgradeV10ToV11,
 	11: upgradeV11ToV12,
 	12: upgradeV12ToV13,
+	13: upgradeV13ToV14,
 }
+
+// upgradeV13ToV14 adds group_choice, a new table.
+func upgradeV13ToV14(ctx context.Context, _ *DB, tx *sql.Tx) error { return addTables(ctx, tx, 14) }
 
 // upgradeV12ToV13 adds saved_view, a new table.
 func upgradeV12ToV13(ctx context.Context, _ *DB, tx *sql.Tx) error { return addTables(ctx, tx, 13) }
