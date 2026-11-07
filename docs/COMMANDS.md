@@ -36,6 +36,7 @@ so on), so scripts can branch on them. `--library <name>` picks a library for an
 | `fil neighbours <paper>` | What a paper cites, and what in your library cites it. `--context` shows the sentence each reference is cited in, with its page, once fil has read the paper's PDF. |
 | `fil path <a> <b>` | The shortest chain of references from one paper to another. `--any-direction` allows citations either way. |
 | `fil stats` | The library at a glance, including reference coverage, PDFs, text and citation sentences. `--duplicates` lists works that share a title; `--why` lists each paper whose PDF gave no text, and why. |
+| `fil groups [group]` | The topics in your library, found from its citations alone: groups of papers that cite one another more than the rest, each named after the paper its members cite most. Name a group, by its number or name, to list its papers; `--collect "<name>"` files them in a new collection, `--fringe` with the papers linked to that group alone. `--detail broad` or `fine` cuts fewer or more groups. Few reference lists, as in the humanities, mean few groups. |
 | `fil export graphml` | The graph as GraphML for Gephi, Cytoscape, yEd, NetworkX or igraph. `--include-stubs` adds works known so far only by ID. |
 
 ## Papers and their text

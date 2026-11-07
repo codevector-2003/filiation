@@ -832,3 +832,30 @@ changed; the view itself changes only on "Update to these filters". A view whose
 deleted finds nothing rather than everything. `fil search --view` and search_library's `view`
 search inside one.
 
+## D34 — Citation groups are found from the citations, and suggested, never filed
+
+Decided 7 Nov 2026. Papers that cite one another more than they cite the rest of the library
+usually share a topic or a debate. Filiation finds these groups with the Louvain method
+(`gonum/graph/community`, pure Go) over the citations taken as undirected links, and suggests each
+as a collection. The groups come from the citation edges alone, never from a model reading the
+papers, which keeps them on the right side of hard rule 3.
+
+Only papers linked to at least two others are grouped. On a library of 4,613 works grown from one
+seed, clustering every paper let the references that a single paper cites (3,470 of them) fill each
+group with one paper's bibliography; keeping to the 1,143 linked twice or more gave 11 groups that
+read as real debates (the open-access citation advantage, journal economics, replication, altmetrics)
+in under 100 ms. The papers linked to one group and nothing else are its fringe, and making a
+collection can file them too. A group needs five papers to be suggested. Broad, normal and fine are
+resolutions 0.5, 1 and 2: 6, 11 and 21 groups on that library.
+
+Groups are worked out each time they are asked for, so papers added later join them, and the same
+citations always give the same groups: papers are numbered in fil ID order and the search is seeded
+with a constant. A group is known by its anchor, the member the others cite most, and named after
+its most cited member with a known title ("Around Ioannidis 2005"), since the anchor can be a
+reference not fetched yet. What the user chooses about a group, not useful or made into a
+collection, is kept under its anchor (schema v14, `group_choice`), so a choice survives the group
+changing shape and holds at every detail. Making a collection files the papers in one transaction
+and is the only thing that ever files them. The Papers list keeps to a group as a chip, the
+citation map can colour its eight largest groups, and `fil groups` and the `citation_groups` tool
+read them. Where reference lists are few, mostly in the humanities (D12), groups are few, and the
+screens say that is the data.

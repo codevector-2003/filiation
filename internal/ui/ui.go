@@ -104,6 +104,9 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("POST /api/views", s.needLibrary(s.createView))
 	mux.HandleFunc("POST /api/views/{id}", s.needLibrary(s.changeView))
 	mux.HandleFunc("POST /api/views/{id}/delete", s.needLibrary(s.deleteView))
+	mux.HandleFunc("GET /api/groups", s.needLibrary(s.groups))
+	mux.HandleFunc("POST /api/groups/{anchor}/collection", s.needLibrary(s.groupCollection))
+	mux.HandleFunc("POST /api/groups/{anchor}/dismiss", s.needLibrary(s.dismissGroup))
 	mux.HandleFunc("GET /api/zotero", s.needLibrary(s.zotero))
 	mux.HandleFunc("POST /api/zotero/import", s.needLibrary(s.zoteroImport))
 	mux.HandleFunc("POST /api/zotero/export", s.needLibrary(s.zoteroExport))
@@ -299,6 +302,9 @@ func (s *server) papers(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusBadRequest, err)
 		return
 	}
+	if !s.keepToGroup(w, r, &opts) {
+		return
+	}
 	opts.Limit = listLimit
 	rows, err := s.Library.List(r.Context(), opts)
 	if errors.Is(err, errs.ErrInvalidInput) {
@@ -333,6 +339,9 @@ func (s *server) paperIDs(w http.ResponseWriter, r *http.Request) {
 	opts, err := listOptions(r.URL.Query())
 	if err != nil {
 		fail(w, http.StatusBadRequest, err)
+		return
+	}
+	if !s.keepToGroup(w, r, &opts) {
 		return
 	}
 	opts.Offset = 0

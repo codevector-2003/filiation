@@ -3,6 +3,7 @@ package store
 import (
 	"cmp"
 	"context"
+	"encoding/json"
 	"fmt"
 	"slices"
 	"strconv"
@@ -28,6 +29,8 @@ type ListQuery struct {
 	YearTo       int      // only this year or earlier; zero means no bound
 	Authors      []string // only papers by any of these authors, by name
 	Venues       []string // only papers in any of these venues
+	Among        []string // only these papers, by fil ID, when AmongSet is set
+	AmongSet     bool     // so an empty Among finds nothing rather than everything
 	Sort         string   // a key of listOrders; "" is seeds first, then most cited
 	Offset       int      // skip this many, for the next page
 	Limit        int      // zero means no limit
@@ -100,6 +103,11 @@ func (q ListQuery) conditions(skip string) ([]string, []any) {
 		for _, v := range q.Venues {
 			args = append(args, v)
 		}
+	}
+	if q.AmongSet {
+		ids, _ := json.Marshal(append([]string{}, q.Among...))
+		where = append(where, "w.fil_id IN (SELECT value FROM json_each(?))")
+		args = append(args, string(ids))
 	}
 	return where, args
 }

@@ -219,8 +219,8 @@ func TestToolsAreListed(t *testing.T) {
 		}
 	}
 	slices.Sort(names)
-	want := []string{"add_paper", "expand_graph", "fetch_pdfs", "find_path", "get_paper", "library_stats",
-		"neighbours", "search_library"}
+	want := []string{"add_paper", "citation_groups", "expand_graph", "fetch_pdfs", "find_path", "get_paper",
+		"library_stats", "neighbours", "search_library"}
 	if !slices.Equal(names, want) {
 		t.Errorf("tools = %v, want %v", names, want)
 	}
@@ -476,5 +476,37 @@ func TestReadOnlyWithdrawsWhatGrowsTheLibrary(t *testing.T) {
 	calls := assistants.Recent(log, 5)
 	if len(calls) != 1 || calls[0].Tool != "library_stats" {
 		t.Errorf("logged = %+v", calls)
+	}
+}
+
+func TestCitationGroups(t *testing.T) {
+	t.Parallel()
+	c := connect(t)
+	var empty groupsOut
+	c.call("citation_groups", nil, &empty)
+	if len(empty.Groups) != 0 || !strings.Contains(empty.Note, "No groups") {
+		t.Fatalf("an empty library = %+v", empty)
+	}
+
+	c = grown(t)
+	var all groupsOut
+	c.call("citation_groups", map[string]any{"detail": "normal"}, &all)
+	if len(all.Groups) == 0 || all.Linked == 0 {
+		t.Fatalf("the grown library has no groups: %+v", all)
+	}
+	first := all.Groups[0]
+	if first.Number != 1 || first.Papers < 5 || len(first.Top) == 0 || len(first.Top) > groupTopPapers || first.Top[0].FilID != first.Anchor {
+		t.Fatalf("the first group = %+v", first)
+	}
+	var one groupsOut
+	c.call("citation_groups", map[string]any{"group": first.Anchor, "limit": 500}, &one)
+	if len(one.Groups) != 1 || len(one.Groups[0].Top) != min(first.Papers, maxGroupPapers) {
+		t.Fatalf("one group = %+v", one)
+	}
+	if msg := c.fails("citation_groups", map[string]any{"group": "Around nobody"}); !strings.Contains(msg, "no group") {
+		t.Errorf("a group not found = %q", msg)
+	}
+	if msg := c.fails("citation_groups", map[string]any{"detail": "tiny"}); !strings.Contains(msg, "broad, normal or fine") {
+		t.Errorf("an unknown detail = %q", msg)
 	}
 }

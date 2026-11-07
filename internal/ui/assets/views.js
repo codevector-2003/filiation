@@ -82,6 +82,7 @@ function openView(v) {
   state.title = f.title || '';
   state.collection = f.collection || 0;
   state.favourites = !!f.favourites;
+  state.group = null;
   state.labels = [...(f.labels || [])];
   state.yearFrom = f.yearFrom || 0;
   state.yearTo = f.yearTo || 0;
