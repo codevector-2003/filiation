@@ -32,7 +32,8 @@ import (
 //	12 M5: zotero_item — what was brought in from Zotero (D29)
 //	13 M5: saved_view — the Papers list's filters, saved under a name (D33)
 //	14 M5: group_choice — a suggested citation group dismissed, or made a collection (D34)
-const SchemaVersion = 14
+//	15 M4: work_search and work_fts — titles and abstracts, to rank search results (D35)
+const SchemaVersion = 15
 
 // upgrades[v] moves a library from schema v to v+1. Each runs inside
 // Migrate's one transaction, after the ones before it, so a library several
@@ -51,6 +52,28 @@ var upgrades = map[int]func(ctx context.Context, db *DB, tx *sql.Tx) error{
 	11: upgradeV11ToV12,
 	12: upgradeV12ToV13,
 	13: upgradeV13ToV14,
+	14: upgradeV14ToV15,
+}
+
+// upgradeV14ToV15 adds work_search and work_fts, and indexes every work's
+// title and abstract. The index is rebuilt whole: an older library may have
+// passed through schema.sql at an earlier step, whose triggers indexed some
+// works already.
+func upgradeV14ToV15(ctx context.Context, _ *DB, tx *sql.Tx) error {
+	if err := addTables(ctx, tx, 15); err != nil {
+		return err
+	}
+	for _, s := range []string{
+		`INSERT OR IGNORE INTO work_search(fil_id) SELECT fil_id FROM work ORDER BY rowid;`,
+		`INSERT INTO work_fts(work_fts) VALUES ('delete-all');`,
+		`INSERT INTO work_fts(rowid, text)
+		 SELECT s.id, ifnull(w.title, '') || ' ' || ifnull(w.abstract, '') FROM work_search s JOIN work w ON w.fil_id = s.fil_id;`,
+	} {
+		if _, err := tx.ExecContext(ctx, s); err != nil {
+			return fmt.Errorf("index titles and abstracts: %w", err)
+		}
+	}
+	return nil
 }
 
 // upgradeV13ToV14 adds group_choice, a new table.

@@ -44,8 +44,8 @@ type Question struct {
 type method func(ctx context.Context, l *library.Library, q string) ([]string, error)
 
 var methods = map[string]method{
-	// keyword is what fil search does today: every word, or failing that,
-	// the passages with the most of them.
+	// keyword is whatever fil search does now (D35), so running it before
+	// and after a change to the ranking measures the change.
 	"keyword": func(ctx context.Context, l *library.Library, q string) ([]string, error) {
 		res, err := l.Search(ctx, q, library.SearchOptions{Limit: 30, PerPaper: 3})
 		if err != nil {

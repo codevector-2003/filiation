@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -174,108 +173,6 @@ func (db *DB) TextCounts(ctx context.Context) (map[string]int, error) {
 			return nil, fmt.Errorf("store: count texts: %w", err)
 		}
 		out[s] = n
-	}
-	return out, rows.Err()
-}
-
-// SearchQuery is one keyword search.
-type SearchQuery struct {
-	Words      string // what the person typed; see MatchQuery
-	Limit      int    // passages to return
-	PerPaper   int    // most passages from one paper; zero means no limit
-	FilID      string // only this paper, when set
-	References bool   // include reference lists, left out by default
-	// Within keeps the search to these papers, by fil ID, when InSet is set:
-	// a filter of the Papers list, applied before the best passages are
-	// chosen so that none of its papers' matches are lost to others.
-	Within []string
-	InSet  bool
-	// Any matches passages with any of the words rather than all of them —
-	// the fallback when no passage has them all. bm25 still ranks a passage
-	// with more of the words higher.
-	Any bool
-}
-
-// Hit is one passage that matched.
-type Hit struct {
-	FilID   string
-	Page    int
-	Section string
-	// Snippet is the matching stretch of the passage, with each matched word
-	// between MarkStart and MarkEnd.
-	Snippet string
-	Path    string  // the PDF it came from, relative to the library folder
-	Rank    float64 // bm25: lower is better
-}
-
-// MarkStart and MarkEnd surround the matched words in a Hit's Snippet. They
-// are control characters, which cleaned text never contains, so a front
-// door can render them as it likes without mistaking a bracket for a match.
-const (
-	MarkStart = "\x02"
-	MarkEnd   = "\x03"
-)
-
-// Search finds passages by keyword, best first (FTS5's bm25), with words
-// matched by stem — "citing" finds "cited".
-func (db *DB) Search(ctx context.Context, q SearchQuery) ([]Hit, error) {
-	terms, err := matchTerms(q.Words)
-	if err != nil {
-		return nil, err
-	}
-	match := strings.Join(terms, " ")
-	if q.Any {
-		match = strings.Join(terms, " OR ")
-	}
-	fil := ""
-	if q.FilID != "" {
-		if fil, err = resolveRef(ctx, db.read, q.FilID); err != nil {
-			return nil, err
-		}
-	}
-	perPaper := q.PerPaper
-	if perPaper <= 0 {
-		perPaper = q.Limit
-	}
-	within := ""
-	if q.InSet {
-		b, err := json.Marshal(append([]string{}, q.Within...))
-		if err != nil {
-			return nil, err
-		}
-		within = string(b)
-	}
-	rows, err := db.read.QueryContext(ctx, `
-WITH hits AS (
-  SELECT c.work_id, c.page, ifnull(c.section, '') AS section, bm25(chunk_fts) AS rank,
-         snippet(chunk_fts, 0, ?5, ?6, '…', 32) AS snip
-  FROM chunk_fts JOIN chunk c ON c.id = chunk_fts.rowid
-  WHERE chunk_fts MATCH ?1
-    AND (?2 OR c.section IS NULL)
-    AND (?3 = '' OR c.work_id = ?3)
-    AND (?8 = '' OR c.work_id IN (SELECT value FROM json_each(?8)))
-), ranked AS (
-  SELECT *, row_number() OVER (PARTITION BY work_id ORDER BY rank) AS n FROM hits
-)
-SELECT r.work_id, r.page, r.section, r.snip, r.rank,
-       ifnull((SELECT f.path FROM work_file f
-               WHERE f.fil_id = t.fil_id AND f.sha256 = t.sha256 AND f.missing = 0
-               ORDER BY f.path LIMIT 1), t.path)
-FROM ranked r JOIN work_text t ON t.fil_id = r.work_id
-WHERE r.n <= ?4
-ORDER BY r.rank
-LIMIT ?7;`, match, q.References, fil, perPaper, MarkStart, MarkEnd, q.Limit, within)
-	if err != nil {
-		return nil, fmt.Errorf("store: search for %q: %w", q.Words, err)
-	}
-	defer rows.Close()
-	var out []Hit
-	for rows.Next() {
-		var h Hit
-		if err := rows.Scan(&h.FilID, &h.Page, &h.Section, &h.Snippet, &h.Rank, &h.Path); err != nil {
-			return nil, fmt.Errorf("store: search for %q: %w", q.Words, err)
-		}
-		out = append(out, h)
 	}
 	return out, rows.Err()
 }

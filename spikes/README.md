@@ -18,6 +18,7 @@ first; this directory is for re-running a measurement when you doubt it.
 | `go run ./spikes/11-reference-matching -text <dir>/text -cache <dir>/cache` | Can a PDF's reference list be split and matched to real works? |
 | `.github/workflows/spike-desktop-shell.yml`, run in CI | Which webview for the desktop app shell, Wails v2 or v3? Two modules in `spikes/13-desktop-shell`, built and run on every platform |
 | `go run ./spikes/12-validation-m3 -root <dir>` | The M3 validation run: the same 20 seeds, now with PDFs, text, search, citation sentences and import. `-recheck-imports` and `-recheck-search` repeat only the import check or the title search. `<dir>` should not be a temporary folder — the hand check reads it afterwards |
+| `cd spikes/14-embeddings && go run . -db <library>/filiation.db -model <dir> -questions ../../eval/retrieval/questions.json` | Can meaning search run inside fil, in pure Go, and is it good enough? `-ollama nomic-embed-text` compares Ollama instead. Its own module, so `hugot` stays out of fil's `go.mod`. The models are downloaded by hand from Hugging Face (`onnx/model.onnx` and `tokenizer.json`) |
 
 Spike 7 (cross-compilation) has no program — it is three `go build` invocations, recorded in
 `docs/SPIKES.md`.

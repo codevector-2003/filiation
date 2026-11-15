@@ -47,24 +47,29 @@ paper is missing is reported, not counted.
 
 ## Results
 
-| Method | Working set: first three | MRR | Locked set: first three | MRR |
+| Search | Working set: first three | MRR | Locked set: first three | MRR |
 | --- | --- | --- | --- | --- |
-| keyword (`fil search`, M3) | 13 of 20 | 0.60 | 15 of 20 | 0.60 |
+| M3: every word, else any; each paper placed by its best passage | 13 of 20 | 0.60 | 15 of 20 | 0.60 |
+| M4 (D35): filler words left out; papers ranked by their best three passages, fused with title and abstract | **15 of 20** | **0.73** | **15 of 20** | **0.68** |
 
-Keyword search misses q04, q05, q06, q14, q15, q16 and q17. A smaller library
-with 65 searchable papers gave 14 of 20: more papers mean more near misses.
+`-method keyword` always runs what `fil search` does now, so these were measured
+by running it before and after the change.
 
-The plan's target is 15 of 20 (`docs/PRODUCT_PLAN.md`). M4 improves keyword
-search and ranking (D35), so a change must beat this baseline on both sets.
+The prototypes behind D35 were measured here first, and D35 records them. Two
+ideas did not help: citing sentences as evidence about the cited paper, and title
+and abstract scored only among the matched papers rather than across the library.
 
-Keyword search misses where the question uses words the paper does not:
-"compulsory" for a mandate, "free-to-read" for open access, "pay their journal"
-for author-choice open access. One passage that happens to share common words
-can also put a paper above the one that answers the question.
+The plan's target is 15 of 20 (`docs/PRODUCT_PLAN.md`). The gain on the locked
+set is in rank: the paper that answers moves up, but the count in the first three
+stays 15. A change to the ranking must beat these figures on both sets.
+
+Search still misses where the question uses words the paper does not, such as
+"compulsory" for a mandate or "free-to-read" for open access.
 
 For reference, spike 14 scored plain meaning search over every passage on the
 working set: Ollama's nomic-embed-text 15 of 20 (MRR 0.76), and all-MiniLM-L6-v2
-run in pure Go 10 of 20 (MRR 0.41).
+run in pure Go 10 of 20 (MRR 0.41). Neither is built (D35).
 
-The score flatters keyword search. These questions were written after reading
-the passages, and some of their words still match.
+The working set flatters any method tuned on it. Its questions were written after
+reading the passages, and the ranking was tuned against it; the locked set is the
+fair figure.

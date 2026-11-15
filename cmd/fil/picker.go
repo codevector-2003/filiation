@@ -570,7 +570,7 @@ func listHeading(limit, rows int) string {
 func searchHeading(words string, partial, capped bool, unread int) string {
 	h := "Passages for " + words
 	if partial {
-		h = "Passages with some of the words, the most first: " + words
+		h = "Passages with some of the words, the best paper first: " + words
 	}
 	if capped {
 		h += " (the best only; --limit shows more)"

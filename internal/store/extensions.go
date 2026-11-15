@@ -24,12 +24,9 @@ import (
 // come first, and since store owns every SQL statement in Filiation, importing
 // store is the one thing every caller already does.
 //
-// vec1 is deliberately not registered yet. The vector table in schema.sql is
-// still commented out, so there is nothing a connection could fail to read, and
-// carrying the extension for a milestone that has not started buys nothing.
-// **When the vec table is uncommented at M4, its Register must be added here**
-// — not at the call site, or the same silent failure comes back wearing a
-// different hat.
+// vec1 is not registered: there is no vector search (spike 14, D35). Should
+// another extension ever be needed, **its Register belongs here** — not at the
+// call site, or the same silent failure comes back wearing a different hat.
 func init() {
 	registerExtensions()
 }
