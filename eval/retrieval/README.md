@@ -9,6 +9,14 @@ any library that holds those papers, and gives the answer and page as the paper
 states them. The questions are worded as a researcher would ask, not in the
 passage's own words.
 
+## Two sets
+
+- `questions.json` is the **working set**. Look at its misses and tune against it.
+- `heldout.json` is the **locked set**: 20 more questions, each on a different
+  paper from the working set, written before any tuning began. Score it only to
+  report a change, and never look at which of its questions fail, or it stops
+  measuring anything. A change counts only if it improves both sets.
+
 ## Score a method
 
 ```
@@ -39,19 +47,24 @@ paper is missing is reported, not counted.
 
 ## Results
 
-| Method | Paper in first three | Mean reciprocal rank |
-| --- | --- | --- |
-| keyword (`fil search`, M3) | 13 of 20 | 0.60 |
+| Method | Working set: first three | MRR | Locked set: first three | MRR |
+| --- | --- | --- | --- | --- |
+| keyword (`fil search`, M3) | 13 of 20 | 0.60 | 15 of 20 | 0.60 |
 
 Keyword search misses q04, q05, q06, q14, q15, q16 and q17. A smaller library
 with 65 searchable papers gave 14 of 20: more papers mean more near misses.
 
-The target for M4 is 15 of 20 (`docs/PRODUCT_PLAN.md`), and hybrid retrieval
-must beat plain vector search.
+The plan's target is 15 of 20 (`docs/PRODUCT_PLAN.md`). M4 improves keyword
+search and ranking (D35), so a change must beat this baseline on both sets.
 
 Keyword search misses where the question uses words the paper does not:
 "compulsory" for a mandate, "free-to-read" for open access, "pay their journal"
-for author-choice open access. That is the gap meaning search should close.
+for author-choice open access. One passage that happens to share common words
+can also put a paper above the one that answers the question.
+
+For reference, spike 14 scored plain meaning search over every passage on the
+working set: Ollama's nomic-embed-text 15 of 20 (MRR 0.76), and all-MiniLM-L6-v2
+run in pure Go 10 of 20 (MRR 0.41).
 
 The score flatters keyword search. These questions were written after reading
 the passages, and some of their words still match.
