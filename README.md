@@ -90,7 +90,7 @@ Set-up for other clients, all nine tools, limits and troubleshooting: **[MCP gui
 | **M1: The graph** | Budgeted expansion, dedup, `path`, `neighbours`, `stats`, GraphML export, cross-platform release | Done, v0.1 |
 | **M2: MCP server** | Let AI assistants query your library directly | Done, v0.2 |
 | **M3: Papers on disk** | Open-access PDFs, full text, and the sentence around each citation | Done, v0.3 |
-| **M4: Retrieval and answers** | Search across everything you've read, answers with citations | Planned |
+| **M4: Retrieval** | Search that finds the paper that answers your question, ranked by its passages, title and abstract; your AI assistant writes the answer | In progress |
 | **M5: Desktop app** | The same library in a desktop window, for people who don't use a terminal | In progress |
 | **M6: Claim genealogy** | Why each paper cites another, and tracing a claim to its earliest source | Planned |
 

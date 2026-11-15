@@ -143,15 +143,43 @@ CREATE TRIGGER IF NOT EXISTS chunk_au AFTER UPDATE ON chunk BEGIN
     INSERT INTO chunk_fts(rowid, text) VALUES (new.id, new.text);
 END;
 
--- Vector search lives in sqlite-vec. Created at runtime because it needs the loaded
--- extension and the embedding dimension of whichever model is configured:
+-- Schema v15 (M4, D35): each work's title and abstract, so a keyword search
+-- can rank the papers its passages come from by what they are about. Only the
+-- words are kept (content = ''), never the text, which stays in work.
 --
---   CREATE VIRTUAL TABLE chunk_vec USING vec0(
---       chunk_id INTEGER PRIMARY KEY,
---       embedding FLOAT[384]
---   );
---
--- sqlite-vec is pre-1.0. Pin the exact version and keep all calls behind one wrapper module.
+-- work_search gives each work a number of its own for the index to point at.
+-- work is keyed by text, and VACUUM, which backups use, may renumber the
+-- implicit rowid of a table without an INTEGER PRIMARY KEY: an index pointing
+-- at that rowid would quietly come to describe the wrong papers.
+CREATE TABLE IF NOT EXISTS work_search (
+    id     INTEGER PRIMARY KEY,
+    fil_id TEXT NOT NULL UNIQUE
+);
+
+CREATE VIRTUAL TABLE IF NOT EXISTS work_fts USING fts5(
+    text,
+    content = '',
+    contentless_delete = 1,
+    tokenize = 'porter unicode61'
+);
+
+CREATE TRIGGER IF NOT EXISTS work_search_ai AFTER INSERT ON work BEGIN
+    INSERT INTO work_search(fil_id) VALUES (new.fil_id);
+    INSERT INTO work_fts(rowid, text)
+        VALUES (last_insert_rowid(), ifnull(new.title, '') || ' ' || ifnull(new.abstract, ''));
+END;
+CREATE TRIGGER IF NOT EXISTS work_search_au AFTER UPDATE OF title, abstract ON work BEGIN
+    DELETE FROM work_fts WHERE rowid = (SELECT id FROM work_search WHERE fil_id = new.fil_id);
+    INSERT INTO work_fts(rowid, text)
+        SELECT id, ifnull(new.title, '') || ' ' || ifnull(new.abstract, '') FROM work_search WHERE fil_id = new.fil_id;
+END;
+CREATE TRIGGER IF NOT EXISTS work_search_ad AFTER DELETE ON work BEGIN
+    DELETE FROM work_fts WHERE rowid = (SELECT id FROM work_search WHERE fil_id = old.fil_id);
+    DELETE FROM work_search WHERE fil_id = old.fil_id;
+END;
+
+-- There is no vector search. Spike 14 measured meaning search with a model inside
+-- fil and through Ollama, and D35 chose better keyword ranking instead.
 
 -- ---------------------------------------------------------------- the user's own layer
 
@@ -394,4 +422,4 @@ CREATE TABLE IF NOT EXISTS meta (
     value TEXT
 );
 
-INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '14');
+INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '15');

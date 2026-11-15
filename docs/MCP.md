@@ -290,13 +290,14 @@ with its `status` (`no-text` for a scan, `gibberish`, `unreadable`, `timed-out`)
 
 | Argument | Default | |
 | --- | --- | --- |
-| `query` | required | Words to find. Every word must appear; `"quoted phrases"` match as written; `word*` matches a prefix; words match by stem |
+| `query` | required | Words to find, or a whole question. Filler words such as *how*, *the* and *does* are left out and every other word must appear; `"quoted phrases"` match as written; `word*` matches a prefix; words match by stem |
 | `paper` | all papers | Search one paper: its `fil_id`, as every result carries |
 | `limit` | 10 | Passages to return. At most 50, and at most 3 from one paper |
 | `include_references` | `false` | Search reference lists too; otherwise an author's name finds every bibliography citing them |
 | `view` | none | Search only the papers in one of the user's saved views, by its name |
 
-Returns `passages`, best first: each with its `paper`, `page`, the matching `text` (matched words
+Returns `passages` grouped by paper, the most relevant paper first: ranked by its best passages and
+by its title and abstract (D35). Each passage has its `paper`, `page`, the matching `text` (matched words
 between `[[` and `]]`), and the `pdf_path` on the user's disk. `partial: true` means no passage had
 every word, so these have some of them. `unread_pdfs` counts PDFs not read yet, which were not
 searched.

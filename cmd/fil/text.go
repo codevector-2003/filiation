@@ -21,10 +21,12 @@ func (a *app) searchCommand() *cobra.Command {
 		Use:   "search <words>",
 		Short: "Find passages in your PDFs by keyword",
 		Long: "Find the passages in your library's PDFs that contain every word you give,\n" +
-			"best first, each with its paper and page. Words match by stem, so \"citing\"\n" +
-			"finds \"cited\"; put a phrase in quotes to find it as written, and end a word\n" +
-			"with * to match its beginning. If no passage has every word, fil shows the\n" +
-			"ones with the most of them, and says so.\n\n" +
+			"each with its paper and page, grouped by paper with the best paper first: the\n" +
+			"one whose passages, title and abstract match best. A whole question works, as\n" +
+			"filler words like \"how\" and \"the\" are left out. Words match by stem, so\n" +
+			"\"citing\" finds \"cited\"; put a phrase in quotes to find it as written, and\n" +
+			"end a word with * to match its beginning. If no passage has every word, fil\n" +
+			"shows the ones with some of them, and says so.\n\n" +
 			"Reference lists are left out, or a search for an author's name would find\n" +
 			"every paper that cites them; --references puts them back.\n\n" +
 			"Only PDFs fil has read are searched. fil fetch reads what it downloads;\n" +
@@ -89,7 +91,7 @@ func (a *app) search(ctx context.Context, words string, opts library.SearchOptio
 	case len(res.Hits) == 0:
 		fmt.Fprintln(w, "No passage contains any of those words.")
 	case res.Partial:
-		fmt.Fprintln(w, "No passage contains all of those words. These contain some of them, the most first.")
+		fmt.Fprintln(w, "No passage contains all of those words. These contain some of them, the best paper first.")
 		fmt.Fprintln(w)
 	}
 	for i, h := range res.Hits {

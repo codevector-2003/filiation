@@ -373,9 +373,13 @@ type Searched struct {
 
 // Search finds passages in the library's PDFs by keyword: every word must
 // appear, "quoted phrases" in order, and a word ending in * matches as a
-// prefix. When no passage has every word, it returns those with some of
-// them, and says so (Partial). Words match by stem, so "citing" finds "cited". Reference lists are
-// left out unless asked for.
+// prefix. Filler words a question is made of ("how", "the") are left out.
+// When no passage has every word, it returns those with some of them, and
+// says so (Partial). Words match by stem, so "citing" finds "cited".
+// Reference lists are left out unless asked for.
+//
+// Hits come grouped by paper, the best paper first: ranked by its best
+// passages and by its title and abstract (D35).
 func (l *Library) Search(ctx context.Context, words string, opts SearchOptions) (Searched, error) {
 	if opts.Limit <= 0 {
 		opts.Limit = DefaultSearchLimit
@@ -421,15 +425,9 @@ func (l *Library) Search(ctx context.Context, words string, opts SearchOptions) 
 	if err != nil {
 		return Searched{}, err
 	}
-	if len(hits) == 0 {
-		// No passage has every word: rather than nothing, the passages with
-		// some of them, labelled as such.
-		q.Any = true
-		if hits, err = l.db.Search(ctx, q); err != nil {
-			return Searched{}, err
-		}
-		out.Partial = len(hits) > 0
-	}
+	// No passage has every word: rather than nothing, the passages with
+	// some of them, labelled as such.
+	out.Partial = len(hits) > 0 && !hits[0].Every
 	works := map[string]model.Work{}
 	for _, h := range hits {
 		w, ok := works[h.FilID]

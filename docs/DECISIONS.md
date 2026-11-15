@@ -859,3 +859,54 @@ and is the only thing that ever files them. The Papers list keeps to a group as 
 citation map can colour its eight largest groups, and `fil groups` and the `citation_groups` tool
 read them. Where reference lists are few, mostly in the humanities (D12), groups are few, and the
 screens say that is the data.
+
+## D35 — M4 is better keyword search and ranking: no meaning search, no written answers
+
+Decided 15 Nov 2026, by the maintainer, on the strength of spike 14. This replaces the locked
+decision that v1 includes question answering, and the M4 plan of Ollama embeddings, `vec1` and
+answers with citations (D13).
+
+**No written answers.** Most people who would ask fil a question already use an AI assistant, and
+through MCP it can search the library, read the passages and write the answer itself, citing the
+pages fil returns. fil generating prose would add a model download or an API key for something the
+assistant does better.
+
+**No meaning search.** Spike 14 measured it two ways. A model small enough to run inside fil in pure
+Go scored 10 of 20, below keyword search, and took 44 minutes to embed one library. Ollama's
+`nomic-embed-text` scored 15 of 20 and took 71 seconds, but needs a 3.2 GB install most people will
+never make. Neither is worth the cost to the one-binary promise. `vec1` is not used.
+
+**Instead, keyword search ranks better.** A test set came first (`eval/retrieval`): 20 working
+questions to tune against and 20 locked ones, written before any tuning and scored only to report.
+Prototypes were measured on both before anything was built:
+
+| Ranking | Working set: first three / MRR | Locked set |
+| --- | --- | --- |
+| M3: every word, else any; a paper placed by its single best passage | 13 / 0.60 | 15 / 0.60 |
+| Filler words left out | 14 / 0.63 | |
+| ... and a paper scored by its best three passages | 15 / 0.70 | 14 / 0.68 |
+| ... and its title and abstract fused in (built) | **15 / 0.73** | **15 / 0.68** |
+| Citing sentences as evidence about the cited paper | worse every way tried | |
+
+So a search now leaves out the filler words a question is made of, keeps the rule that every other
+word must appear when any passage has them all, and ranks papers rather than lone passages: a
+paper's three best passages count, the first fully, the second half, the third a third, fused by
+reciprocal rank (k = 60, no weights fitted) with how well its title and abstract match. Results
+come grouped by paper, best first, in `fil search`, the Search screen and `search_library`. Only
+papers with a matching passage are listed, so title and abstract reorder the readable papers and
+never flood the list with unread ones.
+
+Title and abstract are indexed in schema v15 (`work_fts`), with only their words kept. The index
+points at `work_search`, a table that gives each work a number of its own, not at `work`'s implicit
+rowid: `VACUUM`, which backups use, may renumber that rowid in a table keyed by text. Triggers on
+`work` keep the index current, so no Go code has to remember it. Scoring title and abstract only
+among the matched papers at search time was measured too and did worse (15 / 0.64), because how
+rare a word is has to be judged across the whole library.
+
+Citing sentences were expected to help, since they describe a paper in other people's words. They
+did not: a citing sentence usually names several references at once and is about the citing paper's
+argument. They still show why a paper is cited (`neighbours`, the Reader), where they belong.
+
+The gain on the locked set is in rank more than in count: the paper that answers moves up, though
+the number in the first three stays 15. That is the honest figure, and the eval is there for the
+next attempt.

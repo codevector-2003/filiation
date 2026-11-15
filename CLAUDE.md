@@ -12,7 +12,7 @@ tool does for papers: it reconstructs where a claim came from by following the c
 - Language: **Go** (see D8 in `docs/DECISIONS.md`)
 - Module: `github.com/codevector-2003/filiation`
 - Binary / CLI command: `fil`
-- Status: **M0 complete** (24 Sept 2026). **M1 complete — v0.1 released** (25 Sept 2026). Every command works and the 20-seed validation run passed 20 of 20 (`docs/VALIDATION.md`). Licensed Apache-2.0 (D15). **M2 complete — v0.2 released** (25 Sept 2026): `fil mcp` serves five tools to AI assistants (`docs/MCP.md`). **M3 complete — v0.3** (30 Oct 2026): the library is a folder of readable `papers/`; `fil fetch` downloads open-access PDFs and makes them searchable (`fil search`); `fil import` files PDFs the user already has; citations carry their sentence; `fil list`/`show` and eight MCP tools. Design in `docs/ARCHITECTURE_PHASE3.md`, decisions D17–D23; the 20-seed run passed 20 of 20 (`docs/VALIDATION.md`). Next: **M4**. See `docs/STATUS.md`.
+- Status: **M0 complete** (24 Sept 2026). **M1 complete — v0.1 released** (25 Sept 2026). Every command works and the 20-seed validation run passed 20 of 20 (`docs/VALIDATION.md`). Licensed Apache-2.0 (D15). **M2 complete — v0.2 released** (25 Sept 2026): `fil mcp` serves five tools to AI assistants (`docs/MCP.md`). **M3 complete — v0.3** (30 Oct 2026): the library is a folder of readable `papers/`; `fil fetch` downloads open-access PDFs and makes them searchable (`fil search`); `fil import` files PDFs the user already has; citations carry their sentence; `fil list`/`show` and eight MCP tools. Design in `docs/ARCHITECTURE_PHASE3.md`, decisions D17–D23; the 20-seed run passed 20 of 20 (`docs/VALIDATION.md`). Next: **M4**, in progress: better keyword search and ranking, no model (D35). See `docs/STATUS.md`.
 
 ---
 
@@ -28,10 +28,10 @@ than plain search.
 | Decision | Consequence |
 | --- | --- |
 | Serve developers **and** non-coding researchers from day one | One binary, two front doors: MCP + CLI, and a local web page |
-| v1 includes the full retrieval engine with Q&A | The graph alone does not count as done. Ships in stages |
+| v1 includes the full retrieval engine; the user's AI assistant writes the answers (D35) | The graph alone does not count as done. fil finds and ranks the passages; it writes no prose |
 | Local first, optional server later | All storage sits behind one package so the backend can be swapped |
 | Open source, free to run, one-command setup | Rules out anything needing a server before the user sees a result |
-| Go, not Python | Single cross-compiled binary; embeddings move behind Ollama |
+| Go, not Python | Single cross-compiled binary; no model runs inside fil (spike 14, D35) |
 
 ---
 
@@ -71,8 +71,8 @@ than plain search.
 | Layer | Choice | Why |
 | --- | --- | --- |
 | Language | Go 1.26 | One static binary per platform. No runtime for the user to install. 1.26 since M3 step 7: `go-pdfium` needs it (D20) |
-| SQLite driver | `ncruces/go-sqlite3` | WASM build, **no cgo**. Ships FTS5 and vec1 as loadable extensions |
-| Vector search | `ext/vec1` (SQLite's own) | Same file, no new dependency. **Exact but brute-force — no ANN index.** See D13 |
+| SQLite driver | `ncruces/go-sqlite3` | WASM build, **no cgo**. Ships FTS5 as a loadable extension |
+| Search ranking | FTS5 bm25, papers ranked by their best passages fused with title and abstract | No model and no vector search (D35). Measured on `eval/retrieval`: change it only with that score |
 | Keyword search | SQLite FTS5 | Confirmed working (spike 5) — but must be registered per connection |
 | Graph traversal | Breadth-first search, one set-based SQL query per step | Standard SQL, so it survives a move to Postgres. **Not a recursive CTE** — measured 20.8M rows / 125 s to depth 5 on a 10k-edge library; see `docs/SPIKES.md` |
 | Graph algorithms | `gonum/graph` | PageRank and communities in memory. 2M edges fits easily |
@@ -81,8 +81,7 @@ than plain search.
 | MCP | `modelcontextprotocol/go-sdk` | Official, maintained with Google |
 | Interface | stdlib `net/http` handler + `//go:embed` | **The screens compile into the binary**, plain files with no build step, shown in the desktop window with no port open (D26) |
 | Desktop window | Wails v2, in `desktop/` (its own module) | **The one place cgo is allowed** (D24). A thin shell showing the interface `fil` serves, in the same process; built per OS. Only candidate that ran everywhere (spike 13, D25) |
-| Embeddings | Ollama HTTP | See ADR-008. The cost of choosing Go |
-| Answers | Ollama, or user-supplied API key | Free path must exist |
+| Answers | The user's AI assistant, over MCP | fil returns ranked passages with their pages; the assistant writes the answer (D35) |
 | PDF text | PDFium as WebAssembly (`go-pdfium/webassembly`) | No cgo; ~10 MB on the binary; needs Go 1.26. Spike 10, D20 |
 | Distribution | GoReleaser → GitHub Releases | Cross-compiled binaries for Windows, macOS, Linux |
 
@@ -119,8 +118,6 @@ filiation/
 │   ├── retrieve/              hybrid search, ranking, answer assembly
 │   ├── jobs/                  background work, resumable
 │   ├── sources/               openalex, unpaywall, zotero
-│   ├── embed/                 ollama client (interface: one method)
-│   ├── llm/                   ollama or user API key
 │   ├── httpx/                 rate limiting, retry, response cache
 │   ├── config/                library path, contact email, budgets    ┐ leaves —
 │   ├── identity/              fil ID, DOI, arXiv, OpenAlex ID, PMID, title │ these import
@@ -179,8 +176,8 @@ mistake. Be deliberate:
   Medicine 6%, Physics 12%, CS 15%, Social Sciences 54%, **Arts and Humanities 84%**. The graph
   genuinely stops after one hop in the humanities. Show per-node reference coverage from day one,
   exactly like OA status, or users will think the tool is broken when it is the data.
-- **Ollama**: embeddings and generation over local HTTP. Absent Ollama, the tool must still work —
-  see the degradation ladder in `docs/ARCHITECTURE.md`.
+- **Ollama is not used** (D35). Spike 14 measured it for meaning search: good (15 of 20) but a 3.2 GB
+  install most people will never make. fil needs nothing installed beside it.
 
 ---
 
@@ -232,10 +229,11 @@ Phase 1 carries two extra weeks for that.
       as a folder the user chooses, OA PDF fetch into readable `papers/` folders, importing PDFs the
       user already has, text extraction, chunking, FTS5. **Capture citation context sentences
       here.** Design and build order: `docs/ARCHITECTURE_PHASE3.md`.
-- [ ] **M4 — Retrieval and answers** (3–4 weeks). Ollama embeddings, `vec1`, hybrid
-      retrieval, answers with citations. **Pre-filtering by graph and FTS5 is load-bearing, not an
-      optimisation** — the vector stage is a brute-force scan, so it must never see the whole
-      library. Build candidate generation before semantic search (D13).
+- [ ] **M4 — Retrieval** (3–4 weeks). *In progress from 15 Nov 2026.* Better keyword search and
+      ranking, no model (D35): no meaning search and no written answers, as the user's assistant
+      writes those over MCP. A test set comes first (`eval/retrieval`: 20 working questions and 20
+      locked ones); search leaves out filler words and ranks papers by their best passages fused
+      with title and abstract (schema v15). **Change the ranking only with that score.**
 - [ ] **M5 — The desktop app** (2–3 weeks). *In progress from 31 Oct 2026, ahead of M4.* The
       interface is `internal/ui` (`//go:embed`); a thin Wails v2 shell in `desktop/` shows it in a
       native window on all three platforms, with no port open (D24, D25). A browser version follows
@@ -245,7 +243,7 @@ Phase 1 carries two extra weeks for that.
 
 ---
 
-## Spikes — 1–7 run 30 Aug 2026, 9–11 run 24 Oct 2026, 13 run 31 Oct 2026
+## Spikes — 1–7 run 30 Aug 2026, 9–11 run 24 Oct 2026, 13 run 31 Oct 2026, 14 run 15 Nov 2026
 
 **Results and evidence: `docs/SPIKES.md`. Code: `spikes/`.** Trust those numbers over any
 documentation, including this file's own history.
@@ -263,10 +261,11 @@ documentation, including this file's own history.
 | 10 | Which PDF text extractor? | **PDFium in WebAssembly**: 0.985 word F1 vs pdftotext, no cgo (D20) |
 | 11 | Can references be matched from PDF text? | 97% precise, 44% recall — finding the list is the hard part (D22) |
 | 13 | Which webview for the desktop shell? *(31 Oct 2026)* | **Wails v2**: runs on all five platforms, about 0.2 s warm start on Linux. Wails v3 crashes on stock Ubuntu 24.04 (WebKitGTK 6.0 sandbox) (D25) |
+| 14 | Meaning search inside fil? *(15 Nov 2026)* | **No.** Pure-Go MiniLM: 10 of 20, 44 min to embed. Ollama: 15 of 20 but a 3.2 GB install. Keyword ranking instead (D35) |
 
 **Two gotchas the store package must handle**, both from spike 5:
 
-- Register FTS5 (and vec1) with `AutoExtension` **before** opening the read pool and write handle.
+- Register FTS5 with `AutoExtension` **before** opening the read pool and write handle.
   A connection opened without the extension cannot even read a table created with it.
 - `PRAGMA foreign_keys` is **per connection**, not stored in the file. The one in `schema.sql`
   only affects the connection that applied it — set it on every connection.
@@ -308,6 +307,7 @@ write our own.
 1. ~~**Licence**~~ — **decided: Apache-2.0** (D15), 24 Sept 2026.
 2. ~~**Zotero**~~ — **decided: the local API, read-only** (D29), 3 Nov 2026: the Inbox's Zotero
    entry and `fil zotero`, with a Zotero RDF export as the fallback (`fil zotero --from`).
-3. **Embeddings without Ollama** — is a pure-Go ONNX path (`onnx-gomlx`) worth the risk later,
-   to restore true one-command setup? Revisit after M4 ships.
+3. ~~**Embeddings without Ollama**~~ — **measured: not yet** (spike 14, D35), 15 Nov 2026. Pure Go
+   ran but was 35 times slower than Ollama and scored below keyword search. Revisit only if a fast
+   no-cgo engine appears; `eval/retrieval` is there to measure it.
 4. **Who maintains it after the degree?**

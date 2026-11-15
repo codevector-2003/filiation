@@ -44,7 +44,7 @@ async function runSearch() {
     if (asked !== found.asked) return;
     const papers = new Set(res.hits.map((h) => h.id)).size;
     let note = res.hits.length === 0 ? 'No passage contains any of those words.'
-      : res.hits.length + (res.hits.length === 1 ? ' passage' : ' passages') + ' in ' + papers + (papers === 1 ? ' paper' : ' papers') + ', best match first.';
+      : res.hits.length + (res.hits.length === 1 ? ' passage' : ' passages') + ' in ' + papers + (papers === 1 ? ' paper' : ' papers') + (papers > 1 ? ', the best paper first.' : '.');
     if (res.partial) note = 'No passage has all of those words. These have some of them. ' + note;
     if (res.within) {
       note = 'Searching ' + res.papers.toLocaleString() + (res.papers === 1 ? ' paper' : ' papers') + ', ' +
