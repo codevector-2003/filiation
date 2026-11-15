@@ -38,7 +38,7 @@ async function loadAssistants() {
     const grow = $('grow');
     grow.setAttribute('aria-checked', a.grow ? 'true' : 'false');
     $('grow-mixed').textContent = a.mixed ? 'Some connected assistants can still grow your library. Turn this on, then off, to make them all read only.' : '';
-    renderSide(a);
+    renderAssistSide(a);
   } catch (e) {
     $('assist-side').replaceChildren(el('div', 'error', e.message));
   }
@@ -86,7 +86,7 @@ async function change(s, what) {
   }
 }
 
-function renderSide(a) {
+function renderAssistSide(a) {
   const side = $('assist-side');
   const parts = [];
   const s = a.list.find((x) => x.id === assist.connecting && !x.connected);
