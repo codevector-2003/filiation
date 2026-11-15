@@ -29,9 +29,11 @@ func addPaperTools(s *mcp.Server, t tools, readOnly, grows func(string) *mcp.Too
 		Name:  "search_library",
 		Title: "Search the library's papers",
 		Description: "Search the full text of the PDFs in the library by keyword and get the matching " +
-			"passages, each with its paper and page. Every word must appear; \"quoted phrases\" match " +
-			"as written; word* matches a prefix; words match by stem. If no passage has every word, " +
-			"the passages with some of them come back, marked partial. Reference lists are left out " +
+			"passages, each with its paper and page, grouped by paper with the most relevant paper first. " +
+			"A whole question works: filler words such as how, the and does are left out, and every " +
+			"other word must appear; \"quoted phrases\" match as written; word* matches a prefix; " +
+			"words match by stem. If no passage has every word, the passages with some of them come " +
+			"back, marked partial; try fewer or other words then. Reference lists are left out " +
 			"unless include_references. Only papers whose PDF fil has read are searched: quote the " +
 			"passage and its page rather than paraphrasing from memory.",
 		Annotations: readOnly("Search the library's papers"),
@@ -109,7 +111,7 @@ func (t tools) searchLibrary(ctx context.Context, _ *mcp.CallToolRequest, in sea
 	case len(out.Passages) == 0:
 		out.Note = "Nothing found in the PDFs the library has read. Most papers have no open PDF; fetch_pdfs gets those that do."
 	case res.Partial:
-		out.Note = "No passage has every word; these have some of them, those with the most first."
+		out.Note = "No passage has every word; these have some of them. Fewer or other words may find more."
 	}
 	return nil, out, nil
 }

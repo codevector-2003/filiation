@@ -544,6 +544,44 @@ designed screens. Revisit v3 when its Linux build starts quickly under the WebKi
 
 ---
 
+## Spike 14 — meaning search inside fil · **too slow and too weak; better keyword ranking instead** · 15 Nov 2026
+
+**Question.** M4 planned meaning search through Ollama, which is a 3.2 GB install plus a 262 MB
+model, so most people would never have it. Can a small embedding model run inside fil instead, in
+pure Go with no cgo, and is it good enough? Code: `spikes/14-embeddings`. It embeds every passage
+of the evaluation library (`eval/retrieval`: the PeerJ seed grown by 400, 116 papers with text,
+3,816 passages outside reference lists) and scores the 20 working questions by plain vector search
+over all of them: where each question's paper first appears among the papers of the nearest
+passages. `hugot` v0.8.6 ran the ONNX models on its pure-Go backend (GoMLX); Ollama 0.40.16 ran
+`nomic-embed-text` for comparison. Maintainer's Windows 11 machine, 16 threads.
+
+| | all-MiniLM-L6-v2, pure Go in fil | nomic-embed-text, Ollama | keyword search, M3 |
+| --- | --- | --- | --- |
+| Paper in the first three | 10 of 20 | **15 of 20** | 13 of 20 |
+| Mean reciprocal rank | 0.41 | **0.76** | 0.60 |
+| Embedding 3,816 passages | 43 min 40 s (1.5 a second) | **71 s** (54 a second) | none |
+| Memory while embedding | about 8.6 GB from the system | 49 MB in the caller | none |
+| A question, embedded and scanned | 30 ms | 21 ms | under 100 ms |
+| Added to fil | about 19 MB of `hugot`, plus a 23–90 MB model | nothing, but Ollama to install | nothing |
+
+- **The pure-Go backend builds without cgo for all five targets** (Windows amd64 and arm64, macOS
+  amd64 and arm64, Linux amd64 and arm64 were tried). That was never the problem.
+- **It is about 35 times slower than Ollama.** Passages cut to 180 words and batches of 8 brought
+  it to 2.9 a second at best; one thread gave 0.5. A library of a few thousand passages would take
+  half an hour to an hour the first time.
+- **The model small enough to run that way scores below keyword search.** It finds papers keyword
+  search misses (a question with no shared words), but loses more than it gains. The model that
+  scores well, nomic-embed-text, is about five times larger and would take hours in pure Go.
+- **Ollama on Windows ran out of sockets** once, partway through embedding (`bind: ... lacked
+  sufficient buffer space`); a retry after a pause went through.
+
+**Decision** (D35): no meaning search, and no answers written by fil either; an assistant asking
+through MCP writes the answer. M4 became better keyword search and ranking instead, which reached
+15 of 20 with no model at all. Revisit if a fast pure-Go or WebAssembly engine appears; the test set
+is there to measure it.
+
+---
+
 ## Consequences for the build
 
 - **`go.mod` moved to `go 1.25.0`.** `go get` bumped it: `go-sqlite3-wasm/v3` requires it. CLAUDE.md
