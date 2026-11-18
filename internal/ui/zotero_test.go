@@ -23,7 +23,7 @@ func zoteroScreenWith(t *testing.T, base string, pick func() (string, error)) ht
 	dir := t.TempDir()
 	cfg := &config.Config{DBPath: filepath.Join(dir, "fil.db"), Folder: dir, Name: "Test",
 		MaxNodes: config.DefaultMaxNodes, MaxDepth: config.DefaultMaxDepth, MaxRefsPerWork: config.DefaultMaxRefsPerWork}
-	lib, err := library.Open(t.Context(), cfg, library.Options{NoCache: true, ZoteroBase: base})
+	lib, err := library.Open(t.Context(), cfg, library.Options{NoCache: true, ZoteroBase: base, Transport: offline{}})
 	if err != nil {
 		t.Fatal(err)
 	}
