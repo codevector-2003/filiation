@@ -136,3 +136,10 @@ func TestLibraryStatsReportsPDFs(t *testing.T) {
 		t.Errorf("a library with no folder reports PDFs: %+v", none.PDFs)
 	}
 }
+
+func TestPassageMarksKeepTheTextsOwnBrackets(t *testing.T) {
+	got := passageMarks.Replace("see [[Fia " + library.MarkStart + "Citation" + library.MarkEnd + " Logo]] here")
+	if want := "see [ [Fia [[Citation]] Logo] ] here"; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}

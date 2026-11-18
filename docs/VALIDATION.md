@@ -7,6 +7,7 @@ recorded responses; these are the runs that do not.
 - [M2 — a real MCP client](#m2--a-real-mcp-client-25-september-2026) (25 Sept 2026)
 - [M3 step 10 — the PDF tools from a real client](#m3-step-10--the-pdf-tools-from-a-real-client-29-october-2026) (29 Oct 2026)
 - [M3 — 20 seeds, 5 fields, the papers on disk](#m3--20-seeds-5-fields-the-papers-on-disk-30-october-2026) (30 Oct 2026)
+- [M4 — search across five fields, and at scale](#m4--search-across-five-fields-and-at-scale-18-november-2026) (18 Nov 2026)
 
 ## M1 — 20 seeds, 5 fields, 24 September 2026
 
@@ -305,3 +306,59 @@ in which no citation was found.
 The title search column is from `-recheck-search`, and the import column from `-recheck-imports`,
 both after the fixes and the review of this PR: the first run's humanities import stopped at the
 wildcard bug with nothing filed.
+
+## M4 — search across five fields, and at scale, 18 November 2026
+
+M4 changed how search ranks (D35). The retrieval test set (`eval/retrieval`) was written in one
+field, the open-access literature around the PeerJ seed, so this run checks that the new ranking
+does no harm elsewhere, and that it stays fast on a large library.
+
+### The paper's own title, in five fields
+
+`go run ./spikes/12-validation-m3 -root <folder> -recheck-search` searches each readable paper in
+the 20 libraries of the M3 run by four of its title's rarest words and asks whether the paper comes
+back in the first five. It ran on copies, so the M3 libraries stayed as they were, once with the
+search before #37 (commit 5a315bc) and once after. The old search reproduced M3's figures exactly.
+
+| Field | Before | After |
+| --- | --- | --- |
+| Medicine | 18 / 18 | 18 / 18 |
+| Physics | 68 / 72 | 69 / 72 |
+| Computer Science | 65 / 66 | 65 / 66 |
+| Social Sciences | 49 / 50 | 48 / 50 |
+| Arts and Humanities | 11 / 13 | 11 / 13 |
+| **All** | **211 / 219** | **211 / 219** |
+
+One paper was gained, "Gravitational waves from inspiraling compact binaries: Parameter estimation…",
+and one lost: Eysenbach's "Citation Advantage of Open Access Articles", searched as "advantage
+citation articles access", now seventh. The six above it are all about the open-access citation
+advantage too. Ranking by a paper's passages favours papers about the words over the one titled
+with them. A search whose words are all in a paper's title could put that paper first, but the index
+keeps title and abstract as one column, so that needs a new schema step. It is the next idea to
+measure, not a fix made here.
+
+The other six misses are the same before and after: German titles, a title word run together in the
+PDF ("vonArenicola"), and passages that never hold all four words.
+
+### Speed
+
+A copy of one validation library with its 1,291 passages repeated thirty times (38,730 passages,
+2,887 works), on the maintainer's Windows 11 machine, the whole `fil search` command timed:
+
+| Search | Time |
+| --- | --- |
+| `fil version`, for the cost of starting | 104 ms |
+| `institutions` | 174 ms |
+| `social capital` | 281 ms |
+| `why do some countries become rich while others stay poor` | 415 ms |
+| `the`, which every passage has | 458 ms |
+
+Upgrading each of the 20 libraries to schema v15, which indexes every work's title and abstract,
+happened on first open with no visible delay.
+
+### Also fixed
+
+A passage whose own text holds `[[` or `]]`, such as wiki markup quoted in a paper, came back from
+`search_library` with its brackets mixed up with the match markers. The paper's own brackets are now
+broken up (`[ [`) before the matches are marked.
+
