@@ -1,0 +1,59 @@
+name: Bug report
+description: Something in fil or the desktop app does not work as it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting it. A missing reference list or PDF is often the data rather than a
+        fault: outside STEM, OpenAlex has few reference lists, and most papers have no open copy.
+        `fil show <paper>` says why a paper has none.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The commands you ran or the screens you used, in order. A DOI or OpenAlex ID that shows the problem helps most.
+      placeholder: |
+        1. fil add 10.7717/peerj.4375
+        2. fil expand --max-nodes 100
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: version
+    attributes:
+      label: fil version and fil where
+      description: Paste what `fil version` and `fil where` print.
+      render: text
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where it happened
+      options:
+        - fil, the command line
+        - The desktop app
+        - An AI assistant through fil mcp
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: Operating system
+      placeholder: Windows 11, macOS 15, Ubuntu 24.04
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Error output
+      description: Any error fil printed, or the output of `fil stats` if the problem is with the library itself.
+      render: text
