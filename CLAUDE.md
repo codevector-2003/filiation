@@ -12,7 +12,7 @@ tool does for papers: it reconstructs where a claim came from by following the c
 - Language: **Go** (see D8 in `docs/DECISIONS.md`)
 - Module: `github.com/codevector-2003/filiation`
 - Binary / CLI command: `fil`
-- Status: **M0 complete** (24 Sept 2026). **M1 complete — v0.1 released** (25 Sept 2026). Every command works and the 20-seed validation run passed 20 of 20 (`docs/VALIDATION.md`). Licensed Apache-2.0 (D15). **M2 complete — v0.2 released** (25 Sept 2026): `fil mcp` serves five tools to AI assistants (`docs/MCP.md`). **M3 complete — v0.3** (30 Oct 2026): the library is a folder of readable `papers/`; `fil fetch` downloads open-access PDFs and makes them searchable (`fil search`); `fil import` files PDFs the user already has; citations carry their sentence; `fil list`/`show` and eight MCP tools. Design in `docs/ARCHITECTURE_PHASE3.md`, decisions D17–D23; the 20-seed run passed 20 of 20 (`docs/VALIDATION.md`). Next: **M4**, in progress: better keyword search and ranking, no model (D35). See `docs/STATUS.md`.
+- Status: **M0 complete** (24 Sept 2026). **M1 complete — v0.1 released** (25 Sept 2026). Every command works and the 20-seed validation run passed 20 of 20 (`docs/VALIDATION.md`). Licensed Apache-2.0 (D15). **M2 complete — v0.2 released** (25 Sept 2026): `fil mcp` serves five tools to AI assistants (`docs/MCP.md`). **M3 complete — v0.3** (30 Oct 2026): the library is a folder of readable `papers/`; `fil fetch` downloads open-access PDFs and makes them searchable (`fil search`); `fil import` files PDFs the user already has; citations carry their sentence; `fil list`/`show` and eight MCP tools. Design in `docs/ARCHITECTURE_PHASE3.md`, decisions D17–D23; the 20-seed run passed 20 of 20 (`docs/VALIDATION.md`). **M4 complete** (18 Nov 2026): better keyword search and ranking, no model (D35); a question works as a search, results grouped by paper; checked across five fields (`docs/VALIDATION.md`). Next: the v0.4 release, then **M5**. See `docs/STATUS.md`.
 
 ---
 
@@ -229,11 +229,12 @@ Phase 1 carries two extra weeks for that.
       as a folder the user chooses, OA PDF fetch into readable `papers/` folders, importing PDFs the
       user already has, text extraction, chunking, FTS5. **Capture citation context sentences
       here.** Design and build order: `docs/ARCHITECTURE_PHASE3.md`.
-- [ ] **M4 — Retrieval** (3–4 weeks). *In progress from 15 Nov 2026.* Better keyword search and
+- [x] **M4 — Retrieval** (3–4 weeks). *Done 18 Nov 2026.* Better keyword search and
       ranking, no model (D35): no meaning search and no written answers, as the user's assistant
       writes those over MCP. A test set comes first (`eval/retrieval`: 20 working questions and 20
       locked ones); search leaves out filler words and ranks papers by their best passages fused
-      with title and abstract (schema v15). **Change the ranking only with that score.**
+      with title and abstract (schema v15). **Change the ranking only with that score.** The paper's
+      own title still finds it as before in five fields (211 of 219); speed holds at 39,000 passages.
 - [ ] **M5 — The desktop app** (2–3 weeks). *In progress from 31 Oct 2026, ahead of M4.* The
       interface is `internal/ui` (`//go:embed`); a thin Wails v2 shell in `desktop/` shows it in a
       native window on all three platforms, with no port open (D24, D25). A browser version follows

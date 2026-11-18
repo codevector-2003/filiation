@@ -100,7 +100,7 @@ func (t tools) searchLibrary(ctx context.Context, _ *mcp.CallToolRequest, in sea
 		return nil, searchOut{}, toolError(err)
 	}
 	out := searchOut{Passages: []Passage{}, Partial: res.Partial, Unread: res.Unread}
-	marks := strings.NewReplacer(library.MarkStart, "[[", library.MarkEnd, "]]")
+	marks := passageMarks
 	for _, h := range res.Hits {
 		out.Passages = append(out.Passages, Passage{Paper: toWork(h.Work), Page: h.Page,
 			Text: strings.Join(strings.Fields(marks.Replace(h.Snippet)), " "), InRefs: h.Section != "", PDFPath: h.File})
@@ -352,3 +352,8 @@ func noPDFReason(p library.Paper) string {
 	}
 	return "not_looked_up"
 }
+
+// passageMarks shows a passage's matched words between [[ and ]]. A
+// passage's own [[ or ]], as wiki markup quoted in a paper has, is broken
+// up first, in the same pass, so a reader never mistakes it for a match.
+var passageMarks = strings.NewReplacer("[[", "[ [", "]]", "] ]", library.MarkStart, "[[", library.MarkEnd, "]]")

@@ -298,7 +298,7 @@ with its `status` (`no-text` for a scan, `gibberish`, `unreadable`, `timed-out`)
 
 Returns `passages` grouped by paper, the most relevant paper first: ranked by its best passages and
 by its title and abstract (D35). Each passage has its `paper`, `page`, the matching `text` (matched words
-between `[[` and `]]`), and the `pdf_path` on the user's disk. `partial: true` means no passage had
+between `[[` and `]]`; a `[[` in the paper's own text is shown as `[ [`), and the `pdf_path` on the user's disk. `partial: true` means no passage had
 every word, so these have some of them. `unread_pdfs` counts PDFs not read yet, which were not
 searched.
 

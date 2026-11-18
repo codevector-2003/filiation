@@ -27,7 +27,7 @@ func openTest(t *testing.T) (http.Handler, string, *[]string) {
 	dir := t.TempDir()
 	cfg := &config.Config{DBPath: filepath.Join(dir, "fil.db"), Folder: dir, Name: "Test",
 		MaxNodes: config.DefaultMaxNodes, MaxDepth: config.DefaultMaxDepth, MaxRefsPerWork: config.DefaultMaxRefsPerWork}
-	lib, err := library.Open(ctx, cfg, library.Options{NoCache: true})
+	lib, err := library.Open(ctx, cfg, library.Options{NoCache: true, Transport: offline{}})
 	if err != nil {
 		t.Fatal(err)
 	}
