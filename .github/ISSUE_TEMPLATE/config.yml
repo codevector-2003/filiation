@@ -1,0 +1,6 @@
+# Blank issues are off: every issue starts from a template (CONTRIBUTING.md).
+blank_issues_enabled: false
+contact_links:
+  - name: How Filiation works
+    url: https://github.com/codevector-2003/filiation/blob/main/docs/HOW_IT_WORKS.md
+    about: What fil does with your papers, and why, before you report something as a bug.

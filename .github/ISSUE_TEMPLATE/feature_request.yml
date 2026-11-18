@@ -1,0 +1,40 @@
+name: Feature request
+description: Something Filiation could do, or do better.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before asking, check the rules every change must keep in CONTRIBUTING.md. Filiation will
+        never download a paywalled PDF, and it runs no model of its own (D35).
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What you are trying to do with your papers, and where Filiation gets in the way.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you would like
+      description: How it could work. A sketch of a command or a screen helps.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you do now
+      description: How you work around it today, if you do.
+  - type: dropdown
+    id: part
+    attributes:
+      label: Which part of Filiation
+      options:
+        - The citation graph (add, expand, neighbours, path)
+        - PDFs and text (fetch, import, search)
+        - The desktop app
+        - AI assistants (fil mcp)
+        - Something else
+    validations:
+      required: true

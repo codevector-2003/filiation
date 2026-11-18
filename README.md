@@ -113,7 +113,7 @@ Set-up for other clients, all nine tools, limits and troubleshooting: **[MCP gui
 
 ## Contributing
 
-Issues and pull requests are welcome. Before a larger change, read [Status](docs/STATUS.md) and the hard rules in [CLAUDE.md](CLAUDE.md). A few are non-negotiable:
+Issues and pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) first: how to build and test, the rules every change keeps, commit style, and the rules for AI-assisted work. Before a larger change, read [Status](docs/STATUS.md) too. A few rules are non-negotiable:
 
 - no cgo in `fil` itself (the desktop app shell is the one exception, D24);
 - no paywalled full text, ever;
