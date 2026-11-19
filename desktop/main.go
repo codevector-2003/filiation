@@ -34,7 +34,7 @@ import (
 var version = "dev"
 
 func main() {
-	opts := ui.Options{OpenPath: opener.Open, Version: version}
+	opts := ui.Options{OpenPath: opener.Open, Trash: opener.Trash, Version: version}
 	if env, err := assistants.DefaultEnv(filCommand()); err == nil {
 		opts.Assistants = &env
 	}

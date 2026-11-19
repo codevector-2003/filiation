@@ -46,6 +46,11 @@ func openTest(t *testing.T) (http.Handler, string, *[]string) {
 	h := New(Options{Library: lib, Name: "Test", OpenPath: func(p string) error {
 		opened = append(opened, p)
 		return nil
+	}, Trash: func(p string) error {
+		// A stand-in for the system's bin: the path, marked, and the folder
+		// left on disk.
+		opened = append(opened, "bin:"+p)
+		return nil
 	}})
 	return h, f.Work.FilID, &opened
 }

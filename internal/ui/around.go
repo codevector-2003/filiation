@@ -97,8 +97,7 @@ func (s *server) downloadPDFs(w http.ResponseWriter, r *http.Request) {
 	}
 	ids := append([]string(nil), req.IDs...)
 	s.start(w, "download", func(ctx context.Context, set func(int, int, string)) (string, error) {
-		got, had := 0, 0
-		var none []string
+		var d downloaded
 		for i, id := range ids {
 			set(i, len(ids), "Downloading PDFs")
 			p, err := s.Library.FetchOne(ctx, id)
@@ -108,34 +107,57 @@ func (s *server) downloadPDFs(w http.ResponseWriter, r *http.Request) {
 			case errors.Is(err, library.ErrNoFolder):
 				return "", errors.New("this library has no folder for PDFs")
 			case err != nil:
-				none = append(none, err.Error())
+				d.failed = append(d.failed, err.Error())
 			case p.Already:
-				had++
+				d.had++
 			case p.File != "":
-				got++
+				d.got++
 			default:
-				none = append(none, s.whyNoPDF(ctx, id))
+				d.none = append(d.none, s.whyNoPDF(ctx, id))
 			}
 		}
 		set(len(ids), len(ids), "Downloading PDFs")
-		if len(ids) == 1 {
-			switch {
-			case got == 1:
-				return "Downloaded", nil
-			case had == 1:
-				return "Its PDF was already here", nil
-			}
-			return "", errors.New(none[0])
-		}
-		out := fmt.Sprintf("%d of %d downloaded", got, len(ids))
-		if had > 0 {
-			out += fmt.Sprintf(", %d already here", had)
-		}
-		if len(none) > 0 {
-			out += fmt.Sprintf(", %d with no legal copy", len(none))
-		}
-		return out, nil
+		return d.outcome(len(ids))
 	})
+}
+
+// downloaded counts what asking for papers' PDFs gave.
+type downloaded struct {
+	got, had int
+	none     []string // why each paper with no legal copy has none
+	failed   []string // what went wrong where fil itself could not go on
+}
+
+// outcome is what the status bar says when the download ends. A paper whose
+// links all failed, or that has no open copy, is an answer rather than a
+// fault, so it is the job's summary, which the status bar clears after a
+// while; only a failure of fil's own is an error, which stays until it is
+// dismissed. Before this, every failed link left a lasting error.
+func (d downloaded) outcome(asked int) (string, error) {
+	if asked == 1 {
+		switch {
+		case d.got == 1:
+			return "Downloaded", nil
+		case d.had == 1:
+			return "Its PDF was already here", nil
+		case len(d.failed) == 1:
+			return "", errors.New(d.failed[0])
+		case len(d.none) == 1:
+			return d.none[0], nil
+		}
+		return "No PDF could be downloaded.", nil
+	}
+	out := fmt.Sprintf("%d of %d downloaded", d.got, asked)
+	if d.had > 0 {
+		out += fmt.Sprintf(", %d already here", d.had)
+	}
+	if len(d.none) > 0 {
+		out += fmt.Sprintf(", %d with no legal copy", len(d.none))
+	}
+	if len(d.failed) > 0 {
+		out += fmt.Sprintf(", %d failed: %s", len(d.failed), d.failed[0])
+	}
+	return out, nil
 }
 
 // whyNoPDF is why a paper has no PDF after asking for one.

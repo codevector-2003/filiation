@@ -36,6 +36,9 @@ type Options struct {
 	// OpenPath opens a file or folder with the system: opener.Open, or a
 	// stand-in in a test.
 	OpenPath func(path string) error
+	// Trash moves a deleted paper's folder to the system's bin (D36):
+	// opener.Trash, or a stand-in in a test. Nil leaves the folder in place.
+	Trash func(path string) error
 
 	// PickFiles asks the person for PDFs in the system's file dialog.
 	PickFiles func() ([]string, error)
@@ -125,6 +128,8 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("POST /api/fetch", s.needLibrary(s.fetch))
 	mux.HandleFunc("POST /api/expand", s.needLibrary(s.expand))
 	mux.HandleFunc("POST /api/pdfs", s.needLibrary(s.downloadPDFs))
+	mux.HandleFunc("POST /api/delete/plan", s.needLibrary(s.deletePlan))
+	mux.HandleFunc("POST /api/delete", s.needLibrary(s.deletePapers))
 	mux.HandleFunc("GET /api/papers/{id}/around", s.needLibrary(s.surroundings))
 	mux.HandleFunc("POST /api/papers/{id}/around", s.needLibrary(s.bringAround))
 	mux.HandleFunc("POST /api/papers/{id}/attach", s.needLibrary(s.attachPDF))

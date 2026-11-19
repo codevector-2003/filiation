@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/codevector-2003/filiation/internal/text/pdftest"
@@ -76,5 +77,66 @@ func TestAddingYourPDFToAPaper(t *testing.T) {
 	}
 	if _, err := os.Stat(other); err != nil {
 		t.Errorf("the original was moved: %v", err)
+	}
+}
+
+func TestDownloadOutcome(t *testing.T) {
+	t.Parallel()
+	noCopy := "Every download link failed. Filiation tries again in a month."
+	for _, c := range []struct {
+		name    string
+		d       downloaded
+		asked   int
+		summary string
+		err     string
+	}{
+		{"downloaded", downloaded{got: 1}, 1, "Downloaded", ""},
+		{"already here", downloaded{had: 1}, 1, "Its PDF was already here", ""},
+		// The status bar clears a summary after a while; an error stays. A
+		// paper with no working link is an answer, so it must not stay.
+		{"no legal copy", downloaded{none: []string{noCopy}}, 1, noCopy, ""},
+		{"fil failed", downloaded{failed: []string{"network down"}}, 1, "", "network down"},
+		{"several", downloaded{got: 2, had: 1, none: []string{noCopy}, failed: []string{"network down"}}, 5,
+			"2 of 5 downloaded, 1 already here, 1 with no legal copy, 1 failed: network down", ""},
+	} {
+		summary, err := c.d.outcome(c.asked)
+		got := ""
+		if err != nil {
+			got = err.Error()
+		}
+		if summary != c.summary || got != c.err {
+			t.Errorf("%s: outcome = %q, %q; want %q, %q", c.name, summary, got, c.summary, c.err)
+		}
+	}
+}
+
+func TestDeletePapersFromTheApp(t *testing.T) {
+	t.Parallel()
+	h, id, opened := openTest(t)
+	for _, bad := range []string{`{"ids":[]}`, `not json`} {
+		if w := post(t, h, "/api/delete/plan", bad); w.Code != http.StatusBadRequest {
+			t.Errorf("plan %s = %d", bad, w.Code)
+		}
+	}
+	type plan struct{ Papers, PDFs int }
+	if p := decode[plan](t, post(t, h, "/api/delete/plan", `{"ids":["`+id+`"]}`)); p.Papers != 1 || p.PDFs != 1 {
+		t.Errorf("plan = %+v; want one paper with its PDF", p)
+	}
+	type deleted struct {
+		Papers, Binned int
+		Kept           []string
+	}
+	d := decode[deleted](t, post(t, h, "/api/delete", `{"ids":["`+id+`"]}`))
+	if d.Papers != 1 || d.Binned != 1 || len(d.Kept) != 0 {
+		t.Fatalf("delete = %+v", d)
+	}
+	if len(*opened) != 1 || !strings.HasPrefix((*opened)[0], "bin:") {
+		t.Errorf("sent to the bin = %q; want the paper's folder", *opened)
+	}
+	if w := ask(t, h, "GET", "/api/papers/"+id); w.Code != http.StatusNotFound {
+		t.Errorf("the deleted paper = %d; want 404", w.Code)
+	}
+	if w := post(t, h, "/api/delete", `{"ids":["`+id+`"]}`); w.Code != http.StatusNotFound {
+		t.Errorf("deleting it again = %d; want 404", w.Code)
 	}
 }

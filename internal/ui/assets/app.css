@@ -110,17 +110,15 @@ button:disabled { cursor: default; }
   flex: 1; min-width: 0; display: flex; flex-direction: column;
   border-right: 1px solid var(--line);
 }
-.toolbar { display: flex; gap: 10px; padding: 14px 20px; border-bottom: 1px solid var(--line); }
 .hidden-label { position: absolute; left: -9999px; }
-#filter {
-  flex: 1; min-width: 0; height: 36px; padding: 0 12px;
-  border: 1px solid var(--line-2); border-radius: 6px; background: #FFFFFF;
-}
-.tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 10px 20px; border-bottom: 1px solid var(--line); }
-.tab { height: 30px; padding: 0 12px; border: 0; border-radius: 15px; background: transparent; }
+/* One slim toolbar: the filter box is in the title bar, Fetch PDFs in the Library menu. */
+.tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-height: 40px; padding: 6px 12px 6px 16px; box-sizing: border-box; border-bottom: 1px solid var(--line); }
+.tab { height: 26px; padding: 0 10px; border: 0; border-radius: 13px; background: transparent; font-size: 12px; }
+.list-count { margin-left: 8px; color: var(--muted); font-size: 12px; white-space: nowrap; }
+.tabs .btn.small, .sel-bar .btn { height: 28px; padding: 0 10px; font-size: 12px; }
 .tab:not(.on):hover { background: #E9E8E3; }
 .tab.on { background: var(--ink); color: #FFFFFF; }
-#sort { height: 30px; max-width: 210px; padding: 0 6px; border: 1px solid var(--line-2); border-radius: 6px; background: #FFFFFF; }
+#sort { height: 28px; max-width: 210px; padding: 0 6px; border: 1px solid var(--line-2); border-radius: 6px; background: #FFFFFF; }
 .filters {
   flex: none; display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 20px;
   max-height: 45vh; overflow-y: auto; padding: 14px 20px; border-bottom: 1px solid var(--line); background: var(--panel);
@@ -141,8 +139,10 @@ button:disabled { cursor: default; }
 .year-range { display: flex; gap: 8px; align-items: center; margin-top: 8px; color: var(--muted); }
 .list-state {
   flex: none; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
-  padding: 8px 20px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 13px;
+  padding: 6px 16px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 13px;
 }
+/* Shown only while a filter is on. */
+.list-state:not(:has(.active-filters > *)) { display: none; }
 .active-filters { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .fchip { max-width: 260px; height: 26px; padding: 0 10px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; border: 1px solid var(--line-2); border-radius: 13px; background: var(--selected); color: var(--ink); }
 .fchip:hover { border-color: var(--accent); }
@@ -154,15 +154,20 @@ button:disabled { cursor: default; }
 }
 .row:hover { background: #EFEEEA; }
 .row.on { background: var(--selected); box-shadow: inset 3px 0 0 var(--accent); }
-.paper-row { flex-direction: row; gap: 8px; align-items: flex-start; padding: 10px 20px 10px 12px; }
+/* A paper is one line: star, title, tags, then who and when at the right. */
+.paper-row { flex-direction: row; gap: 4px; align-items: center; min-height: 32px; padding: 0 14px 0 6px; }
 .row-main {
-  flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px;
-  padding: 2px 0; border: 0; background: transparent; text-align: left;
+  flex: 1; min-width: 0; height: 32px; display: flex; align-items: center; gap: 8px;
+  padding: 0; border: 0; background: transparent; text-align: left;
 }
-.pick { display: none; width: 16px; height: 16px; flex: none; margin: 8px 0 0 8px; accent-color: var(--accent); }
+.row-main .title-text { flex: 1; min-width: 0; font-size: 14px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.row-main .row-meta { flex: none; flex-wrap: nowrap; gap: 4px; }
+.row-main .chip { padding: 1px 7px; font-size: 11px; white-space: nowrap; }
+.row-by { width: 150px; flex: none; text-align: right; color: var(--muted); font-size: 12px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.pick { display: none; width: 16px; height: 16px; flex: none; margin: 0 0 0 8px; accent-color: var(--accent); }
 .picking .pick { display: block; }
 .star-btn {
-  width: 32px; height: 32px; flex: none; display: flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; flex: none; display: flex; align-items: center; justify-content: center;
   border: 0; border-radius: 6px; background: transparent;
 }
 .star-btn:hover { background: #E4E2DC; }
@@ -178,7 +183,7 @@ body.dragging, body.dragging * { cursor: grabbing !important; user-select: none;
 .drag-badge span { color: #D0D2D6; }
 .drag-badge span:empty { display: none; }
 .sel-bar {
-  flex: none; display: flex; align-items: center; gap: 10px; min-height: 65px; padding: 0 20px;
+  flex: none; display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px 0 16px;
   background: var(--accent); color: #FFFFFF; font-weight: 600;
 }
 .btn.on-accent { border-color: rgba(255, 255, 255, 0.65); background: transparent; color: #FFFFFF; font-weight: 400; }
@@ -241,6 +246,10 @@ button.more:hover { color: var(--ink); }
 }
 .pop-item:hover, .pop-item:focus-visible { background: var(--selected); outline: none; }
 .pop-item.danger { color: #9B2C2C; }
+.tb-item.danger:not(:disabled) { color: #A12C1F; }
+.tb-item.danger:not(:disabled):hover, .tb-item.danger.hot { background: #A12C1F; color: #FFFFFF; }
+.delete-title { margin: 0; font-family: var(--serif); font-size: 15px; font-weight: 600; line-height: 1.35; }
+.delete-list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 8px; color: var(--ink-2); line-height: 1.45; }
 .pop-line { height: 1px; margin: 5px 0; background: var(--line-3); }
 .pop-input { height: 32px; padding: 0 8px; border: 1px solid var(--line-2); border-radius: 5px; }
 .pop-actions { display: flex; justify-content: flex-end; gap: 8px; }
@@ -664,17 +673,23 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
 .tb-menu.on { background: #D3D1C9; color: var(--ink); }
 .tb-menu u { text-decoration: none; }
 .titlebar.keys .tb-menu u { text-decoration: underline; }
-.tb-lib {
-  width: 360px; max-width: 40vw; height: 24px; display: flex; align-items: center; justify-content: center; gap: 8px;
+/* The search box in the middle of the title bar, as VS Code's. */
+.tb-search {
+  width: 420px; max-width: 40vw; height: 24px; box-sizing: border-box; display: flex; align-items: center; gap: 8px;
   padding: 0 10px; border: 1px solid var(--line-2); border-radius: 5px; background: #F1F0EC;
-  font-size: 12px; color: var(--ink-2); cursor: default;
+  --wails-draggable: no-drag;
 }
-.tb-lib:hover { background: #F8F7F4; }
-.tb-lib[aria-expanded="true"] { border-color: var(--accent); background: #FFFFFF; }
-.tb-lib svg { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.4; }
-.tb-lib b { font-weight: 600; color: var(--ink); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.tb-lib .tb-chev { width: 10px; height: 10px; stroke: var(--muted); stroke-width: 1.3; }
-.tb-lib-count { color: var(--muted); white-space: nowrap; }
+.tb-search:hover { background: #F8F7F4; }
+.tb-search:focus-within { border-color: var(--accent); background: #FFFFFF; }
+.tb-search svg { width: 13px; height: 13px; flex: none; fill: none; stroke: var(--muted); stroke-width: 1.5; }
+#filter { flex: 1; min-width: 0; height: 22px; padding: 0; border: 0; outline: none; background: transparent; font: inherit; font-size: 12px; color: var(--ink); }
+#filter::placeholder { color: var(--ink-2); }
+#filter::-webkit-search-cancel-button { display: none; }
+.tb-search-key { flex: none; font-size: 11px; color: var(--muted); }
+.tb-search:focus-within .tb-search-key { display: none; }
+.tb-find { max-height: 70vh; overflow-y: auto; }
+.tb-find-title { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.tb-find-note { padding: 4px 14px 6px; font-size: 11px; color: var(--muted); }
 .tb-job {
   display: flex; align-items: center; gap: 8px; min-width: 0; height: 22px; padding: 0 8px; margin-right: 6px;
   font-size: 12px; color: var(--ink-2);
@@ -686,6 +701,9 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
 .tb-job-note { max-width: 280px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--muted); }
 .tb-job-note.error { color: #A12C1F; }
 .tb-job .link { font-size: 12px; }
+.tb-job-x { flex: none; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 4px; background: none; color: var(--muted); display: grid; place-items: center; }
+.tb-job-x:hover { background: var(--raised); color: inherit; }
+.tb-job-x svg { width: 9px; height: 9px; stroke: currentColor; stroke-width: 1.5; fill: none; }
 .tb-ctl { display: flex; height: 100%; }
 .tb-btn {
   width: 46px; height: 100%; display: flex; align-items: center; justify-content: center;

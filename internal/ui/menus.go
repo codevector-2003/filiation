@@ -117,6 +117,8 @@ var Menus = []Menu{
 		{ID: "paper.folder", Label: "Show in Folder"},
 		{ID: "paper.cite", Label: "Copy Citation", Keys: "cmdorctrl+shift+c"},
 		{ID: "paper.copyId", Label: "Copy fil ID"},
+		sep,
+		{ID: "paper.delete", Label: "Delete Paper…", Shown: "Delete"},
 	}},
 	{"Help", []MenuItem{
 		{ID: "help.docs", Label: "Documentation", Keys: "f1"},

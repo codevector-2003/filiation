@@ -178,6 +178,24 @@ CREATE TRIGGER IF NOT EXISTS work_search_ad AFTER DELETE ON work BEGIN
     DELETE FROM work_search WHERE fil_id = old.fil_id;
 END;
 
+-- Schema v16 (D36): papers the person deleted, by OpenAlex ID, so that
+-- following references or bringing in what cites a paper does not quietly
+-- bring one back. Adding the paper again, by any route a person takes, clears
+-- it: a work arriving with that OpenAlex ID was asked for, since the automatic
+-- routes check this table before they add anything.
+CREATE TABLE IF NOT EXISTS deleted_work (
+    openalex_id TEXT PRIMARY KEY NOT NULL,
+    title       TEXT,
+    deleted_at  TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TRIGGER IF NOT EXISTS work_undelete_ai AFTER INSERT ON work WHEN new.openalex_id IS NOT NULL BEGIN
+    DELETE FROM deleted_work WHERE openalex_id = new.openalex_id;
+END;
+CREATE TRIGGER IF NOT EXISTS work_undelete_au AFTER UPDATE OF openalex_id ON work WHEN new.openalex_id IS NOT NULL BEGIN
+    DELETE FROM deleted_work WHERE openalex_id = new.openalex_id;
+END;
+
 -- There is no vector search. Spike 14 measured meaning search with a model inside
 -- fil and through Ollama, and D35 chose better keyword ranking instead.
 
@@ -422,4 +440,4 @@ CREATE TABLE IF NOT EXISTS meta (
     value TEXT
 );
 
-INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '15');
+INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '16');

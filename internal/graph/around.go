@@ -118,6 +118,12 @@ func (g *Graph) putCiting(ctx context.Context, w *model.Work, works []model.Hydr
 		out.Citing, out.New = 0, 0
 		for i := range works {
 			h := works[i]
+			// A citing paper the person deleted stays deleted (D36).
+			if gone, err := tx.Deleted(ctx, h.OpenAlexID); err != nil {
+				return err
+			} else if gone {
+				continue
+			}
 			if follow {
 				h.Depth, h.IsSeed, h.Source = nil, false, model.SourceExpansion
 				// hydrate needs the work to exist, as a stub does in Expand.

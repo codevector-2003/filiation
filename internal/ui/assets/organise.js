@@ -475,7 +475,8 @@ function showPicked() {
   $('rows').classList.toggle('picking', many);
   paperRows().forEach(markRow);
   $('sel-bar').hidden = !many;
-  document.querySelector('#screen-papers .toolbar').hidden = many;
+  // Picking several, the selection bar takes the toolbar's place.
+  document.querySelector('#screen-papers .tabs').hidden = many;
   if (!many) return;
   const ids = [...state.picked];
   $('sel-count').textContent = ids.length + ' selected';
@@ -613,6 +614,8 @@ function rowMenu(id, x, y) {
     items.push({ label: fetchable.length > 1 ? 'Download PDFs (' + fetchable.length + ')' : 'Download PDF', run: () => downloadPDFs(fetchable.map((p) => p.id)) });
   }
   if (ids.length === 1) items.push({ label: 'Bring in papers around this…', run: () => aroundDialog({ id: ids[0] }) });
+  // Last, set apart and in red, so it is never hit on the way to something else.
+  items.push('-', { label: ids.length > 1 ? 'Delete ' + ids.length + ' papers…' : 'Delete paper…', danger: true, run: () => deletePapers(ids) });
   menu(x, y, ids.length > 1 ? ids.length + ' papers' : 'Paper', items);
 }
 
@@ -976,3 +979,78 @@ window.addEventListener('click', (e) => {
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && drag.on) dragStop();
 });
+
+// deletePapers deletes papers from the library after saying what goes with
+// them (D36): their folders to the system's bin, their notes and places in
+// collections, and the references only they cite. Nothing goes until the
+// person presses Delete; Enter does not.
+async function deletePapers(ids) {
+  ids = ids.filter(Boolean);
+  if (ids.length === 0) return;
+  if (job.last && job.last.running) {
+    tell('Wait for the running job to finish, or stop it, before deleting papers.');
+    return;
+  }
+  let plan;
+  try {
+    plan = await api('/api/delete/plan', 'POST', { ids });
+  } catch (e) {
+    tell(e.message);
+    return;
+  }
+  const one = plan.papers === 1;
+  const bin = bar.platform === 'windows' ? 'Recycle Bin' : 'Trash';
+  const count = (n, word) => n.toLocaleString() + ' ' + word + (n === 1 ? '' : 's');
+  const it = one ? 'it' : 'them';
+  const lines = [];
+  if (plan.pdfs > 0) {
+    lines.push((one ? 'Its PDF and its folder go' : 'Their ' + count(plan.pdfs, 'PDF') + ' and their folders go') +
+      ' to the ' + bin + ', where you can restore ' + (plan.pdfs === 1 ? 'it' : 'them') + '.');
+  }
+  const places = [];
+  if (plan.collections > 0) places.push(count(plan.collections, 'collection'));
+  if (plan.labels > 0) places.push(count(plan.labels, 'label'));
+  const where = places.length ? (one ? 'its' : 'their') + ' places in ' + places.join(' and ') : '';
+  if (plan.notes > 0 && where) lines.push(count(plan.notes, 'note') + ', and ' + where + ', are deleted with ' + it + '.');
+  else if (plan.notes > 0) lines.push(count(plan.notes, 'note') + (plan.notes === 1 ? ' is' : ' are') + ' deleted with ' + it + '.');
+  else if (where) lines.push(where.charAt(0).toUpperCase() + where.slice(1) + ' go with ' + it + '.');
+  if (plan.orphans > 0) {
+    lines.push(count(plan.orphans, 'reference') + ' that only ' + (one ? 'this paper' : 'these papers') + ' cited, never fetched, ' +
+      (plan.orphans === 1 ? 'is' : 'are') + ' removed too.');
+  }
+  lines.push('Filiation will not bring ' + it + ' back when it follows references. Adding ' + (one ? 'it' : 'one') +
+    ' again with Add paper still works.');
+  const parts = [];
+  const p = one ? paperState(ids[0]) : null;
+  if (p) parts.push(el('p', 'delete-title', p.title));
+  const list = el('ul', 'delete-list');
+  list.append(...lines.map((l) => el('li', '', l)));
+  const error = el('div', 'error');
+  parts.push(list, error);
+  const label = one ? 'Delete paper' : 'Delete ' + plan.papers.toLocaleString() + ' papers';
+  modal(one ? 'Delete this paper?' : 'Delete ' + plan.papers.toLocaleString() + ' papers?', parts, [cancel, {
+    label, danger: true, run: async () => {
+      let res;
+      try {
+        res = await api('/api/delete', 'POST', { ids });
+      } catch (e) {
+        error.textContent = e.message;
+        return false;
+      }
+      ids.forEach((id) => state.picked.delete(id));
+      if (ids.includes(state.selected)) {
+        state.selected = '';
+        $('detail').replaceChildren();
+      }
+      await loadLibrary();
+      await loadPapers();
+      let said = res.papers === 1 ? 'Deleted 1 paper' : 'Deleted ' + res.papers.toLocaleString() + ' papers';
+      if (res.kept && res.kept.length) {
+        said += '. ' + res.kept.join(', ') + (res.kept.length === 1 ? ' is' : ' are') + ' still in papers/: ' +
+          (res.problem || 'it could not be moved to the ' + bin);
+      }
+      tell(said);
+      return true;
+    },
+  }]);
+}

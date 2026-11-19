@@ -33,7 +33,8 @@ import (
 //	13 M5: saved_view — the Papers list's filters, saved under a name (D33)
 //	14 M5: group_choice — a suggested citation group dismissed, or made a collection (D34)
 //	15 M4: work_search and work_fts — titles and abstracts, to rank search results (D35)
-const SchemaVersion = 15
+//	16 M5: deleted_work — papers the person deleted, not to be brought back (D36)
+const SchemaVersion = 16
 
 // upgrades[v] moves a library from schema v to v+1. Each runs inside
 // Migrate's one transaction, after the ones before it, so a library several
@@ -53,7 +54,12 @@ var upgrades = map[int]func(ctx context.Context, db *DB, tx *sql.Tx) error{
 	12: upgradeV12ToV13,
 	13: upgradeV13ToV14,
 	14: upgradeV14ToV15,
+	15: upgradeV15ToV16,
 }
+
+// upgradeV15ToV16 adds deleted_work, a new table, and the triggers that
+// clear it.
+func upgradeV15ToV16(ctx context.Context, _ *DB, tx *sql.Tx) error { return addTables(ctx, tx, 16) }
 
 // upgradeV14ToV15 adds work_search and work_fts, and indexes every work's
 // title and abstract. The index is rebuilt whole: an older library may have
