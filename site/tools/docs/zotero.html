@@ -1,0 +1,21 @@
+<!--
+title: Bring in Zotero
+group: Using Filiation
+intro: Keep using Zotero for your references. Filiation reads its library and grows a citation map around it.
+-->
+<p>Filiation reads Zotero 7 or later through its local API, read-only: it never changes your Zotero library. Zotero must be running. In Zotero, choose <b>Edit › Settings › Advanced</b> and tick <b>Allow other applications on this computer to communicate with Zotero</b>.</p>
+<div class="code"><code>fil zotero --dry-run     # see what would come in
+fil zotero               # bring it in</code><button class="copy" type="button">Copy</button></div>
+<p>In the app, the same is in the Inbox, under Zotero.</p>
+<h2 class="serif" id="zotero-options">Options</h2>
+<table class="cmdtable"><tbody>
+<tr><td><span class="ic">--dry-run</span></td><td>Say what would come in, and write nothing.</td></tr>
+<tr><td><span class="ic">--tags</span></td><td>Make labels from the tags you added in Zotero.</td></tr>
+<tr><td><span class="ic">--no-pdfs</span></td><td>Do not copy the PDFs.</td></tr>
+<tr><td><span class="ic">--no-refs</span></td><td>Do not record what each paper cites.</td></tr>
+<tr><td><span class="ic">--skip KEY</span></td><td>Leave out a Zotero collection, by its key, and those inside it.</td></tr>
+<tr><td><span class="ic">--from FILE</span></td><td>Read a Zotero RDF export instead of the running Zotero.</td></tr>
+</tbody></table>
+<h2 class="serif" id="zotero-export">From an export file</h2>
+<p>If Zotero isn't on this computer, export the library as <b>Zotero RDF</b> with its files, then:</p>
+<div class="code"><code>fil zotero --from "My Library.rdf"</code><button class="copy" type="button">Copy</button></div>

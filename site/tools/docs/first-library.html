@@ -1,0 +1,12 @@
+<!--
+title: Your first library
+group: Getting started
+intro: Give Filiation one paper you know well. In a few minutes it has found what that paper cites, kept the PDFs that are free to read, and made them searchable.
+-->
+<ol class="steps">
+<li><div><h3 id="first-add">Add a paper</h3><p>A DOI, arXiv ID, link or title. Filiation records the paper and every work it cites.</p><div class="code"><code>fil add arXiv:1409.0473</code><button class="copy" type="button">Copy</button></div></div></li>
+<li><div><h3 id="first-expand">Follow its references</h3><p>Fetch the papers it cites, and theirs, most-cited first, up to a budget you set.</p><div class="code"><code>fil expand --max-nodes 300</code><button class="copy" type="button">Copy</button></div></div></li>
+<li><div><h3 id="first-fetch">Keep the PDFs</h3><p>Download the legal open-access copies and read their text so it can be searched.</p><div class="code"><code>fil fetch</code><button class="copy" type="button">Copy</button></div></div></li>
+<li><div><h3 id="first-search">Search</h3><p>A few keywords. Each passage comes back with its paper and page.</p><div class="code"><code>fil search attention alignment translation</code><button class="copy" type="button">Copy</button></div></div></li>
+</ol>
+<div class="note info"><span class="ico">i</span><span>In the app, each step is one action: paste into the title bar search to add a paper, then <b>Library › Fetch PDFs</b>. The command line and the app share the same library.</span></div>

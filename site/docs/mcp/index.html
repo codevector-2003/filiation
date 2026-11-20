@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Connect Claude, Cursor, Copilot or Gemini to your papers (MCP) · Filiation docs</title>
+<meta name="description" content="Set up the Filiation MCP server in Claude Code, Claude Desktop, Cursor, VS Code with GitHub Copilot or Gemini CLI, so your AI assistant searches your research library and cites pages.">
+<link rel="canonical" href="https://codevector-2003.github.io/filiation/docs/mcp/">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Filiation">
+<meta property="og:title" content="Connect Claude, Cursor, Copilot or Gemini to your papers (MCP) · Filiation docs">
+<meta property="og:description" content="Set up the Filiation MCP server in Claude Code, Claude Desktop, Cursor, VS Code with GitHub Copilot or Gemini CLI, so your AI assistant searches your research library and cites pages.">
+<meta property="og:url" content="https://codevector-2003.github.io/filiation/docs/mcp/">
+<meta property="og:image" content="https://codevector-2003.github.io/filiation/assets/img/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#1F5F8B">
+<link rel="icon" href="../../assets/icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&display=swap" rel="stylesheet">
+<script>try{var t=localStorage.getItem('fil-theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch(e){}</script>
+<link rel="stylesheet" href="../../assets/site.css">
+<link rel="stylesheet" href="../../assets/docs.css">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Filiation","item":"https://codevector-2003.github.io/filiation/"},{"@type":"ListItem","position":2,"name":"Documentation","item":"https://codevector-2003.github.io/filiation/docs/"},{"@type":"ListItem","position":3,"name":"AI assistants (MCP)","item":"https://codevector-2003.github.io/filiation/docs/mcp/"}]}</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the content</a>
+<header class="top full">
+<div class="wrap">
+<a class="brand" href="../../"><img src="../../assets/icon.svg" alt="" width="28" height="28">Filiation</a>
+<nav class="topnav" id="topnav" aria-label="Site">
+<a href="../../">Product</a>
+<a href="../../docs/" aria-current="page">Docs</a>
+<a href="../../guides/zotero-citation-graph/">Guides</a>
+<a href="../../#start">Download</a>
+</nav>
+<span class="spacer"></span>
+<span class="fine ver" data-version="v{v}"></span>
+<a class="star" href="https://github.com/codevector-2003/filiation" aria-label="Star Filiation on GitHub">
+<span><svg class="gh" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.2l2.1 4.3 4.7.7-3.4 3.3.8 4.7L8 12l-4.2 2.2.8-4.7L1.2 6.2l4.7-.7z" fill="#E3B341"/></svg>Star</span><span class="count" data-stars></span>
+</a>
+<button class="theme-btn" type="button" aria-label="Colour theme: as your system"><svg class="ti ti-system" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="14" height="9.5" rx="1.5"/><path d="M6.5 15.5h5M9 12.5v3"/></svg><svg class="ti ti-light" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="9" r="3.2"/><path d="M9 1.5v1.8M9 14.7v1.8M1.5 9h1.8M14.7 9h1.8M3.7 3.7l1.3 1.3M13 13l1.3 1.3M3.7 14.3L5 13M13 5l1.3-1.3"/></svg><svg class="ti ti-dark" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M15.2 11.2A6.5 6.5 0 0 1 6.8 2.8a6.5 6.5 0 1 0 8.4 8.4z"/></svg></button>
+<a class="btn primary small dl" href="../../#start">Download</a>
+<button class="menu-btn" type="button" aria-label="Menu" aria-expanded="false" aria-controls="topnav"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 4.5h14M2 9h14M2 13.5h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+</div>
+</header>
+<div class="layout">
+<aside class="side" aria-label="Documentation">
+<label class="find"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="7" cy="7" r="4.8"/><path d="M10.6 10.6L14 14"/></svg><input id="doc-find" type="search" placeholder="Search the docs" aria-label="Search the docs" autocomplete="off"><kbd>/</kbd></label>
+<nav id="doc-nav" data-root="../../">
+<div class="group">GETTING STARTED</div>
+<a class="nav" href="../../docs/install/">Install</a>
+<a class="nav" href="../../docs/first-library/">Your first library</a>
+<div class="group">USING FILIATION</div>
+<a class="nav" href="../../docs/desktop-app/">The desktop app</a>
+<a class="nav" href="../../docs/command-line/">Command line</a>
+<a class="nav" href="../../docs/mcp/" aria-current="page">AI assistants (MCP)</a>
+<a class="nav" href="../../docs/zotero/">Bring in Zotero</a>
+<div class="group">REFERENCE</div>
+<a class="nav" href="../../docs/how-it-works/">How it works</a>
+<a class="nav" href="../../docs/troubleshooting/">Troubleshooting</a>
+<p class="no-match" id="no-match" hidden>Nothing matches. Try fewer words.</p>
+</nav>
+</aside>
+<main class="main" id="main">
+<article class="page on">
+<div class="crumb"><a href="../">Docs</a> › Using Filiation</div>
+<h1 class="serif">AI assistants (MCP)</h1>
+<p class="intro">Connect Filiation to the assistant you already use. It can then search your library and answer with the page each passage came from.</p>
+<div class="note info"><span class="ico">i</span><span>The easiest way: open the app's <b>AI assistants</b> screen and press <b>Connect</b>. It finds the assistants on your computer and writes their settings for you, keeping a copy of the old file.</span></div>
+<h2 class="serif" id="mcp-hand">Set it up by hand</h2>
+<div class="tabs" role="tablist" aria-label="Assistant" data-tabgroup="client">
+<button class="tab" role="tab" aria-selected="true" data-tab="claude-code"><span class="mono"><img src="../../assets/logos/claude.svg" alt=""></span>Claude Code</button>
+<button class="tab" role="tab" aria-selected="false" data-tab="claude-desktop"><span class="mono"><img src="../../assets/logos/claude.svg" alt=""></span>Claude Desktop</button>
+<button class="tab" role="tab" aria-selected="false" data-tab="cursor"><span class="mono"><img src="../../assets/logos/cursor.svg" alt=""></span>Cursor</button>
+<button class="tab" role="tab" aria-selected="false" data-tab="vscode"><span class="mono"><img src="../../assets/logos/copilot.svg" alt=""></span>VS Code (Copilot)</button>
+<button class="tab" role="tab" aria-selected="false" data-tab="gemini"><span class="mono"><img src="../../assets/logos/gemini.svg" alt=""></span>Gemini CLI</button>
+</div>
+<div data-panel="client:claude-code"><p>Run this once in a terminal:</p><div class="code"><code>claude mcp add filiation -- fil mcp</code><button class="copy" type="button">Copy</button></div><p>Start a new Claude Code session and ask it about your library.</p></div>
+<div data-panel="client:claude-desktop" hidden><p>Add this to <span class="ic">claude_desktop_config.json</span>. On Windows it is in <span class="ic">%APPDATA%\Claude</span>, on macOS in <span class="ic">~/Library/Application Support/Claude</span>.</p><div class="code"><code>{
+  "mcpServers": {
+    "filiation": { "command": "fil", "args": ["mcp"] }
+  }
+}</code><button class="copy" type="button">Copy</button></div><p>Quit Claude Desktop completely and open it again.</p></div>
+<div data-panel="client:cursor" hidden><p>Add this to <span class="ic">~/.cursor/mcp.json</span> for every project, or <span class="ic">.cursor/mcp.json</span> for one:</p><div class="code"><code>{
+  "mcpServers": {
+    "filiation": { "command": "fil", "args": ["mcp"] }
+  }
+}</code><button class="copy" type="button">Copy</button></div></div>
+<div data-panel="client:vscode" hidden><p>Add this to <span class="ic">.vscode/mcp.json</span>:</p><div class="code"><code>{
+  "servers": {
+    "filiation": { "type": "stdio", "command": "fil", "args": ["mcp"] }
+  }
+}</code><button class="copy" type="button">Copy</button></div><p>Copilot Chat can use it in agent mode.</p></div>
+<div data-panel="client:gemini" hidden><p>Add this to <span class="ic">~/.gemini/settings.json</span>:</p><div class="code"><code>{
+  "mcpServers": {
+    "filiation": { "command": "fil", "args": ["mcp"] }
+  }
+}</code><button class="copy" type="button">Copy</button></div><p>It loads the next time Gemini CLI starts.</p></div>
+<h2 class="serif" id="mcp-tools">What your assistant can do</h2>
+<table class="cmdtable"><tbody>
+<tr><td><span class="ic">search_library</span></td><td>Find passages by keyword, with their page, to quote.</td></tr>
+<tr><td><span class="ic">get_paper</span></td><td>Everything about one paper, including why it has no PDF or text.</td></tr>
+<tr><td><span class="ic">neighbours</span></td><td>What a paper cites and what cites it, with the sentence it cites each in, when one was found.</td></tr>
+<tr><td><span class="ic">find_path</span></td><td>The chain of citations between two papers.</td></tr>
+<tr><td><span class="ic">citation_groups</span></td><td>The library's topics, found from its citations alone.</td></tr>
+<tr><td><span class="ic">library_stats</span></td><td>What is in the library.</td></tr>
+<tr><td><span class="ic">add_paper</span></td><td>Add a paper by DOI, arXiv ID, PMID, OpenAlex ID, link or title.</td></tr>
+<tr><td><span class="ic">expand_graph</span></td><td>Follow references outward, within a budget.</td></tr>
+<tr><td><span class="ic">fetch_pdfs</span></td><td>Download more open-access PDFs.</td></tr>
+</tbody></table>
+<div class="note info"><span class="ico">i</span><span>Add <span class="ic">--read-only</span> after <span class="ic">mcp</span> and the assistant can read your library but not add to it, and nothing it does reaches the network. Add <span class="ic">--library Thesis</span> to point it at another library.</span></div>
+</article>
+<nav class="pager" aria-label="Pages">
+<a class="pg" href="../command-line/"><span class="arr"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 8H3M7 4L3 8l4 4"/></svg></span><span><small>PREVIOUS</small><b>Command line</b></span></a>
+<a class="pg next" href="../zotero/"><span><small>NEXT · USING FILIATION</small><b>Bring in Zotero</b></span><span class="arr"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg></span></a>
+</nav>
+</main>
+<nav class="toc" aria-label="On this page" id="toc"><b>ON THIS PAGE</b>
+<a href="#mcp-hand">Set it up by hand</a>
+<a href="#mcp-tools">What your assistant can do</a>
+</nav>
+</div>
+<footer class="foot">
+<div class="wrap">
+<span style="font-weight: 700; color: #FFFFFF">Filiation</span>
+<a href="../../">Product</a>
+<a href="../../docs/">Documentation</a>
+<a href="../../guides/zotero-citation-graph/">Zotero and Filiation</a>
+<a href="../../guides/citation-map-alternative/">Citation maps on your computer</a>
+<a href="../../guides/ai-assistant-research-library/">Your AI assistant and your papers</a>
+<a href="https://github.com/codevector-2003/filiation">GitHub</a>
+<span class="spacer"></span>
+<span style="font-size: 13px">Apache-2.0 · Reference data from OpenAlex</span>
+<small>Claude, GitHub Copilot, Cursor, Gemini, Zotero and other names are trademarks of their owners, used here only to say what Filiation works with. Zotero is a registered trademark of the Corporation for Digital Scholarship. No endorsement is implied.</small>
+</div>
+</footer>
+<script src="../../assets/site.js"></script>
+<script src="../../assets/docs.js"></script>
+</body>
+</html>

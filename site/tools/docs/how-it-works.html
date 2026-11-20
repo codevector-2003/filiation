@@ -1,0 +1,15 @@
+<!--
+title: How it works
+group: Reference
+intro: What Filiation keeps, where it comes from, and the few rules it never breaks.
+-->
+<h2 class="serif" id="how-ids">fil IDs</h2>
+<p>Every paper gets a fil ID, such as <span class="ic">F7K2M9QXA</span>, made once and never changed. Use it, a DOI, an OpenAlex ID or a title wherever a command asks for a paper.</p>
+<h2 class="serif" id="how-citations">Where citations come from</h2>
+<p>Reference lists come from <a href="https://openalex.org">OpenAlex</a>, already matched to the papers they name. No model reads your papers to guess at links, so every line on the map is a real citation.</p>
+<h2 class="serif" id="how-stubs">Stubs</h2>
+<p>A paper something cites, but that Filiation has not fetched yet, is a stub: its title may be known, its abstract and references are not. <span class="ic">fil expand</span> fetches stubs, most-cited first.</p>
+<h2 class="serif" id="how-oa">Open access only</h2>
+<p>Filiation downloads only the legal open-access copies OpenAlex lists. It never scrapes a publisher's site or uses anyone's login. For other papers, add the PDFs you have.</p>
+<h2 class="serif" id="how-folder">Your library folder</h2>
+<p>A library is a folder you choose: a database file, and a <span class="ic">papers/</span> folder with one readable folder per paper. Copy it, back it up, or sync it like any other folder. <span class="ic">fil export graphml</span> writes the graph out for other tools.</p>

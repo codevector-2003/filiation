@@ -1,0 +1,48 @@
+<!--
+title: AI assistants (MCP)
+group: Using Filiation
+intro: Connect Filiation to the assistant you already use. It can then search your library and answer with the page each passage came from.
+-->
+<div class="note info"><span class="ico">i</span><span>The easiest way: open the app's <b>AI assistants</b> screen and press <b>Connect</b>. It finds the assistants on your computer and writes their settings for you, keeping a copy of the old file.</span></div>
+<h2 class="serif" id="mcp-hand">Set it up by hand</h2>
+<div class="tabs" role="tablist" aria-label="Assistant" data-tabgroup="client">
+<button class="tab" role="tab" aria-selected="true" data-tab="claude-code"><span class="mono"><img src="{{root}}assets/logos/claude.svg" alt=""></span>Claude Code</button>
+<button class="tab" role="tab" aria-selected="false" data-tab="claude-desktop"><span class="mono"><img src="{{root}}assets/logos/claude.svg" alt=""></span>Claude Desktop</button>
+<button class="tab" role="tab" aria-selected="false" data-tab="cursor"><span class="mono"><img src="{{root}}assets/logos/cursor.svg" alt=""></span>Cursor</button>
+<button class="tab" role="tab" aria-selected="false" data-tab="vscode"><span class="mono"><img src="{{root}}assets/logos/copilot.svg" alt=""></span>VS Code (Copilot)</button>
+<button class="tab" role="tab" aria-selected="false" data-tab="gemini"><span class="mono"><img src="{{root}}assets/logos/gemini.svg" alt=""></span>Gemini CLI</button>
+</div>
+<div data-panel="client:claude-code"><p>Run this once in a terminal:</p><div class="code"><code>claude mcp add filiation -- fil mcp</code><button class="copy" type="button">Copy</button></div><p>Start a new Claude Code session and ask it about your library.</p></div>
+<div data-panel="client:claude-desktop" hidden><p>Add this to <span class="ic">claude_desktop_config.json</span>. On Windows it is in <span class="ic">%APPDATA%\Claude</span>, on macOS in <span class="ic">~/Library/Application Support/Claude</span>.</p><div class="code"><code>{
+  "mcpServers": {
+    "filiation": { "command": "fil", "args": ["mcp"] }
+  }
+}</code><button class="copy" type="button">Copy</button></div><p>Quit Claude Desktop completely and open it again.</p></div>
+<div data-panel="client:cursor" hidden><p>Add this to <span class="ic">~/.cursor/mcp.json</span> for every project, or <span class="ic">.cursor/mcp.json</span> for one:</p><div class="code"><code>{
+  "mcpServers": {
+    "filiation": { "command": "fil", "args": ["mcp"] }
+  }
+}</code><button class="copy" type="button">Copy</button></div></div>
+<div data-panel="client:vscode" hidden><p>Add this to <span class="ic">.vscode/mcp.json</span>:</p><div class="code"><code>{
+  "servers": {
+    "filiation": { "type": "stdio", "command": "fil", "args": ["mcp"] }
+  }
+}</code><button class="copy" type="button">Copy</button></div><p>Copilot Chat can use it in agent mode.</p></div>
+<div data-panel="client:gemini" hidden><p>Add this to <span class="ic">~/.gemini/settings.json</span>:</p><div class="code"><code>{
+  "mcpServers": {
+    "filiation": { "command": "fil", "args": ["mcp"] }
+  }
+}</code><button class="copy" type="button">Copy</button></div><p>It loads the next time Gemini CLI starts.</p></div>
+<h2 class="serif" id="mcp-tools">What your assistant can do</h2>
+<table class="cmdtable"><tbody>
+<tr><td><span class="ic">search_library</span></td><td>Find passages by keyword, with their page, to quote.</td></tr>
+<tr><td><span class="ic">get_paper</span></td><td>Everything about one paper, including why it has no PDF or text.</td></tr>
+<tr><td><span class="ic">neighbours</span></td><td>What a paper cites and what cites it, with the sentence it cites each in, when one was found.</td></tr>
+<tr><td><span class="ic">find_path</span></td><td>The chain of citations between two papers.</td></tr>
+<tr><td><span class="ic">citation_groups</span></td><td>The library's topics, found from its citations alone.</td></tr>
+<tr><td><span class="ic">library_stats</span></td><td>What is in the library.</td></tr>
+<tr><td><span class="ic">add_paper</span></td><td>Add a paper by DOI, arXiv ID, PMID, OpenAlex ID, link or title.</td></tr>
+<tr><td><span class="ic">expand_graph</span></td><td>Follow references outward, within a budget.</td></tr>
+<tr><td><span class="ic">fetch_pdfs</span></td><td>Download more open-access PDFs.</td></tr>
+</tbody></table>
+<div class="note info"><span class="ico">i</span><span>Add <span class="ic">--read-only</span> after <span class="ic">mcp</span> and the assistant can read your library but not add to it, and nothing it does reaches the network. Add <span class="ic">--library Thesis</span> to point it at another library.</span></div>

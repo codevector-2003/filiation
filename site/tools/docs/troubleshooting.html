@@ -1,0 +1,15 @@
+<!--
+title: Troubleshooting
+group: Reference
+intro: The questions people ask most, and what to do.
+-->
+<h2 class="serif" id="help-faq">Common questions</h2>
+<div class="faq">
+<details open><summary>My assistant says the server failed to start.</summary><p>Run <span class="ic">fil version</span> in a terminal. If that fails, the assistant cannot find fil either: put the full path to fil in its settings, or reinstall with "Add fil to my PATH" ticked.</p></details>
+<details><summary>The assistant cannot find a paper I added.</summary><p>Both must use the same library. Compare <span class="ic">fil where</span> with the path in the server's first log line, and check the assistant's settings for a <span class="ic">--library</span> argument.</p></details>
+<details><summary>Why do so many papers have no PDF?</summary><p>Filiation only keeps legal open-access copies, and most papers have none: about one in eight overall, many more in physics, very few in the humanities. Add the PDFs you have with <span class="ic">fil import</span> or the Inbox.</p></details>
+<details><summary>Expansion stopped after one step.</summary><p>The papers probably have no reference lists in OpenAlex. That is common outside the sciences, and is the data, not a fault. Each paper shows whether its references are known.</p></details>
+<details><summary>Windows warned me about the installer.</summary><p>The installer is not signed yet. Choose More info, then Run anyway.</p></details>
+<details><summary>Where are my files?</summary><p>Run <span class="ic">fil where</span>. Your library is a folder you chose, with a <span class="ic">papers/</span> folder of readable PDF folders inside. Uninstalling the app never touches it.</p></details>
+</div>
+<p style="margin-top: 24px">Still stuck? <a href="https://github.com/codevector-2003/filiation/issues">Open an issue</a> with the output of <span class="ic">fil version</span> and <span class="ic">fil where</span>.</p>

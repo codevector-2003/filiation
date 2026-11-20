@@ -74,3 +74,24 @@
   .page h1 { font-size: 30px; }
   .pg b { font-size: 16px; }
 }
+
+/* The docs front page and the guides. */
+.ver { font-size: 13px; color: var(--muted); }
+.crumb a { color: var(--muted); text-decoration: none; }
+.crumb a:hover { color: var(--accent); }
+.doc-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; max-width: 760px; margin-bottom: 8px; }
+.doc-card { display: flex; flex-direction: column; gap: 6px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--text); text-decoration: none; }
+.doc-card:hover { border-color: var(--accent); color: var(--text); }
+.doc-card b { font-size: 16px; }
+.doc-card span { font-size: 14px; line-height: 1.5; color: var(--muted); }
+.guide { max-width: 820px; margin: 0 auto; padding: 48px 24px 96px; }
+.guide .page h1 { font-size: 44px; }
+.ticks { max-width: 740px; margin: 0 0 16px; padding: 0; list-style: none; }
+.ticks li { position: relative; padding: 0 0 12px 30px; font-size: 16px; line-height: 1.65; color: var(--text-2); }
+.ticks li::before { content: ""; position: absolute; left: 4px; top: 7px; width: 12px; height: 7px; border-left: 2px solid var(--accent); border-bottom: 2px solid var(--accent); transform: rotate(-45deg); }
+.ticks b { color: var(--text); }
+.cta { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; max-width: 760px; margin: 40px 0 8px; padding: 22px 24px; border-radius: 14px; background: var(--accent-soft); }
+.cta > div { flex: 1 1 280px; display: flex; flex-direction: column; gap: 4px; }
+.cta b { font-size: 18px; color: var(--accent-text); }
+.cta span { font-size: 14.5px; line-height: 1.5; color: var(--accent-text); }
+@media (max-width: 760px) { .doc-cards { grid-template-columns: minmax(0, 1fr); } .guide { padding: 28px 16px 64px; } .guide .page h1 { font-size: 32px; } .top .ver { display: none; } }
