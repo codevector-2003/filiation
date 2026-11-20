@@ -5,6 +5,12 @@
 # Windows paths and known folders, macOS's case-insensitive file system,
 # Linux's case-sensitive one. The job names are the required checks in the
 # branch protection rule — rename one there if you rename it here.
+#
+# A change only to the website (site/) has nothing to test. The checks still
+# run, because they are required and a check that never reports blocks the
+# merge, but their steps are skipped and they pass in seconds. The skip is per
+# step, not per job: a skipped matrix job reports under its unexpanded name,
+# "test (${{ matrix.os }})", and the required check would never arrive.
 name: ci
 
 on:
@@ -20,27 +26,67 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: changes
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: diff
+        name: Anything besides the website?
+        shell: bash
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: |
+          # With no base to compare against (a new branch, a force-push), test.
+          if [ -z "$BASE" ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            echo "code=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          files=$(git diff --name-only "$BASE...$HEAD")
+          echo "$files"
+          if echo "$files" | grep -qvE '^(site/|\.github/workflows/pages\.yml$)'; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "code=false" >> "$GITHUB_OUTPUT"
+          fi
+
   test:
     name: test (${{ matrix.os }})
+    needs: changes
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
+    env:
+      CODE: ${{ needs.changes.outputs.code }}
     steps:
+      - name: Only the website changed; nothing to test
+        if: env.CODE != 'true'
+        run: echo "Only files under site/ changed."
+
       - uses: actions/checkout@v4
+        if: env.CODE == 'true'
 
       - uses: actions/setup-go@v5
+        if: env.CODE == 'true'
         with:
           go-version-file: go.mod
 
       - name: Vet
+        if: env.CODE == 'true'
         run: go vet ./...
 
       - name: Test
+        if: env.CODE == 'true'
         run: go test ./...
 
       # Hard rule 4: one static binary per platform, no cgo.
       - name: Build without cgo
+        if: env.CODE == 'true'
         shell: bash
         run: CGO_ENABLED=0 go build -o fil-ci ./cmd/fil
