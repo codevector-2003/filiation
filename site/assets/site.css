@@ -107,6 +107,10 @@ button { font: inherit; color: inherit; }
 .star .count { border-left: 1px solid var(--line-strong); background: var(--surface-2); font-variant-numeric: tabular-nums; }
 .star .count:empty { display: none; }
 .gh { width: 18px; height: 18px; fill: currentColor; }
+.theme-btn { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 38px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--text); border-radius: 8px; cursor: pointer; flex: none; }
+.theme-btn:hover { border-color: var(--accent); color: var(--accent); }
+.theme-btn .ti { display: none; }
+:root:not([data-theme]) .theme-btn .ti-system, :root[data-theme="light"] .theme-btn .ti-light, :root[data-theme="dark"] .theme-btn .ti-dark { display: block; }
 .menu-btn { display: none; border: 1px solid var(--line-strong); background: var(--surface); border-radius: 8px; width: 40px; height: 38px; align-items: center; justify-content: center; cursor: pointer; }
 
 /* Buttons and chips */
