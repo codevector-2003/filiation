@@ -59,6 +59,11 @@ SelectTasksLabel2=Choose what else Setup should do.
 Name: "path"; Description: "Add fil to my PATH, so a terminal and AI assistants such as Claude Code or Cursor can run it (recommended)"
 Name: "desktopicon"; Description: "Create a desktop shortcut"; Flags: unchecked
 
+[InstallDelete]
+; Copies set aside by hand-made installs before there was an installer, when
+; a running exe could only be renamed; nothing else in the folder is touched.
+Type: files; Name: "{app}\*.old.exe"
+
 [Files]
 Source: "{#SourceDir}\Filiation.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#SourceDir}\fil.exe"; DestDir: "{app}"; Flags: ignoreversion
