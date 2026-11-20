@@ -112,13 +112,14 @@ button:disabled { cursor: default; }
 }
 .hidden-label { position: absolute; left: -9999px; }
 /* One slim toolbar: the filter box is in the title bar, Fetch PDFs in the Library menu. */
-.tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-height: 40px; padding: 6px 12px 6px 16px; box-sizing: border-box; border-bottom: 1px solid var(--line); }
-.tab { height: 26px; padding: 0 10px; border: 0; border-radius: 13px; background: transparent; font-size: 12px; }
-.list-count { margin-left: 8px; color: var(--muted); font-size: 12px; white-space: nowrap; }
-.tabs .btn.small, .sel-bar .btn { height: 28px; padding: 0 10px; font-size: 12px; }
+/* One row that never wraps: when it is tight, the count gives way first, then the sort box. */
+.tabs { display: flex; flex-wrap: nowrap; align-items: center; gap: 4px; min-height: 40px; padding: 6px 12px 6px 16px; box-sizing: border-box; border-bottom: 1px solid var(--line); }
+.tab { flex: none; height: 26px; padding: 0 10px; border: 0; border-radius: 13px; background: transparent; font-size: 12px; }
+.list-count { flex: 0 1 auto; min-width: 0; margin-left: 8px; overflow: hidden; text-overflow: ellipsis; color: var(--muted); font-size: 12px; white-space: nowrap; }
+.tabs .btn.small, .sel-bar .btn { flex: none; height: 28px; padding: 0 10px; font-size: 12px; }
 .tab:not(.on):hover { background: #E9E8E3; }
 .tab.on { background: var(--ink); color: #FFFFFF; }
-#sort { height: 28px; max-width: 210px; padding: 0 6px; border: 1px solid var(--line-2); border-radius: 6px; background: #FFFFFF; }
+#sort { flex: 0 1 auto; min-width: 90px; height: 28px; max-width: 210px; padding: 0 6px; border: 1px solid var(--line-2); border-radius: 6px; background: #FFFFFF; }
 .filters {
   flex: none; display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 20px;
   max-height: 45vh; overflow-y: auto; padding: 14px 20px; border-bottom: 1px solid var(--line); background: var(--panel);
