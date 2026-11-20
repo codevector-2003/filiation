@@ -38,3 +38,15 @@ docs/assets/*.jfif
 # The Windows installer's build output
 /desktop/installer/build/
 /desktop/installer/Output/
+
+# Local AI-assistant settings (permissions, preferences): per person, not shared
+.claude/
+CLAUDE.local.md
+
+# Logs and scratch
+*.log
+*.tmp
+/tmp/
+
+# Browser profiles left by headless screenshot runs
+.chrome-*/
