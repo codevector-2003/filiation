@@ -18,6 +18,30 @@
     }, () => {});
   });
 
+  // The colour theme: as the system, light, or dark, in that order. The
+  // choice is kept in this browser; the page's head applies it before drawing.
+  const themes = ['system', 'light', 'dark'];
+  const themeName = { system: 'as your system', light: 'light', dark: 'dark' };
+  const themeBtn = document.querySelector('.theme-btn');
+  const currentTheme = () => document.documentElement.dataset.theme || 'system';
+  const labelTheme = () => {
+    if (!themeBtn) return;
+    const now = currentTheme();
+    const next = themes[(themes.indexOf(now) + 1) % themes.length];
+    themeBtn.setAttribute('aria-label', 'Colour theme: ' + themeName[now] + '. Switch to ' + themeName[next]);
+    themeBtn.title = 'Theme: ' + themeName[now];
+  };
+  if (themeBtn) {
+    themeBtn.addEventListener('click', () => {
+      const next = themes[(themes.indexOf(currentTheme()) + 1) % themes.length];
+      if (next === 'system') delete document.documentElement.dataset.theme;
+      else document.documentElement.dataset.theme = next;
+      try { if (next === 'system') localStorage.removeItem('fil-theme'); else localStorage.setItem('fil-theme', next); } catch (e) { /* private window */ }
+      labelTheme();
+    });
+    labelTheme();
+  }
+
   const menu = document.querySelector('.menu-btn');
   if (menu) {
     const nav = document.querySelector('.topnav');
