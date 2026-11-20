@@ -33,7 +33,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/assets/screens/papers.png" width="900" alt="The Filiation desktop app: a library of papers, one per row, with their PDFs and tags, and one paper open with its abstract, collections and labels">
+  <img src="docs/assets/demo.gif" width="900" alt="A 45-second demo of the Filiation app: a paper is added by its DOI, the citation map grows around it and then shows the whole library, a keyword search finds passages and lights them on the PDF page, and an AI assistant connected over MCP answers with quotes and page numbers">
 </p>
 
 ---
@@ -42,10 +42,10 @@
 
 **Builds your library from one paper.** Start from a DOI, an arXiv ID, a link or a title. Filiation follows the reference lists, most-cited first, and keeps what it finds: hundreds of related papers, each tied to the papers it cites.
 
-**Keeps the papers themselves, searchable to the page.** It downloads the legal open-access PDFs and reads them. Ask a question in plain words and it finds the passage that answers it, names its page, and lights it on the PDF.
+**Keeps the papers themselves, searchable to the page.** It downloads the legal open-access PDFs and reads them. Type a few keywords and it finds the passages that match, names their page, and lights them on the PDF.
 
 <p align="center">
-  <img src="docs/assets/screens/search.png" width="900" alt="Search inside the PDFs: a question typed in plain words, the passages that answer it grouped by paper, and the PDF page with the matching words highlighted">
+  <img src="docs/assets/screens/search.png" width="900" alt="Search inside the PDFs: a few keywords typed in, the passages that match grouped by paper, and the PDF page with the matching words highlighted">
 </p>
 
 **Works with your AI assistant.** Claude, GitHub Copilot, Cursor and Gemini CLI can search your library, read the passages and answer with the page they came from, so you can check every claim. Your assistant writes the answer; Filiation gives it sources that are yours.

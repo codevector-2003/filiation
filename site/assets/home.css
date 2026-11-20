@@ -137,3 +137,6 @@
   .shot-card figcaption { flex-direction: column; align-items: flex-start; }
 }
 @media (max-width: 480px) { .steps { grid-template-columns: minmax(0, 1fr); } .hero .btn { width: 100%; } }
+
+/* The demo video. */
+.demo-video { aspect-ratio: 16 / 10; height: auto; background: #F3F2EE; }
