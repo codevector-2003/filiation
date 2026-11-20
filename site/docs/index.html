@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Filiation documentation</title>
+<meta name="description" content="Install Filiation, build your first library, use the app and the fil command line, and connect your AI assistant over MCP.">
+<meta name="theme-color" content="#1F5F8B">
+<link rel="icon" href="../assets/icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/docs.css">
+<script>document.documentElement.classList.add('js');</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the content</a>
+
+<header class="top full">
+<div class="wrap">
+<a class="brand" href="../"><img src="../assets/icon.svg" alt="" width="28" height="28">Filiation</a>
+<nav class="topnav" id="topnav" aria-label="Site">
+<a href="../">Product</a>
+<a href="./" aria-current="page">Docs</a>
+<a href="../#start">Download</a>
+</nav>
+<span class="spacer"></span>
+<span class="fine" data-version="v{v}" style="font-size: 13px; color: var(--muted)"></span>
+<a class="star" href="https://github.com/codevector-2003/filiation" aria-label="Star Filiation on GitHub">
+<span><svg class="gh" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.2l2.1 4.3 4.7.7-3.4 3.3.8 4.7L8 12l-4.2 2.2.8-4.7L1.2 6.2l4.7-.7z" fill="#E3B341"/></svg>Star</span><span class="count" data-stars></span>
+</a>
+<a class="btn primary small dl" href="../#start">Download</a>
+<button class="menu-btn" type="button" aria-label="Menu" aria-expanded="false" aria-controls="topnav"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 4.5h14M2 9h14M2 13.5h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+</div>
+</header>
+
+<div class="layout">
+<aside class="side" aria-label="Documentation">
+<label class="find"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="7" cy="7" r="4.8"/><path d="M10.6 10.6L14 14"/></svg><input id="doc-find" type="search" placeholder="Search the docs" aria-label="Search the docs"><kbd>/</kbd></label>
+<nav id="doc-nav">
+<div class="group">GETTING STARTED</div>
+<a class="nav" href="#install">Install</a>
+<a class="nav" href="#first">Your first library</a>
+<div class="group">USING FILIATION</div>
+<a class="nav" href="#app">The desktop app</a>
+<a class="nav" href="#cli">Command line</a>
+<a class="nav" href="#mcp">AI assistants (MCP)</a>
+<a class="nav" href="#zotero">Bring in Zotero</a>
+<div class="group">REFERENCE</div>
+<a class="nav" href="#how">How it works</a>
+<a class="nav" href="#help">Troubleshooting</a>
+<p class="no-match" id="no-match" hidden>Nothing matches. Try fewer words.</p>
+</nav>
+</aside>
+
+<main class="main" id="main">
+
+<!-- Install -->
+<article class="page" id="install" data-group="Getting started">
+<div class="crumb">Docs › Getting started</div>
+<h1 class="serif">Install</h1>
+<p class="intro">Filiation comes two ways: a desktop app, and fil, the command line. Both use the same library, so you can switch between them.</p>
+<div class="tabs" role="tablist" aria-label="System" data-tabgroup="os">
+<button class="tab" role="tab" aria-selected="true" data-tab="windows">Windows</button>
+<button class="tab" role="tab" aria-selected="false" data-tab="macos">macOS</button>
+<button class="tab" role="tab" aria-selected="false" data-tab="linux">Linux</button>
+</div>
+<h2 class="serif" id="install-app">The app</h2>
+<div data-panel="os:windows">
+<p>Download the installer and run it. It installs for you only, needs no administrator rights, and adds fil to your PATH so a terminal and your AI assistant can find it.</p>
+<p><a class="btn primary" href="https://github.com/codevector-2003/filiation/releases/latest" data-download="app" data-os="windows">Download the Windows installer</a></p>
+<div class="note warn"><span class="ico">!</span><span>The installer isn't signed yet, so Windows SmartScreen may warn you. Choose <b>More info</b>, then <b>Run anyway</b>.</span></div>
+</div>
+<div data-panel="os:macos" hidden><p>A macOS installer is coming. Until then, the app builds from source (see <a href="https://github.com/codevector-2003/filiation/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a>), and the command line below works today.</p></div>
+<div data-panel="os:linux" hidden><p>A Linux package is coming. Until then, the app builds from source (see <a href="https://github.com/codevector-2003/filiation/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a>), and the command line below works today.</p></div>
+<h2 class="serif" id="install-cli">The command line</h2>
+<p>One file, nothing else to install. <a href="https://github.com/codevector-2003/filiation/releases/latest" data-download="cli" id="cli-download">Download it from the latest release</a>, unpack it, and run it.</p>
+<div data-panel="os:windows"><div class="code"><code data-cmd="windows">Expand-Archive fil_{v}_windows_amd64.zip fil
+.\fil\fil.exe version</code><button class="copy" type="button">Copy</button></div></div>
+<div data-panel="os:macos" hidden><div class="code"><code data-cmd="macos">tar xzf fil_{v}_darwin_arm64.tar.gz
+sudo mv fil /usr/local/bin/
+fil version</code><button class="copy" type="button">Copy</button></div><p>On an Intel Mac, download the <span class="ic">darwin_amd64</span> archive instead.</p></div>
+<div data-panel="os:linux" hidden><div class="code"><code data-cmd="linux">tar xzf fil_{v}_linux_amd64.tar.gz
+sudo mv fil /usr/local/bin/
+fil version</code><button class="copy" type="button">Copy</button></div></div>
+<p>See where your library lives:</p>
+<div class="code"><code>fil where</code><button class="copy" type="button">Copy</button></div>
+</article>
+
+<!-- First library -->
+<article class="page" id="first" data-group="Getting started">
+<div class="crumb">Docs › Getting started</div>
+<h1 class="serif">Your first library</h1>
+<p class="intro">Give Filiation one paper you know well. In a few minutes it has found what that paper cites, kept the PDFs that are free to read, and made them searchable.</p>
+<ol class="steps">
+<li><div><h3 id="first-add">Add a paper</h3><p>A DOI, arXiv ID, link or title. Filiation records the paper and every work it cites.</p><div class="code"><code>fil add arXiv:1409.0473</code><button class="copy" type="button">Copy</button></div></div></li>
+<li><div><h3 id="first-expand">Follow its references</h3><p>Fetch the papers it cites, and theirs, most-cited first, up to a budget you set.</p><div class="code"><code>fil expand --max-nodes 300</code><button class="copy" type="button">Copy</button></div></div></li>
+<li><div><h3 id="first-fetch">Keep the PDFs</h3><p>Download the legal open-access copies and read their text so it can be searched.</p><div class="code"><code>fil fetch</code><button class="copy" type="button">Copy</button></div></div></li>
+<li><div><h3 id="first-search">Search</h3><p>A few keywords. Each passage comes back with its paper and page.</p><div class="code"><code>fil search attention alignment translation</code><button class="copy" type="button">Copy</button></div></div></li>
+</ol>
+<div class="note info"><span class="ico">i</span><span>In the app, each step is one action: paste into the title bar search to add a paper, then <b>Library › Fetch PDFs</b>. The command line and the app share the same library.</span></div>
+</article>
+
+<!-- The desktop app -->
+<article class="page" id="app" data-group="Using Filiation">
+<div class="crumb">Docs › Using Filiation</div>
+<h1 class="serif">The desktop app</h1>
+<p class="intro">One window, a few screens. Everything you do here, the command line can do too.</p>
+<h2 class="serif" id="app-screens">Screens</h2>
+<div class="cards">
+<div class="scard"><img src="../assets/img/papers.png" alt="" loading="lazy"><div><b>Papers</b><span>Your library, one paper per row, with its PDF, labels and details beside it.</span></div></div>
+<div class="scard"><img src="../assets/img/search.png" alt="" loading="lazy"><div><b>Search</b><span>Keywords across every PDF; the passage and its page, lit on the PDF.</span></div></div>
+<div class="scard"><img src="../assets/img/map.png" alt="" loading="lazy"><div><b>Citation map</b><span>What a paper cites and what cites it, or the whole library at once.</span></div></div>
+<div class="scard"><img src="../assets/img/reader.png" alt="" loading="lazy"><div><b>Reader</b><span>Read, highlight and comment. Notes live in your library; the PDF stays as it was.</span></div></div>
+<div class="scard"><img src="../assets/img/groups.png" alt="" loading="lazy"><div><b>Groups</b><span>Topics found from the citations alone, offered as collections.</span></div></div>
+<div class="scard"><img src="../assets/img/find.png" alt="" loading="lazy"><div><b>Title bar search</b><span>Find a paper you have, or paste a DOI or title to add a new one.</span></div></div>
+</div>
+<h2 class="serif" id="app-keys">Keys worth knowing</h2>
+<table class="cmdtable"><tbody>
+<tr><td><span class="ic">Ctrl+F</span></td><td>Search your library from the title bar.</td></tr>
+<tr><td><span class="ic">Ctrl+click</span></td><td>Select more than one paper.</td></tr>
+<tr><td><span class="ic">Shift+click</span></td><td>Select a run of papers.</td></tr>
+<tr><td><span class="ic">Ctrl+A</span></td><td>Select every paper in the list.</td></tr>
+<tr><td><span class="ic">Delete</span></td><td>Delete the selected papers. Their folders go to the Recycle Bin.</td></tr>
+<tr><td><span class="ic">Right-click</span></td><td>A paper's actions: favourite, add to a collection, label, show on the map, download its PDF, bring in papers around it, delete.</td></tr>
+</tbody></table>
+</article>
+
+<!-- Command line -->
+<article class="page" id="cli" data-group="Using Filiation">
+<div class="crumb">Docs › Using Filiation</div>
+<h1 class="serif">Command line</h1>
+<p class="intro">Every fil command, grouped by what you are doing. A paper can be named by its fil ID, DOI, arXiv ID, OpenAlex ID or title.</p>
+<div class="tabs" role="tablist" aria-label="Command groups" data-tabgroup="cli">
+<button class="tab" role="tab" aria-selected="true" data-tab="build">Build</button>
+<button class="tab" role="tab" aria-selected="false" data-tab="read">Read</button>
+<button class="tab" role="tab" aria-selected="false" data-tab="library">Library</button>
+<button class="tab" role="tab" aria-selected="false" data-tab="other">Other</button>
+</div>
+<table class="cmdtable" data-panel="cli:build"><tbody>
+<tr><td><span class="ic">fil add &lt;paper&gt;</span></td><td>Add a paper and record everything it cites. By DOI, arXiv ID, PMID, OpenAlex ID, link or title.</td></tr>
+<tr><td><span class="ic">fil expand</span></td><td>Follow references outward and grow the graph, most-cited first.<span class="flags">--max-nodes 500  --max-depth 3</span></td></tr>
+<tr><td><span class="ic">fil fetch [paper]</span></td><td>Download the legal open-access PDFs of your papers.<span class="flags">--max N  --dry-run</span></td></tr>
+<tr><td><span class="ic">fil import [file…]</span></td><td>Identify PDFs you already have and file them in your library.</td></tr>
+<tr><td><span class="ic">fil zotero</span></td><td>Bring in your Zotero library.<span class="flags">--dry-run  --from FILE  --tags  --no-pdfs  --no-refs  --skip KEY</span></td></tr>
+<tr><td><span class="ic">fil match &lt;fil ID&gt; [id]</span></td><td>Find one of your own documents in OpenAlex.</td></tr>
+</tbody></table>
+<table class="cmdtable" data-panel="cli:read" hidden><tbody>
+<tr><td><span class="ic">fil search &lt;words&gt;</span></td><td>Find passages in your PDFs by keyword, with their page.<span class="flags">--paper X  --view NAME  --limit N  --references  --pick</span></td></tr>
+<tr><td><span class="ic">fil list</span></td><td>List the papers in your library, with their PDF and text.</td></tr>
+<tr><td><span class="ic">fil show &lt;paper&gt;</span></td><td>Tell everything the library knows about one paper.</td></tr>
+<tr><td><span class="ic">fil neighbours &lt;paper&gt;</span></td><td>What a paper cites, and what in your library cites it.</td></tr>
+<tr><td><span class="ic">fil path &lt;paper&gt; &lt;paper&gt;</span></td><td>The shortest chain of citations between two papers.</td></tr>
+<tr><td><span class="ic">fil groups [group]</span></td><td>Groups of papers that cite one another.</td></tr>
+<tr><td><span class="ic">fil stats</span></td><td>Summarise your library.</td></tr>
+</tbody></table>
+<table class="cmdtable" data-panel="cli:library" hidden><tbody>
+<tr><td><span class="ic">fil library</span></td><td>Show your library folder.</td></tr>
+<tr><td><span class="ic">fil library new &lt;folder&gt;</span></td><td>Make another library in a new folder.</td></tr>
+<tr><td><span class="ic">fil library move &lt;folder&gt;</span></td><td>Move your library to a new folder.</td></tr>
+<tr><td><span class="ic">fil library scan</span></td><td>Find papers you moved, renamed or deleted in papers/.</td></tr>
+<tr><td><span class="ic">fil extract [paper]</span></td><td>Read the text of your PDFs so they can be searched.<span class="flags">--again</span></td></tr>
+<tr><td><span class="ic">fil export graphml</span></td><td>Write the citation graph for Gephi, Cytoscape or NetworkX.</td></tr>
+</tbody></table>
+<table class="cmdtable" data-panel="cli:other" hidden><tbody>
+<tr><td><span class="ic">fil mcp</span></td><td>Serve your library to an AI assistant over MCP.<span class="flags">--read-only  --library NAME</span></td></tr>
+<tr><td><span class="ic">fil where</span></td><td>Print where your library, settings and cache live.</td></tr>
+<tr><td><span class="ic">fil theme</span></td><td>Choose fil's colours in the terminal.</td></tr>
+<tr><td><span class="ic">fil cache clear</span></td><td>Delete every cached OpenAlex response.</td></tr>
+<tr><td><span class="ic">fil version</span></td><td>Print the version.</td></tr>
+</tbody></table>
+<p>Every command explains itself: <span class="ic">fil help &lt;command&gt;</span>.</p>
+</article>
+
+<!-- MCP -->
+<article class="page" id="mcp" data-group="Using Filiation">
+<div class="crumb">Docs › Using Filiation</div>
+<h1 class="serif">AI assistants (MCP)</h1>
+<p class="intro">Connect Filiation to the assistant you already use. It can then search your library and answer with the page each passage came from.</p>
+<div class="note info"><span class="ico">i</span><span>The easiest way: open the app's <b>AI assistants</b> screen and press <b>Connect</b>. It finds the assistants on your computer and writes their settings for you, keeping a copy of the old file.</span></div>
+<h2 class="serif" id="mcp-hand">Set it up by hand</h2>
+<div class="tabs" role="tablist" aria-label="Assistant" data-tabgroup="client">
+<button class="tab" role="tab" aria-selected="true" data-tab="claude-code"><span class="mono"><img src="../assets/logos/claude.svg" alt=""></span>Claude Code</button>
+<button class="tab" role="tab" aria-selected="false" data-tab="claude-desktop"><span class="mono"><img src="../assets/logos/claude.svg" alt=""></span>Claude Desktop</button>
+<button class="tab" role="tab" aria-selected="false" data-tab="cursor"><span class="mono"><img src="../assets/logos/cursor.svg" alt=""></span>Cursor</button>
+<button class="tab" role="tab" aria-selected="false" data-tab="vscode"><span class="mono"><img src="../assets/logos/copilot.svg" alt=""></span>VS Code (Copilot)</button>
+<button class="tab" role="tab" aria-selected="false" data-tab="gemini"><span class="mono"><img src="../assets/logos/gemini.svg" alt=""></span>Gemini CLI</button>
+</div>
+<div data-panel="client:claude-code"><p>Run this once in a terminal:</p><div class="code"><code>claude mcp add filiation -- fil mcp</code><button class="copy" type="button">Copy</button></div><p>Start a new Claude Code session and ask it about your library.</p></div>
+<div data-panel="client:claude-desktop" hidden><p>Add this to <span class="ic">claude_desktop_config.json</span>. On Windows it is in <span class="ic">%APPDATA%\Claude</span>, on macOS in <span class="ic">~/Library/Application Support/Claude</span>.</p><div class="code"><code>{
+  "mcpServers": {
+    "filiation": { "command": "fil", "args": ["mcp"] }
+  }
+}</code><button class="copy" type="button">Copy</button></div><p>Quit Claude Desktop completely and open it again.</p></div>
+<div data-panel="client:cursor" hidden><p>Add this to <span class="ic">~/.cursor/mcp.json</span> for every project, or <span class="ic">.cursor/mcp.json</span> for one:</p><div class="code"><code>{
+  "mcpServers": {
+    "filiation": { "command": "fil", "args": ["mcp"] }
+  }
+}</code><button class="copy" type="button">Copy</button></div></div>
+<div data-panel="client:vscode" hidden><p>Add this to <span class="ic">.vscode/mcp.json</span>:</p><div class="code"><code>{
+  "servers": {
+    "filiation": { "type": "stdio", "command": "fil", "args": ["mcp"] }
+  }
+}</code><button class="copy" type="button">Copy</button></div><p>Copilot Chat can use it in agent mode.</p></div>
+<div data-panel="client:gemini" hidden><p>Add this to <span class="ic">~/.gemini/settings.json</span>:</p><div class="code"><code>{
+  "mcpServers": {
+    "filiation": { "command": "fil", "args": ["mcp"] }
+  }
+}</code><button class="copy" type="button">Copy</button></div><p>It loads the next time Gemini CLI starts.</p></div>
+<h2 class="serif" id="mcp-tools">What your assistant can do</h2>
+<table class="cmdtable"><tbody>
+<tr><td><span class="ic">search_library</span></td><td>Find passages by keyword, with their page, to quote.</td></tr>
+<tr><td><span class="ic">get_paper</span></td><td>Everything about one paper, including why it has no PDF or text.</td></tr>
+<tr><td><span class="ic">neighbours</span></td><td>What a paper cites and what cites it, with the sentence it cites each in, when one was found.</td></tr>
+<tr><td><span class="ic">find_path</span></td><td>The chain of citations between two papers.</td></tr>
+<tr><td><span class="ic">citation_groups</span></td><td>The library's topics, found from its citations alone.</td></tr>
+<tr><td><span class="ic">library_stats</span></td><td>What is in the library.</td></tr>
+<tr><td><span class="ic">add_paper</span></td><td>Add a paper by DOI, arXiv ID, PMID, OpenAlex ID, link or title.</td></tr>
+<tr><td><span class="ic">expand_graph</span></td><td>Follow references outward, within a budget.</td></tr>
+<tr><td><span class="ic">fetch_pdfs</span></td><td>Download more open-access PDFs.</td></tr>
+</tbody></table>
+<div class="note info"><span class="ico">i</span><span>Add <span class="ic">--read-only</span> after <span class="ic">mcp</span> and the assistant can read your library but not add to it, and nothing it does reaches the network. Add <span class="ic">--library Thesis</span> to point it at another library.</span></div>
+</article>
+
+<!-- Zotero -->
+<article class="page" id="zotero" data-group="Using Filiation">
+<div class="crumb">Docs › Using Filiation</div>
+<h1 class="serif">Bring in Zotero</h1>
+<p class="intro">Keep using Zotero for your references. Filiation reads its library and grows a citation map around it.</p>
+<p>Filiation reads Zotero 7 or later through its local API, read-only: it never changes your Zotero library. Zotero must be running. In Zotero, choose <b>Edit › Settings › Advanced</b> and tick <b>Allow other applications on this computer to communicate with Zotero</b>.</p>
+<div class="code"><code>fil zotero --dry-run     # see what would come in
+fil zotero               # bring it in</code><button class="copy" type="button">Copy</button></div>
+<p>In the app, the same is in the Inbox, under Zotero.</p>
+<h2 class="serif" id="zotero-options">Options</h2>
+<table class="cmdtable"><tbody>
+<tr><td><span class="ic">--dry-run</span></td><td>Say what would come in, and write nothing.</td></tr>
+<tr><td><span class="ic">--tags</span></td><td>Make labels from the tags you added in Zotero.</td></tr>
+<tr><td><span class="ic">--no-pdfs</span></td><td>Do not copy the PDFs.</td></tr>
+<tr><td><span class="ic">--no-refs</span></td><td>Do not record what each paper cites.</td></tr>
+<tr><td><span class="ic">--skip KEY</span></td><td>Leave out a Zotero collection, by its key, and those inside it.</td></tr>
+<tr><td><span class="ic">--from FILE</span></td><td>Read a Zotero RDF export instead of the running Zotero.</td></tr>
+</tbody></table>
+<h2 class="serif" id="zotero-export">From an export file</h2>
+<p>If Zotero isn't on this computer, export the library as <b>Zotero RDF</b> with its files, then:</p>
+<div class="code"><code>fil zotero --from "My Library.rdf"</code><button class="copy" type="button">Copy</button></div>
+</article>
+
+<!-- How it works -->
+<article class="page" id="how" data-group="Reference">
+<div class="crumb">Docs › Reference</div>
+<h1 class="serif">How it works</h1>
+<p class="intro">What Filiation keeps, where it comes from, and the few rules it never breaks.</p>
+<h2 class="serif" id="how-ids">fil IDs</h2>
+<p>Every paper gets a fil ID, such as <span class="ic">F7K2M9QXA</span>, made once and never changed. Use it, a DOI, an OpenAlex ID or a title wherever a command asks for a paper.</p>
+<h2 class="serif" id="how-citations">Where citations come from</h2>
+<p>Reference lists come from <a href="https://openalex.org">OpenAlex</a>, already matched to the papers they name. No model reads your papers to guess at links, so every line on the map is a real citation.</p>
+<h2 class="serif" id="how-stubs">Stubs</h2>
+<p>A paper something cites, but that Filiation has not fetched yet, is a stub: its title may be known, its abstract and references are not. <span class="ic">fil expand</span> fetches stubs, most-cited first.</p>
+<h2 class="serif" id="how-oa">Open access only</h2>
+<p>Filiation downloads only the legal open-access copies OpenAlex lists. It never scrapes a publisher's site or uses anyone's login. For other papers, add the PDFs you have.</p>
+<h2 class="serif" id="how-folder">Your library folder</h2>
+<p>A library is a folder you choose: a database file, and a <span class="ic">papers/</span> folder with one readable folder per paper. Copy it, back it up, or sync it like any other folder. <span class="ic">fil export graphml</span> writes the graph out for other tools.</p>
+</article>
+
+<!-- Troubleshooting -->
+<article class="page" id="help" data-group="Reference">
+<div class="crumb">Docs › Reference</div>
+<h1 class="serif">Troubleshooting</h1>
+<p class="intro">The questions people ask most, and what to do.</p>
+<h2 class="serif" id="help-faq">Common questions</h2>
+<div class="faq">
+<details open><summary>My assistant says the server failed to start.</summary><p>Run <span class="ic">fil version</span> in a terminal. If that fails, the assistant cannot find fil either: put the full path to fil in its settings, or reinstall with "Add fil to my PATH" ticked.</p></details>
+<details><summary>The assistant cannot find a paper I added.</summary><p>Both must use the same library. Compare <span class="ic">fil where</span> with the path in the server's first log line, and check the assistant's settings for a <span class="ic">--library</span> argument.</p></details>
+<details><summary>Why do so many papers have no PDF?</summary><p>Filiation only keeps legal open-access copies, and most papers have none: about one in eight overall, many more in physics, very few in the humanities. Add the PDFs you have with <span class="ic">fil import</span> or the Inbox.</p></details>
+<details><summary>Expansion stopped after one step.</summary><p>The papers probably have no reference lists in OpenAlex. That is common outside the sciences, and is the data, not a fault. Each paper shows whether its references are known.</p></details>
+<details><summary>Windows warned me about the installer.</summary><p>The installer is not signed yet. Choose More info, then Run anyway.</p></details>
+<details><summary>Where are my files?</summary><p>Run <span class="ic">fil where</span>. Your library is a folder you chose, with a <span class="ic">papers/</span> folder of readable PDF folders inside. Uninstalling the app never touches it.</p></details>
+</div>
+<p style="margin-top: 24px">Still stuck? <a href="https://github.com/codevector-2003/filiation/issues">Open an issue</a> with the output of <span class="ic">fil version</span> and <span class="ic">fil where</span>.</p>
+</article>
+
+<nav class="pager" aria-label="Pages" id="pager"></nav>
+</main>
+
+<nav class="toc" aria-label="On this page" id="toc"><b>ON THIS PAGE</b></nav>
+</div>
+
+<footer class="foot">
+<div class="wrap">
+<span style="font-weight: 700; color: #FFFFFF">Filiation</span>
+<a href="../">Product</a>
+<a href="https://github.com/codevector-2003/filiation">GitHub</a>
+<a href="https://github.com/codevector-2003/filiation/blob/main/docs/MCP.md">MCP reference</a>
+<a href="https://github.com/codevector-2003/filiation/blob/main/CONTRIBUTING.md">Contributing</a>
+<span class="spacer"></span>
+<span style="font-size: 13px">Apache-2.0 · Reference data from OpenAlex</span>
+<small>Claude, GitHub Copilot, Cursor, Gemini, Zotero and other names are trademarks of their owners, used here only to say what Filiation works with. No endorsement is implied.</small>
+</div>
+</footer>
+
+<script src="../assets/site.js"></script>
+<script src="../assets/docs.js"></script>
+</body>
+</html>
