@@ -48,3 +48,19 @@ jobs:
           esac
           CGO_ENABLED=$cgo go build -tags "$tags" -ldflags "$ldflags" -o Filiation .
           ls -l Filiation*
+
+      # The Windows installer, kept as a download on each run so it can be
+      # tried before a release (D37).
+      - name: Windows installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        working-directory: .
+        run: pwsh desktop/installer/build.ps1 -Version "0.0.0-dev.$("${{ github.sha }}".Substring(0, 7))"
+
+      - name: Keep the installer
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: desktop/installer/Output/*.exe
+          retention-days: 14

@@ -34,3 +34,7 @@ desktop.ini
 # Source art for the README banner and social preview (large; the composed
 # docs/assets/banner.jpg and social-preview.png are what is committed).
 docs/assets/*.jfif
+
+# The Windows installer's build output
+/desktop/installer/build/
+/desktop/installer/Output/
