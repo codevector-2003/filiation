@@ -25,6 +25,14 @@
     hero.dataset.download = 'cli';
   }
 
+  // The demo plays while it is on screen, unless the visitor asked for less motion.
+  const demo = $('#demo-video');
+  if (demo && 'IntersectionObserver' in window && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    new IntersectionObserver((entries) => entries.forEach((e) => {
+      if (e.isIntersecting) demo.play().catch(() => {}); else demo.pause();
+    }), { threshold: 0.4 }).observe(demo);
+  }
+
   // Simple from the first minute.
   const simple = [
     ['Install', 'One installer for Windows, no admin rights. Filiation asks where your library should live, and that is all the setup there is.', 'papers.webp', 'The Papers list'],
