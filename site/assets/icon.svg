@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 120 120">
+  <!-- The app icon: the stemma as the title bar draws it, bold enough to read at 16 px,
+       on a white tile so it shows on dark and light taskbars alike. -->
+  <rect x="4" y="4" width="112" height="112" rx="24" fill="#FFFFFF" stroke="#C9D3DD" stroke-width="2"/>
+  <g fill="none" stroke="#8A9099" stroke-width="8" stroke-linecap="round">
+    <path d="M60 26 L36 56"/>
+    <path d="M36 56 L24 90"/>
+    <path d="M36 56 L48 90"/>
+    <path d="M84 56 L96 90"/>
+  </g>
+  <path d="M60 26 L84 56 L72 90" fill="none" stroke="#1F5F8B" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="36" cy="56" r="9" fill="#8A9099"/>
+  <circle cx="24" cy="90" r="8" fill="#8A9099"/>
+  <circle cx="48" cy="90" r="8" fill="#8A9099"/>
+  <circle cx="96" cy="90" r="8" fill="#8A9099"/>
+  <circle cx="60" cy="26" r="12" fill="#1F5F8B"/>
+  <circle cx="84" cy="56" r="10" fill="#1F5F8B"/>
+  <circle cx="72" cy="90" r="10" fill="#1F5F8B"/>
+</svg>

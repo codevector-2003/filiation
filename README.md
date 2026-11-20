@@ -6,16 +6,22 @@
 
 <p align="center">
   <strong>Your research library, built from citations, ready for your AI assistant.</strong><br>
-  Give it one paper. It follows the references, keeps the open-access PDFs, finds the passage that answers your question,<br>
+  Give it one paper. It follows the references, keeps the open-access PDFs, searches inside them to the page,<br>
   and lets your AI assistant use all of it, on your own machine.
 </p>
 
 <p align="center">
-  <a href="https://github.com/codevector-2003/filiation/releases/tag/v0.4.0"><img src="https://img.shields.io/badge/release-v0.4.0-6366f1" alt="Release v0.4.0"></a>
+  <a href="https://github.com/codevector-2003/filiation/releases/latest"><img src="https://img.shields.io/github/v/release/codevector-2003/filiation?color=6366f1" alt="Latest release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/licence-Apache--2.0-6366f1" alt="Licence: Apache-2.0"></a>
   <img src="https://img.shields.io/badge/platforms-Windows%20%C2%B7%20macOS%20%C2%B7%20Linux-64748b" alt="Windows, macOS, Linux">
   <img src="https://img.shields.io/badge/runs-on%20your%20machine-22c55e" alt="Runs on your machine">
   <a href="https://openalex.org"><img src="https://img.shields.io/badge/data-OpenAlex-f97316" alt="Data: OpenAlex"></a>
+</p>
+
+<p align="center">
+  <a href="https://codevector-2003.github.io/filiation/"><strong>Website</strong></a> ·
+  <a href="https://codevector-2003.github.io/filiation/docs/"><strong>Documentation</strong></a> ·
+  <a href="https://github.com/codevector-2003/filiation/releases/latest"><strong>Download</strong></a>
 </p>
 
 <p align="center">

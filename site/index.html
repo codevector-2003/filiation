@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Filiation: your research library, built from citations</title>
+<meta name="description" content="Give Filiation one paper. It follows the references, keeps the open-access PDFs, searches inside them to the page, and lets your AI assistant use all of it. Free, open source, on your own computer.">
+<meta property="og:title" content="Filiation: your research library, built from citations">
+<meta property="og:description" content="Free and open source. Windows, macOS and Linux, a command line, and connectors for your AI assistant.">
+<meta property="og:image" content="https://codevector-2003.github.io/filiation/assets/img/hero-whole.png">
+<meta name="theme-color" content="#1F5F8B">
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/site.css">
+<link rel="stylesheet" href="assets/home.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to the content</a>
+
+<header class="top">
+<div class="wrap">
+<a class="brand" href="./"><img src="assets/icon.svg" alt="" width="28" height="28">Filiation</a>
+<nav class="topnav" id="topnav" aria-label="Sections">
+<a href="#zotero">Zotero</a>
+<a href="#search">Search</a>
+<a href="#assistant">AI assistants</a>
+<a href="#compare">Compare</a>
+<a href="docs/">Docs</a>
+</nav>
+<span class="spacer"></span>
+<a class="star" href="https://github.com/codevector-2003/filiation" aria-label="Star Filiation on GitHub">
+<span><svg class="gh" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.2l2.1 4.3 4.7.7-3.4 3.3.8 4.7L8 12l-4.2 2.2.8-4.7L1.2 6.2l4.7-.7z" fill="#E3B341"/></svg>Star</span><span class="count" data-stars></span>
+</a>
+<a class="btn primary small dl" href="#start">Download</a>
+<button class="menu-btn" type="button" aria-label="Menu" aria-expanded="false" aria-controls="topnav"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 4.5h14M2 9h14M2 13.5h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+</div>
+</header>
+
+<main id="main">
+
+<!-- 1. Hero -->
+<section class="hero">
+<div class="wrap grid2">
+<div class="stack-22">
+<span class="eyebrow">FREE · OPEN SOURCE · ON YOUR COMPUTER</span>
+<h1 class="serif">Your research library, built from citations.</h1>
+<p class="lead">Give it one paper. Filiation follows the references, keeps the open-access PDFs, searches inside them to the page, and lets your AI assistant use all of it. Simple to use, and it never leaves your computer.</p>
+<div class="row">
+<a class="btn primary" id="hero-download" href="#start" data-download="app">Download for Windows</a>
+<a class="btn" href="#start">macOS, Linux and the command line</a>
+</div>
+<div class="stack-10 platforms">
+<span class="label">RUNS ON</span>
+<div class="row"><span class="tile plain">Windows</span><span class="tile plain">macOS</span><span class="tile plain">Linux</span></div>
+<span class="label">WORKS WITH</span>
+<div class="row">
+<span class="tile"><span class="mono"><img src="assets/logos/claude.svg" alt=""></span>Claude</span>
+<span class="tile"><span class="mono"><img src="assets/logos/copilot.svg" alt=""></span>GitHub Copilot</span>
+<span class="tile"><span class="mono"><img src="assets/logos/cursor.svg" alt=""></span>Cursor</span>
+<span class="tile"><span class="mono"><img src="assets/logos/gemini.svg" alt=""></span>Gemini CLI</span>
+<span class="tile"><span class="mono"><img src="assets/logos/zotero.svg" alt=""></span>Zotero</span>
+</div>
+</div>
+</div>
+<figure class="card shot-card">
+<img id="hero-shot" src="assets/img/hero-around.png" alt="One paper and the papers it cites, in the citation map" width="1250" height="1000">
+<figcaption>
+<button class="btn primary small" id="hero-toggle" type="button">See the whole library</button>
+<span id="hero-note">One paper and what it cites. Solid boxes have their PDF in your library.</span>
+</figcaption>
+</figure>
+</div>
+</section>
+
+<!-- 2. Simple from the first minute -->
+<section class="sec alt">
+<div class="wrap stack-28">
+<div><span class="eyebrow">SIMPLE FROM THE FIRST MINUTE</span><h2 class="h2 serif">Install it, give it a paper, search.</h2><p class="lead">No account, no server, no settings files. One window that shows your papers, and one box to search them.</p></div>
+<div class="row" role="tablist" aria-label="Getting started" data-tabs="simple">
+<button class="chip" role="tab" aria-selected="true" data-tab="0">1. Install</button>
+<button class="chip" role="tab" aria-selected="false" data-tab="1">2. Add a paper</button>
+<button class="chip" role="tab" aria-selected="false" data-tab="2">3. See the map</button>
+<button class="chip" role="tab" aria-selected="false" data-tab="3">4. Search</button>
+</div>
+<div class="grid-2-1" role="tabpanel">
+<img class="shot" id="simple-shot" src="assets/img/papers.png" alt="The Papers list" loading="lazy" width="2160" height="1350">
+<div class="stack-10"><h3 class="h3 serif" id="simple-title">Install</h3><p class="p" id="simple-text">One installer for Windows, no admin rights. Filiation asks where your library should live, and that is all the setup there is.</p></div>
+</div>
+</div>
+</section>
+
+<!-- 3. Zotero -->
+<section class="sec" id="zotero">
+<div class="wrap grid2">
+<div class="stack-16">
+<span class="eyebrow">ALREADY USE ZOTERO?</span>
+<h2 class="h2 serif">Keep Zotero. Let Filiation grow it.</h2>
+<p class="lead">Filiation reads your Zotero library, read-only. Then it follows your papers' references, finds the papers your library keeps citing that you don't have yet, and keeps their open-access PDFs, searchable to the page.</p>
+<div class="row"><button class="btn primary" type="button" data-zotero-toggle>Bring in my Zotero library</button></div>
+</div>
+<div class="zstage" data-zotero="out">
+<div class="zwin z">
+<div class="zbar"><span class="zdot"></span><span class="zdot"></span><span class="zdot"></span><img src="assets/logos/zotero.svg" alt="" width="13" height="13" class="zlogo">Zotero · My Library<span class="spacer"></span><span class="zcount">5 items</span></div>
+<div class="zrow zhead"><span>Title</span><span>Creator</span><span>Year</span></div>
+<div class="zrow on"><span class="zt">Attention Is All You Need</span><span class="zm">Vaswani et al.</span><span class="zm">2017</span></div>
+<div class="zrow"><span class="zt">Sequence to Sequence Learning with Neural Networks</span><span class="zm">Sutskever et al.</span><span class="zm">2014</span></div>
+<div class="zrow"><span class="zt">Long Short-Term Memory</span><span class="zm">Hochreiter</span><span class="zm">1997</span></div>
+<div class="zrow"><span class="zt">Neural Machine Translation by Jointly Learning to Align and Translate</span><span class="zm">Bahdanau et al.</span><span class="zm">2014</span></div>
+<div class="zrow"><span class="zt">Deep Residual Learning for Image Recognition</span><span class="zm">He et al.</span><span class="zm">2016</span></div>
+</div>
+<svg class="zarrow" viewBox="0 0 120 90" aria-hidden="true"><path class="zpath" d="M8 8 C 70 8, 100 30, 104 78"/><path d="M96 70 L104 80 L111 69" class="zhead-arrow"/></svg>
+<div class="zwin f">
+<div class="zbar"><img src="assets/icon.svg" alt="" width="15" height="15">Filiation · My Library<span class="spacer"></span><span class="zcount" data-zcount>empty</span></div>
+<div class="zempty">
+<img src="assets/img/hero-around.png" alt="" loading="lazy">
+<div><span>Your Zotero papers, and everything they cite, will grow here.</span><button class="btn primary small" type="button" data-zotero-toggle>Bring them in</button></div>
+</div>
+<div class="zfull">
+<img src="assets/img/hero-whole.png" alt="The citation map grown from the Zotero papers" loading="lazy">
+<div class="zstats">
+<div class="zstat"><b>5</b><span>your Zotero papers, with their PDFs</span></div>
+<div class="zstat"><b>412</b><span>papers around them, found from citations</span></div>
+<div class="zstat amber"><b>12</b><span>cited most by your library, not in Zotero yet</span></div>
+<div class="zstat green"><b>38</b><span>open-access PDFs, searchable to the page</span></div>
+</div>
+<span class="zexample">Example figures</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+
+<!-- 4. How it works -->
+<section class="sec alt">
+<div class="wrap stack-28">
+<div><span class="eyebrow">HOW IT WORKS</span><h2 class="h2 serif">One paper in, a library out.</h2></div>
+<div class="steps" role="tablist" aria-label="Steps">
+<button class="step" role="tab" aria-selected="true" data-step="fil add 10.7717/peerj.4375"><span class="no">STEP 1</span><b>Add one paper</b><span>By DOI, arXiv ID, link or title.</span></button>
+<button class="step" role="tab" aria-selected="false" data-step="fil expand"><span class="no">STEP 2</span><b>Follow its references</b><span>Most-cited first, under a budget you set.</span></button>
+<button class="step" role="tab" aria-selected="false" data-step="fil fetch"><span class="no">STEP 3</span><b>Keep the PDFs</b><span>Legal open-access copies only, read and indexed.</span></button>
+<button class="step" role="tab" aria-selected="false" data-step='fil search "attention alignment translation"'><span class="no">STEP 4</span><b>Search</b><span>A few keywords; the passage and its page.</span></button>
+</div>
+<div class="code"><code id="step-cmd">fil add 10.7717/peerj.4375</code><button class="copy" type="button">Copy</button></div>
+</div>
+</section>
+
+<!-- 5. Try the search -->
+<section class="sec" id="search">
+<div class="wrap stack-22">
+<div><span class="eyebrow">TRY THE SEARCH</span><h2 class="h2 serif">Type a few words. Get the page.</h2><p class="lead">Search by keywords across every PDF you have. Filiation ranks whole papers by their best passages, their titles and abstracts, and shows each passage with its page. This sample searches a real library of open-access papers.</p></div>
+<div class="row" role="tablist" aria-label="Sample searches" id="queries"></div>
+<div class="card results">
+<div class="qbar"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="7" cy="7" r="4.8"/><path d="M10.6 10.6L14 14"/></svg><span id="query-text"></span></div>
+<div id="answers" aria-live="polite"></div>
+</div>
+</div>
+</section>
+
+<!-- 6. Ask your AI assistant -->
+<section class="sec night" id="assistant">
+<div class="wrap grid2">
+<div class="stack-16">
+<span class="eyebrow">CONNECTORS (MCP)</span>
+<h2 class="h2 serif">Ask the assistant you already use.</h2>
+<p class="lead">Connected over MCP, your assistant searches your library, reads the passages and answers with the page each came from, so you can check every claim. It runs Filiation only while it needs it, on your computer.</p>
+<div class="row" role="tablist" aria-label="Assistants" id="assistants"></div>
+<div class="code"><code id="assistant-setup">claude mcp add filiation -- fil mcp</code><button class="copy" type="button">Copy</button></div>
+</div>
+<div class="chat">
+<div class="you">Why did attention help neural machine translation? Cite the pages.</div>
+<div class="call"><span class="mono"><img id="assistant-logo" src="assets/logos/claude.svg" alt=""></span><span><span id="assistant-name">Claude</span> called search_library("attention alignment translation")</span></div>
+<div class="bot">A fixed-length vector was the bottleneck: the encoder had to squeeze a whole sentence into one. Bahdanau, Cho and Bengio let the model "(soft-)search for parts of a source sentence that are relevant to predicting a target word" <span class="pg">(p. 1)</span>, which copes better with long sentences <span class="pg">(p. 2)</span>.</div>
+</div>
+</div>
+</section>
+
+<!-- 7. The desktop app -->
+<section class="sec">
+<div class="wrap stack-22">
+<div><span class="eyebrow">THE DESKTOP APP</span><h2 class="h2 serif">Everything in one calm window.</h2></div>
+<div class="row" role="tablist" aria-label="Screens" data-tabs="app">
+<button class="chip" role="tab" aria-selected="true" data-tab="0">Papers</button>
+<button class="chip" role="tab" aria-selected="false" data-tab="1">Search</button>
+<button class="chip" role="tab" aria-selected="false" data-tab="2">Citation map</button>
+<button class="chip" role="tab" aria-selected="false" data-tab="3">Reader</button>
+<button class="chip" role="tab" aria-selected="false" data-tab="4">Groups</button>
+</div>
+<img class="shot" id="app-shot" src="assets/img/papers.png" alt="Papers" loading="lazy" width="2160" height="1350">
+<p class="caption" id="app-caption">Your library, one paper per row, with its PDF, labels and the paper open beside it.</p>
+</div>
+</section>
+
+<!-- 8. How it fits -->
+<section class="sec alt" id="compare">
+<div class="wrap stack-22">
+<div><span class="eyebrow">HOW IT FITS</span><h2 class="h2 serif">Keep the tools you like. Add what they don't do.</h2><p class="lead">What do you use today? Pick one or more.</p></div>
+<div class="row" id="tools"></div>
+<div class="grid2 stretch">
+<div class="card keep"><b>Keep using them for</b><ul id="keep"></ul></div>
+<div class="card adds"><b>Filiation adds</b><ul id="adds"></ul></div>
+</div>
+<div class="table-scroll">
+<table class="compare">
+<caption>Typical of each kind of tool, as of November 2026. Individual products differ.</caption>
+<thead><tr><th scope="col"><span class="sr">Feature</span></th><th scope="col" class="us">Filiation</th><th scope="col">Reference managers</th><th scope="col">Citation-map websites</th><th scope="col">AI research assistants</th></tr></thead>
+<tbody>
+<tr><th scope="row">Where your library lives</th><td class="us">Your computer</td><td>Your computer, with optional sync</td><td>Their servers</td><td>Their servers</td></tr>
+<tr><th scope="row">Account needed</th><td class="us">No</td><td>Only to sync</td><td>Usually</td><td>Yes</td></tr>
+<tr><th scope="row">Follows citations to find papers</th><td class="us">Yes</td><td>No</td><td>Yes</td><td>Partly</td></tr>
+<tr><th scope="row">Keeps the PDFs</th><td class="us">Open-access ones, and yours</td><td>Yes</td><td>No</td><td>No</td></tr>
+<tr><th scope="row">Searches inside your PDFs</th><td class="us">Yes, to the page</td><td>Yes</td><td>No</td><td>Their own index</td></tr>
+<tr><th scope="row">Works with your AI assistant (MCP)</th><td class="us">Yes</td><td>Through add-ons</td><td>No</td><td>They are the assistant</td></tr>
+<tr><th scope="row">Formats citations for writing</th><td class="us">No</td><td>Yes</td><td>No</td><td>Sometimes</td></tr>
+<tr><th scope="row">Free and open source</th><td class="us">Yes</td><td>Some</td><td>Rarely</td><td>Rarely</td></tr>
+</tbody>
+</table>
+</div>
+<p class="fine">Reference managers such as Zotero and Mendeley; citation-map websites such as Connected Papers, ResearchRabbit and Litmaps; AI research assistants such as Elicit and Consensus. Names belong to their owners; no endorsement is implied.</p>
+</div>
+</section>
+
+<!-- 9. Where ideas came from -->
+<section class="sec">
+<div class="wrap grid2">
+<div class="stack-16">
+<span class="eyebrow">WHERE IDEAS CAME FROM</span>
+<h2 class="h2 serif">Filiation: which text was copied from which.</h2>
+<p class="lead">Textual critics draw a stemma to show which manuscript descends from which. Filiation does the same for papers: pick two and it finds the chain of citations between them.</p>
+<div class="row" role="tablist" aria-label="Pairs of papers" id="pairs"></div>
+<p class="p" id="path-text" aria-live="polite"></p>
+</div>
+<div class="card stemma-card">
+<svg id="stemma" viewBox="0 0 520 400" role="img" aria-label="A stemma of papers with one line of descent highlighted"></svg>
+<p class="fine stemma-note">An illustration: each line is a real citation.</p>
+</div>
+</div>
+</section>
+
+<!-- 10. Why you can trust it -->
+<section class="sec alt">
+<div class="wrap stack-28">
+<div><span class="eyebrow">WHY YOU CAN TRUST IT</span><h2 class="h2 serif">Honest about your data, and about the data.</h2></div>
+<div class="grid3">
+<div class="card"><b class="ct">Yours, on your computer</b><p class="p">Your library is a folder you choose, with readable PDF folders inside. No account, and it exports to Gephi and NetworkX.</p></div>
+<div class="card"><b class="ct">Open access only</b><p class="p">Only legal open-access copies, never from behind a paywall or through anyone's login. Add the PDFs you have for the rest.</p></div>
+<div class="card"><b class="ct">No model guessing</b><p class="p">Citations come from OpenAlex's reference lists, not from a model reading papers. Search ranking is measured on a fixed test set.</p></div>
+</div>
+</div>
+</section>
+
+<!-- 11. Get started -->
+<section class="sec" id="start">
+<div class="wrap stack-28">
+<div><span class="eyebrow">GET STARTED</span><h2 class="h2 serif">Use it your way.</h2></div>
+<div class="grid3 stretch">
+<div class="card start">
+<b class="ct big">The app</b>
+<span class="p">For everyone. Your papers, search, the map and the Reader in one window.</span>
+<div class="row"><span class="tile plain">Windows installer</span></div>
+<span class="fine">macOS and Linux: installers are coming; the app builds from source today.</span>
+<a class="btn primary push" href="https://github.com/codevector-2003/filiation/releases/latest" data-download="app" data-os="windows">Download for Windows</a>
+</div>
+<div class="card start">
+<b class="ct big">The command line</b>
+<span class="p">One file, nothing to install. For scripts, servers and terminals.</span>
+<div class="row" role="tablist" aria-label="System" id="os-tabs">
+<button class="chip" role="tab" aria-selected="true" data-os="windows">Windows</button>
+<button class="chip" role="tab" aria-selected="false" data-os="macos">macOS</button>
+<button class="chip" role="tab" aria-selected="false" data-os="linux">Linux</button>
+</div>
+<div class="code"><code id="os-cmd"></code><button class="copy" type="button">Copy</button></div>
+<a class="btn push" id="os-download" href="https://github.com/codevector-2003/filiation/releases/latest" data-download="cli" data-os="windows">Download fil</a>
+</div>
+<div class="card start">
+<b class="ct big">Connectors (MCP)</b>
+<span class="p">Let your AI assistant use your library. One line, or one click in the app.</span>
+<div class="row">
+<span class="mono" title="Claude"><img src="assets/logos/claude.svg" alt="Claude"></span>
+<span class="mono" title="GitHub Copilot"><img src="assets/logos/copilot.svg" alt="GitHub Copilot"></span>
+<span class="mono" title="Cursor"><img src="assets/logos/cursor.svg" alt="Cursor"></span>
+<span class="mono" title="Gemini CLI"><img src="assets/logos/gemini.svg" alt="Gemini CLI"></span>
+</div>
+<div class="code"><code>claude mcp add filiation -- fil mcp</code><button class="copy" type="button">Copy</button></div>
+<a class="btn push" href="docs/#mcp">Set-up for every assistant</a>
+</div>
+</div>
+</div>
+</section>
+</main>
+
+<footer class="foot">
+<div class="wrap">
+<span style="font-weight: 700; color: #FFFFFF">Filiation</span>
+<a href="https://github.com/codevector-2003/filiation">GitHub</a>
+<a href="docs/">Documentation</a>
+<a href="https://github.com/codevector-2003/filiation/releases">Releases</a>
+<a href="https://github.com/codevector-2003/filiation/blob/main/CONTRIBUTING.md">Contributing</a>
+<span class="spacer"></span>
+<span style="font-size: 13px">Apache-2.0 · Reference data from OpenAlex</span>
+<small>Claude, GitHub Copilot, Cursor, Gemini, Zotero, Windows, macOS and other names are trademarks of their owners, used here only to say what Filiation works with. Zotero is a registered trademark of the Corporation for Digital Scholarship. No endorsement is implied.</small>
+</div>
+</footer>
+
+<script src="assets/site.js"></script>
+<script src="assets/home.js"></script>
+</body>
+</html>
