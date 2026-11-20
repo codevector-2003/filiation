@@ -90,8 +90,17 @@ func (tx *Tx) RecordEdgesAndStubs(ctx context.Context, h *model.HydratedWork) (R
 		childDepth = model.Ptr(*depth + 1)
 	}
 
+	// A reference the person deleted is not brought back as a stub, nor its
+	// citation recorded (D36).
+	gone, err := deletedAmong(ctx, tx.tx, h.ReferencedWorks)
+	if err != nil {
+		return rec, fmt.Errorf("store: record edges for %s: %w", h.OpenAlexID, err)
+	}
 	seen := make(map[string]struct{}, len(h.ReferencedWorks))
 	for _, ref := range h.ReferencedWorks {
+		if gone[ref] {
+			continue
+		}
 		if ref == h.OpenAlexID {
 			// A self-citation is an indexing artefact, and the edge would be a
 			// self-loop that every traversal then has to special-case.

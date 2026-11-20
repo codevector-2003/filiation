@@ -15,11 +15,14 @@
     <div class="tb-menus" id="tb-menus" role="menubar" aria-label="Menu"></div>
   </div>
   <div class="tb-centre">
-    <button type="button" class="tb-lib" id="tb-lib" aria-haspopup="menu" aria-expanded="false" title="Switch library">
-      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4.5h4l1.5 1.5H14v7H2z"/></svg>
-      <b id="lib-name">My Library</b><span class="tb-lib-count" id="lib-count"></span>
-      <svg class="tb-chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"/></svg>
-    </button>
+    <!-- Search, as VS Code's title bar has it: typing filters the Papers list
+         and offers papers to go to; the library is named in the box. -->
+    <div class="tb-search" id="tb-search">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+      <label class="hidden-label" for="filter">Search the library</label>
+      <input id="filter" type="search" placeholder="Search" autocomplete="off" spellcheck="false" aria-controls="tb-find" aria-expanded="false">
+      <span class="tb-search-key" id="tb-search-key">Ctrl+F</span>
+    </div>
   </div>
   <div class="tb-right">
     <div class="tb-job" id="job" hidden>
@@ -28,6 +31,7 @@
       <span class="tb-job-count" id="job-count"></span>
       <span class="tb-job-note" id="job-note"></span>
       <button type="button" class="link" id="job-stop">Stop</button>
+      <button type="button" class="tb-job-x" id="job-dismiss" aria-label="Dismiss" title="Dismiss" hidden><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1 1l8 8M9 1L1 9"/></svg></button>
     </div>
     <div class="tb-ctl" id="tb-ctl" hidden>
       <button type="button" class="tb-btn" id="tb-min" aria-label="Minimise" title="Minimise"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M0 5.5h10"/></svg></button>
@@ -38,6 +42,7 @@
 </header>
 <div class="tb-panel" id="tb-panel" role="menu" hidden></div>
 <div class="tb-panel tb-sub" id="tb-sub" role="menu" hidden></div>
+<div class="tb-panel tb-find" id="tb-find" hidden></div>
 <div class="app">
   <nav class="side" aria-label="Main">
     <button class="nav on" type="button" data-screen="papers">
@@ -108,17 +113,12 @@
         <button type="button" class="btn on-accent" id="sel-label">Label</button>
         <button type="button" class="link on-accent" id="sel-clear">Clear</button>
       </div>
-      <div class="toolbar">
-        <label class="hidden-label" for="filter">Filter papers by title</label>
-        <input id="filter" type="search" placeholder="Filter by title" autocomplete="off">
-        <button type="button" class="btn" id="fetch-pdfs">Fetch PDFs</button>
-        <button type="button" class="btn primary" id="add-paper">Add paper</button>
-      </div>
       <div class="tabs" role="group" aria-label="Show">
         <button type="button" class="tab on" data-show="all" aria-pressed="true">All</button>
         <button type="button" class="tab" data-show="seeds" aria-pressed="false">Added by you</button>
         <button type="button" class="tab" data-show="pdf" aria-pressed="false">With PDF</button>
         <button type="button" class="tab" data-show="notext" aria-pressed="false">No text</button>
+        <span class="list-count" id="list-count" aria-live="polite"></span>
         <div class="grow-h"></div>
         <label class="hidden-label" for="sort">Sort papers</label>
         <select id="sort">
@@ -131,6 +131,7 @@
           <option value="added">Recently added</option>
         </select>
         <button type="button" class="btn small" id="filters-toggle" aria-expanded="false" aria-controls="filters">Filters</button>
+        <button type="button" class="btn small primary" id="add-paper">Add paper</button>
       </div>
       <div class="filters" id="filters" hidden>
         <fieldset class="facet facet-years">
@@ -158,7 +159,6 @@
         </fieldset>
       </div>
       <div class="list-state">
-        <span id="list-count" aria-live="polite"></span>
         <div class="active-filters" id="active-filters"></div>
       </div>
       <div class="rows" id="rows" aria-label="Papers"></div>

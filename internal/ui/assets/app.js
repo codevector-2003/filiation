@@ -62,8 +62,10 @@ function show(name, arg) {
 async function loadLibrary() {
   const lib = await api('/api/library');
   state.lib = lib;
-  $('lib-name').textContent = lib.ready ? lib.name : 'No library open';
-  $('tb-lib').title = lib.folder ? lib.folder + '. Switch library' : 'Switch library';
+  // The title bar's search box names the library, as VS Code's names the
+  // folder open; libraries are switched from the File menu.
+  $('filter').placeholder = lib.ready ? 'Search ' + lib.name : 'No library open';
+  $('tb-search').title = lib.folder ? lib.name + ' · ' + lib.folder : '';
   if (!lib.ready) {
     showStart(lib);
     return false;
@@ -80,7 +82,6 @@ async function loadLibrary() {
 
 function showCount(works) {
   $('count-papers').textContent = works.toLocaleString();
-  $('lib-count').textContent = works === 1 ? '1 paper' : works.toLocaleString() + ' papers';
 }
 
 // unfiltered: the list is showing the whole library, so its total is the
@@ -276,6 +277,7 @@ function renderFilters(res) {
     return b;
   };
   const chips = [];
+  if (state.title) chips.push(chip('Titles with “' + state.title + '”', clearTitleFilter));
   if (state.group) chips.push(chip('Group: ' + state.group.name, () => choosePlace(0, false)));
   if (state.collection) chips.push(chip(pathOf(state.collection), () => choosePlace(0, false)));
   if (state.favourites) chips.push(chip('Favourites', () => choosePlace(0, false)));
@@ -293,6 +295,8 @@ function renderFilters(res) {
   state.venues.forEach((v) => chips.push(chip(v, () => changeFilter(() => { state.venues = state.venues.filter((o) => o !== v); }))));
   if (chips.length > 1) {
     chips.push(button('Clear all', 'link', () => {
+      $('filter').value = '';
+      state.title = '';
       state.collection = 0;
       state.favourites = false;
       state.group = null;
@@ -353,14 +357,14 @@ function rowFor(p) {
     e.stopPropagation();
     togglePick(p.id);
   });
+  // One line per paper: its title, its tags, then who and when at the right,
+  // so a screen shows two or three times as many papers.
   const main = el('button', 'row-main');
   main.type = 'button';
-  const head = el('div', 'row-title');
-  head.append(el('span', 'title-text', p.title));
-  const meta = el('div', 'row-meta');
-  if (p.by) meta.append(el('span', '', p.by));
+  main.title = p.title + (p.by ? ' · ' + p.by : '');
+  const meta = el('span', 'row-meta');
   meta.append(...chips(p));
-  main.append(head, meta);
+  main.append(el('span', 'title-text', p.title), meta, el('span', 'row-by', p.by || ''));
   main.addEventListener('click', (e) => clickRow(p.id, e));
   row.append(box, starButton(p), main);
   row.addEventListener('contextmenu', (e) => {
@@ -515,7 +519,7 @@ function renderPaper(p) {
 }
 
 // Long work runs one job at a time; the sidebar shows it on every screen.
-const job = { timer: 0, hide: 0, run: 0, listeners: [], ticks: [], last: null };
+const job = { timer: 0, hide: 0, run: 0, dismissed: 0, listeners: [], ticks: [], last: null };
 
 async function pollJob() {
   let j;
@@ -541,7 +545,8 @@ function renderJob(j) {
   job.ticks.forEach((f) => f(j));
   const box = $('job');
   clearTimeout(job.hide);
-  if (!j.running && !j.summary && !j.error) {
+  // A finished job the person dismissed stays dismissed when asked about again.
+  if (!j.running && (!j.summary && !j.error || j.run === job.dismissed)) {
     box.hidden = true;
     return;
   }
@@ -556,7 +561,7 @@ function renderJob(j) {
   $('job-note').textContent = j.error || (j.running ? j.note : j.summary) || '';
   $('job-note').classList.toggle('error', !!j.error);
   $('job-stop').hidden = !j.running;
-  document.querySelectorAll('#fetch-pdfs').forEach((b) => { b.disabled = j.running; });
+  $('job-dismiss').hidden = j.running;
 }
 
 async function startJob(path, body) {
@@ -569,9 +574,19 @@ $('filter').addEventListener('input', (e) => {
   clearTimeout(filterTimer);
   filterTimer = setTimeout(() => {
     state.title = e.target.value.trim();
-    loadPapers();
+    // The box is in the title bar, so it is there on every screen; what it
+    // filters is the Papers list.
+    if (state.title && document.querySelector('#screen-papers').hidden && state.lib && state.lib.ready) show('papers');
+    else loadPapers();
   }, 150);
 });
+
+function clearTitleFilter() {
+  clearTimeout(filterTimer);
+  $('filter').value = '';
+  state.title = '';
+  loadPapers();
+}
 
 document.querySelectorAll('.tab[data-show]').forEach((t) => {
   t.addEventListener('click', () => {
@@ -638,6 +653,9 @@ $('rows').addEventListener('keydown', (e) => {
     pickAll();
   } else if (e.key === 'Escape' && state.picked.size > 1) {
     select(state.selected);
+  } else if (e.key === 'Delete' && !e.target.closest('input, textarea, select')) {
+    e.preventDefault();
+    deletePapers(pickedIDs());
   } else if (e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey)) {
     const row = e.target.closest('.paper-row');
     if (!row) return;
@@ -648,9 +666,16 @@ $('rows').addEventListener('keydown', (e) => {
 });
 
 $('job-stop').addEventListener('click', () => api('/api/job/stop', 'POST'));
-$('fetch-pdfs').addEventListener('click', () => {
-  startJob('/api/fetch').catch((e) => renderJob({ error: e.message }));
+$('job-dismiss').addEventListener('click', () => {
+  job.dismissed = job.last ? job.last.run : 0;
+  clearTimeout(job.hide);
+  $('job').hidden = true;
 });
+// fetchPDFs downloads the library's open-access PDFs: Library, Fetch
+// Open-Access PDFs.
+function fetchPDFs() {
+  startJob('/api/fetch').catch((e) => renderJob({ error: e.message }));
+}
 
 screens.papers = () => { loadPapers(); };
 

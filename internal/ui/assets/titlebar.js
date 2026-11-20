@@ -128,6 +128,7 @@ function enabled(id) {
     case 'paper.around': return !!p && !p.local && !running();
     case 'paper.attach': return !!p && !p.pdf && !p.local;
     case 'paper.folder': return !!p && p.folder;
+    case 'paper.delete': return !!p && !running();
     case 'view.details': return onScreen() === 'papers';
   }
   if (id.startsWith('edit.') || id.startsWith('help.')) return true;
@@ -158,6 +159,7 @@ function itemButton(it, onRun) {
   b.setAttribute('role', 'menuitem');
   b.dataset.id = it.id;
   b.disabled = !enabled(it.id);
+  if (it.id === 'paper.delete') b.classList.add('danger');
   b.append(el('span', 'tb-tick', ticked(it.id) ? '✓' : ''), el('span', '', it.label));
   b.append(el('span', 'tb-keys', it.sub ? '›' : it.shown || keyText(it.keys)));
   b.addEventListener('click', (e) => {
@@ -183,7 +185,10 @@ function openMenu(i, keyboard) {
   bar.open = menu.name;
   [...$('tb-menus').children].forEach((b, j) => b.classList.toggle('on', j === i));
   const panel = $('tb-panel');
-  panel.replaceChildren(...menu.items.map((it) => (it.id ? itemButton(it, run) : el('div', 'tb-sep'))));
+  const libraries = !mac() && menu.items.some((it) => it.id === 'lib.recent');
+  const items = libraries ? menu.items.filter((it) => it.id !== 'lib.recent') : menu.items;
+  panel.replaceChildren(...items.map((it) => (it.id ? itemButton(it, run) : el('div', 'tb-sep'))));
+  if (libraries) addLibraries(panel, menu.name);
   const r = anchor.getBoundingClientRect();
   panel.style.left = r.left + 'px';
   panel.style.top = r.bottom + 2 + 'px';
@@ -200,7 +205,6 @@ function closeMenus() {
   $('tb-panel').hidden = true;
   $('tb-sub').hidden = true;
   $('titlebar').classList.remove('keys');
-  closeSwitcher();
 }
 
 function hotItem(i) {
@@ -264,55 +268,28 @@ function libraryItem(l) {
   return b;
 }
 
-// The library switcher, in the middle of the title bar.
-async function openSwitcher() {
-  closeMenus();
-  const panel = $('tb-panel');
-  const anchor = $('tb-lib');
-  anchor.setAttribute('aria-expanded', 'true');
-  bar.open = 'switcher';
-  const r = anchor.getBoundingClientRect();
-  panel.style.left = Math.max(8, r.left + r.width / 2 - 190) + 'px';
-  panel.style.top = r.bottom + 4 + 'px';
-  panel.style.width = '380px';
-  panel.replaceChildren(el('div', 'tb-head', 'LIBRARIES'));
-  panel.hidden = false;
+// The File menu lists the libraries first, as VS Code's lists recent
+// folders: switching library is opening another project. macOS's own menu
+// bar keeps Open Recent for the same list.
+async function addLibraries(panel, menu) {
+  const head = el('div', 'tb-head', 'SWITCH LIBRARY');
+  const sep = el('div', 'tb-sep');
+  panel.prepend(head, sep);
   let res;
   try {
     res = await api('/api/libraries');
   } catch (e) {
-    panel.append(el('div', 'tb-head', e.message));
+    head.textContent = e.message;
     return;
   }
-  if (bar.open !== 'switcher') return;
-  const action = (label, keys, fn) => {
-    const b = el('button', 'tb-item');
-    b.type = 'button';
-    b.append(el('span', 'tb-tick', ''), el('span', '', label), el('span', 'tb-keys', keyText(keys)));
-    b.addEventListener('click', (e) => {
-      e.stopPropagation();
-      closeMenus();
-      fn();
-    });
-    return b;
-  };
-  panel.replaceChildren(el('div', 'tb-head', 'LIBRARIES'), ...res.libraries.map(libraryItem), el('div', 'tb-sep'),
-    action('New Library…', 'cmdorctrl+shift+n', newLibrary), action('Open Library Folder…', 'cmdorctrl+o', openLibraryFolder));
+  if (bar.open !== menu || !panel.contains(head)) return;
+  if (res.libraries.length === 0) head.after(el('div', 'tb-find-note', 'No libraries listed yet.'));
+  else head.after(...res.libraries.map(libraryItem));
 }
 
-function closeSwitcher() {
-  $('tb-lib').setAttribute('aria-expanded', 'false');
-  $('tb-panel').style.width = '';
-}
-
-$('tb-lib').addEventListener('click', (e) => {
-  e.stopPropagation();
-  if (bar.open === 'switcher') closeMenus();
-  else openSwitcher();
-});
 document.addEventListener('pointerdown', (e) => {
   if (!bar.open) return;
-  if ($('tb-panel').contains(e.target) || $('tb-sub').contains(e.target) || $('tb-menus').contains(e.target) || $('tb-lib').contains(e.target)) return;
+  if ($('tb-panel').contains(e.target) || $('tb-sub').contains(e.target) || $('tb-menus').contains(e.target)) return;
   closeMenus();
 }, true);
 window.addEventListener('blur', closeMenus);
@@ -327,8 +304,9 @@ function modal(title, parts, actions) {
   form.append(el('h2', '', title), ...parts);
   const row = el('div', 'dialog-actions');
   actions.forEach((a) => {
-    const b = el('button', a.primary ? 'btn primary' : 'btn', a.label);
-    b.type = a.primary ? 'submit' : 'button';
+    // A danger button is never the dialog's submit: Enter does not delete.
+    const b = el('button', a.danger ? 'btn danger' : a.primary ? 'btn primary' : 'btn', a.label);
+    b.type = a.primary && !a.danger ? 'submit' : 'button';
     b.addEventListener('click', async (e) => {
       e.preventDefault();
       b.disabled = true;
@@ -470,7 +448,6 @@ function moveLibrary() {
 async function showStart(lib) {
   document.querySelector('.side').hidden = true;
   document.querySelectorAll('.screen').forEach((s) => { s.hidden = s.id !== 'screen-start'; });
-  $('lib-count').textContent = '';
   const problem = $('start-problem');
   problem.hidden = !lib.problem;
   problem.textContent = lib.problem || '';
@@ -914,9 +891,122 @@ $('quick-input').addEventListener('blur', () => setTimeout(() => {
   if (!$('quick').contains(document.activeElement)) closeQuick();
 }, 150));
 
+// The title bar's search box (#filter). Typing filters the Papers list, in
+// app.js, and drops a panel beneath it: the papers whose titles match, to go
+// straight to one, and a search of the PDFs' text for the same words.
+const find = { asked: 0, rows: [], hot: -1, timer: 0 };
+
+function openFind(text) {
+  const panel = $('tb-find');
+  if (!text || !ready()) {
+    closeFind();
+    return;
+  }
+  const r = $('tb-search').getBoundingClientRect();
+  panel.style.left = r.left + 'px';
+  panel.style.top = r.bottom + 4 + 'px';
+  panel.style.width = Math.max(r.width, 420) + 'px';
+  panel.hidden = false;
+  $('filter').setAttribute('aria-expanded', 'true');
+  clearTimeout(find.timer);
+  find.timer = setTimeout(() => fillFind(text), 120);
+}
+
+function closeFind() {
+  $('tb-find').hidden = true;
+  $('filter').setAttribute('aria-expanded', 'false');
+  find.rows = [];
+  find.hot = -1;
+}
+
+async function fillFind(text) {
+  const asked = ++find.asked;
+  let found = [];
+  try {
+    const res = await api('/api/papers?' + new URLSearchParams({ title: text, show: 'all', sort: 'citedworld' }));
+    found = res.papers.slice(0, 6);
+  } catch (e) {
+    found = [];
+  }
+  if (asked !== find.asked || $('tb-find').hidden) return;
+  find.rows = found;
+  find.hot = -1;
+  const parts = [el('div', 'tb-head', 'GO TO A PAPER')];
+  if (found.length === 0) parts.push(el('div', 'tb-find-note', 'No title has those words.'));
+  found.forEach((p, i) => {
+    const b = el('button', 'tb-item two');
+    b.type = 'button';
+    b.dataset.i = i;
+    const two = el('span', 'tb-two');
+    two.append(el('span', 'tb-find-title', p.title), el('span', 'tb-path', p.by || ''));
+    b.append(el('span', 'tb-tick', ''), two);
+    b.addEventListener('pointerdown', (e) => e.preventDefault()); // keep the box focused
+    b.addEventListener('click', () => goFind(i));
+    b.addEventListener('mouseenter', () => hotFind(i));
+    parts.push(b);
+  });
+  const text2 = el('button', 'tb-item');
+  text2.type = 'button';
+  text2.append(el('span', 'tb-tick', ''), el('span', '', 'Search inside the PDFs for “' + text + '”'),
+    el('span', 'tb-keys', keyText('cmdorctrl+shift+f')));
+  text2.addEventListener('pointerdown', (e) => e.preventDefault());
+  text2.addEventListener('click', () => searchText(text));
+  parts.push(el('div', 'tb-sep'), text2, el('div', 'tb-find-note', 'The Papers list shows only these titles while you type. Esc clears it.'));
+  $('tb-find').replaceChildren(...parts);
+}
+
+function hotFind(i) {
+  find.hot = i;
+  $('tb-find').querySelectorAll('[data-i]').forEach((b) => b.classList.toggle('hot', Number(b.dataset.i) === find.hot));
+}
+
+function goFind(i) {
+  const p = find.rows[i];
+  if (!p) return;
+  closeFind();
+  $('filter').blur();
+  openPaper(p.id);
+}
+
+// searchText takes the box's words to the Search screen, which looks in the
+// PDFs' text rather than the titles.
+function searchText(text) {
+  closeFind();
+  clearTitleFilter();
+  $('filter').blur();
+  show('search');
+  $('q').value = text;
+  $('search-form').requestSubmit();
+}
+
+$('filter').addEventListener('input', (e) => openFind(e.target.value.trim()));
+$('filter').addEventListener('focus', (e) => openFind(e.target.value.trim()));
+$('filter').addEventListener('blur', () => setTimeout(() => {
+  if (document.activeElement !== $('filter')) closeFind();
+}, 150));
+$('filter').addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    if ($('filter').value) clearTitleFilter();
+    closeFind();
+    $('filter').blur();
+  } else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && find.rows.length) {
+    e.preventDefault();
+    const n = find.rows.length;
+    hotFind(find.hot < 0 ? (e.key === 'ArrowDown' ? 0 : n - 1) : (find.hot + (e.key === 'ArrowDown' ? 1 : n - 1)) % n);
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (find.hot >= 0) goFind(find.hot);
+    else {
+      closeFind(); // the list below is already filtered
+      $('filter').blur();
+    }
+  }
+});
+
 function paperPicker(kind) {
   const ids = state.picked.size > 1 ? pickedIDs() : [state.selected];
-  const r = $('tb-lib').getBoundingClientRect();
+  const r = $('tb-search').getBoundingClientRect();
   picker({ left: r.left, bottom: r.bottom }, kind, ids);
 }
 
@@ -928,7 +1018,7 @@ async function run(id) {
     switch (id) {
       case 'lib.new': return newLibrary();
       case 'lib.open': return openLibraryFolder();
-      case 'lib.recent': return openSwitcher();
+      case 'lib.recent': return openMenu(bar.menus.findIndex((m) => m.items.some((it) => it.id === 'lib.recent')), true);
       case 'lib.close': return closeLibrary();
       case 'lib.reveal': return await api('/api/library/folder', 'POST');
       case 'lib.scan': return await rescan();
@@ -948,7 +1038,6 @@ async function run(id) {
       case 'paper.cite': return await copy(p.citation || p.title, 'Citation copied');
       case 'paper.copyId': return await copy(p.id, 'Copied ' + p.id);
       case 'find.library':
-        if (onScreen() !== 'papers') show('papers');
         $('filter').focus();
         return $('filter').select();
       case 'find.text':
@@ -972,7 +1061,7 @@ async function run(id) {
       case 'view.zoomReset': return zoomTo(1);
       case 'view.fullscreen': return await fullScreen();
       case 'graph.expand': return await expandGraph();
-      case 'pdfs.fetch': return $('fetch-pdfs').click();
+      case 'pdfs.fetch': return fetchPDFs();
       case 'job.stop': return await api('/api/job/stop', 'POST');
       case 'collection.new':
         if (document.querySelector('.side').classList.contains('closed')) togglePane('.side', 'side');
@@ -996,6 +1085,7 @@ async function run(id) {
       case 'paper.collect': return paperPicker('collection');
       case 'paper.label': return paperPicker('label');
       case 'paper.folder': return await api('/api/papers/' + encodeURIComponent(p.id) + '/folder', 'POST');
+      case 'paper.delete': return deletePapers(state.picked.size > 1 ? pickedIDs() : [p.id]);
       case 'help.docs': return openOutside(DOCS);
       case 'help.keys': return shortcuts();
       case 'help.assistant': return show('assistants');
@@ -1103,6 +1193,7 @@ async function windowButtons() {
 async function startTitleBar() {
   bar.platform = await platform();
   document.body.dataset.platform = bar.platform;
+  $('tb-search-key').textContent = keyText('cmdorctrl+f');
   if (pref('side')) document.querySelector('.side').classList.add('closed');
   if (pref('detail')) $('detail').classList.add('closed');
   if (pref('zoom')) document.documentElement.style.zoom = pref('zoom');

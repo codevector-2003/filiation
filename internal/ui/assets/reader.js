@@ -61,11 +61,19 @@ function wholeWords(words) {
 }
 
 // matchWords lights up each matching word on the page.
+//
+// Each box is placed as a share of the page, as a note's boxes are. The word's
+// position is measured on screen, and with the window zoomed (View, Zoom In,
+// which sets CSS zoom on the page) screen pixels are zoomed pixels; a box
+// placed in plain pixels inside the zoomed page was zoomed a second time, so
+// every highlight drifted from its word, further the further from the corner.
 function matchWords(text, marks, words) {
   const wanted = [...new Set(words.map((w) => w.toLowerCase()).filter(Boolean))];
   if (wanted.length === 0) return [];
   const re = wholeWords(wanted);
   const base = marks.getBoundingClientRect();
+  if (base.width === 0 || base.height === 0) return [];
+  const share = (v, of) => (100 * v) / of + '%';
   const found = [];
   const walk = document.createTreeWalker(text, NodeFilter.SHOW_TEXT);
   for (let node = walk.nextNode(); node; node = walk.nextNode()) {
@@ -75,10 +83,10 @@ function matchWords(text, marks, words) {
       range.setEnd(node, m.index + m[0].length);
       for (const r of range.getClientRects()) {
         const b = el('div', 'hit');
-        b.style.left = r.left - base.left + 'px';
-        b.style.top = r.top - base.top + 'px';
-        b.style.width = r.width + 'px';
-        b.style.height = r.height + 'px';
+        b.style.left = share(r.left - base.left, base.width);
+        b.style.top = share(r.top - base.top, base.height);
+        b.style.width = share(r.width, base.width);
+        b.style.height = share(r.height, base.height);
         marks.append(b);
         found.push(b);
       }

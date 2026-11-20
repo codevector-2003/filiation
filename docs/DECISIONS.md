@@ -910,3 +910,28 @@ argument. They still show why a paper is cited (`neighbours`, the Reader), where
 The gain on the locked set is in rank more than in count: the paper that answers moves up, though
 the number in the first three stays 15. That is the honest figure, and the eval is there for the
 next attempt.
+
+## D36 — Deleting a paper: to the bin, remembered, and its orphans with it
+
+Decided 19 Nov 2026, by the maintainer. A paper can be deleted from the right-click menu, the Paper
+menu, or the Delete key on the Papers list, one or several at once. A dialog first says what goes,
+and its red button is never the default, so Enter does not delete.
+
+- **Its folder goes to the system's bin**, the Recycle Bin or the Trash, where it can be restored,
+  never deleted outright. Windows' Recycle Bin is reached through shell32's `SHFileOperationW` at
+  run time, which needs no cgo (hard rule 4); macOS renames into `~/.Trash`, or asks Finder for
+  another disk; Linux uses `gio trash`, or writes the freedesktop.org trash layout itself.
+- **The library changes first, in one transaction, and only then are folders moved.** A folder
+  that cannot be moved is reported and left in `papers/`; the library is never half-deleted. Only
+  a paper's own folder, strictly inside `papers/`, is ever handed to the bin.
+- **Everything tied to the paper goes with it** by the schema's cascades: its citations, notes,
+  labels, places in collections, favourite, files and folders as the library records them.
+- **References only it cited go too**: never fetched, not the person's, holding nothing of
+  theirs, and cited by nothing else left. They exist only because the deleted paper cited them.
+- **It is remembered** (schema v16, `deleted_work`, by OpenAlex ID), so following references and
+  bringing in what cites a paper skip it rather than quietly bring it back. Triggers clear the
+  memory when a work with that OpenAlex ID is added by any route a person takes (Add paper,
+  import, Zotero, matching a document), since the automatic routes check the table first.
+- **Not while a job runs**: an expansion could re-add a paper mid-delete. The delete holds the
+  same lock that starts jobs.
+- AI assistants get no delete tool. Deleting is something the person does in the app.
