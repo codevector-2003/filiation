@@ -2,10 +2,17 @@
 # stays cgo-free; this is the one place that needs a C toolchain.
 name: desktop
 
+# A change only to the website (site/) does not start it.
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "site/**"
+      - ".github/workflows/pages.yml"
   pull_request:
+    paths-ignore:
+      - "site/**"
+      - ".github/workflows/pages.yml"
 
 permissions:
   contents: read
