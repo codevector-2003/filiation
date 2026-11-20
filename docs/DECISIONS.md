@@ -935,3 +935,31 @@ and its red button is never the default, so Enter does not delete.
 - **Not while a job runs**: an expansion could re-add a paper mid-delete. The delete holds the
   same lock that starts jobs.
 - AI assistants get no delete tool. Deleting is something the person does in the app.
+
+## D37 — The Windows installer: per user, Inno Setup, unsigned for now
+
+Decided 20 Nov 2026, by the maintainer. The desktop app had no installer; it was copied into place
+by hand. Each release now carries `Filiation-Setup-<version>-windows-amd64.exe`, built by
+`desktop/installer/build.ps1` with [Inno Setup](https://jrsoftware.org/isinfo.php) 6 from
+`desktop/installer/filiation.iss`, in the release workflow and, kept as a download, on every pull
+request's desktop build.
+
+- **Per user, no administrator rights.** It installs to `%LOCALAPPDATA%\Programs\Filiation`, where
+  the app already lived, so AI assistants connected to `fil` keep the same path to it across
+  upgrades. Researchers on managed university laptops can install it.
+- **The app and `fil` together**, with a Start menu entry, an optional desktop shortcut, and `fil`
+  added to the user's PATH (recommended, on by default), for terminals and assistants. The system
+  PATH is never touched.
+- **Upgrades in place.** The same AppId lets a newer installer replace the old version. When
+  Filiation, or an assistant's `fil`, is running, Setup offers to close them through the Restart
+  Manager, rather than fail on a file in use.
+- **Uninstalling removes the program, never a library.** Settings (`%APPDATA%\filiation`) and the
+  regenerable caches (`%LOCALAPPDATA%\filiation\http` and `\pdfium`) go only when the person says
+  so; anything else there, such as a database backup, is left alone.
+- **Unsigned for now.** Windows shows "unknown publisher" on the first run (More info, then Run
+  anyway). Signing can be added in the release job later without changing the installer.
+- **The icon** is the stemma as the title bar draws it, bold enough to read at 16 px, on a white
+  tile (`desktop/installer/icon.svg`, packed into `filiation.ico`). It is used by Setup, the
+  shortcuts and the uninstall entry. The exe itself has no icon resource yet.
+- Windows first: a macOS `.dmg` and Linux AppImage and `.deb` follow, as does a first-run welcome
+  in the app and a check for new versions.

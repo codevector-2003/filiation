@@ -15,3 +15,12 @@ This is its own Go module, and the one place cgo is allowed.
 Put `fil` beside the app: assistants connected from the AI assistants screen are given its full path.
 
 The screens need no separate build step: they are plain files in `internal/ui/assets`, embedded in the binary.
+
+## The Windows installer
+
+`installer/build.ps1 -Version <version>` builds `fil.exe` and `Filiation.exe` for 64-bit Windows
+and compiles `installer/filiation.iss` with Inno Setup 6 into
+`installer/Output/Filiation-Setup-<version>-windows-amd64.exe`. It installs Inno Setup with
+Chocolatey when missing. The release workflow attaches the installer to each release, and every
+pull request's desktop build keeps one as a download. D37 in [`docs/DECISIONS.md`](../docs/DECISIONS.md)
+says what it does and why.

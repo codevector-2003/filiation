@@ -34,3 +34,25 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # The Windows installer: the desktop app and fil, for the current user
+  # (D37). It is added to the release GoReleaser has just made.
+  windows-installer:
+    needs: release
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: desktop/go.mod
+          cache-dependency-path: desktop/go.sum
+
+      - name: Build and attach the installer
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $setup = pwsh desktop/installer/build.ps1 -Version $tag.TrimStart('v') | Select-Object -Last 1
+          gh release upload $tag $setup --clobber
