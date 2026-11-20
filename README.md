@@ -1,130 +1,142 @@
 <p align="center">
-  <img src="docs/assets/banner.jpg" width="100%" alt="Filiation: follow the citations back, see where an idea came from">
+  <img src="docs/assets/banner.jpg" width="100%" alt="Filiation: your research library, built from citations">
 </p>
 
 <h1 align="center"><img src="docs/assets/logo.svg" width="36" alt=""> Filiation</h1>
 
 <p align="center">
-  <strong>A citation graph you build and keep on your own machine.</strong><br>
-  Give it one paper. It follows the references, maps what cites what, and shows you where an idea came from.
+  <strong>Your research library, built from citations, ready for your AI assistant.</strong><br>
+  Give it one paper. It follows the references, keeps the open-access PDFs, finds the passage that answers your question,<br>
+  and lets your AI assistant use all of it, on your own machine.
 </p>
 
 <p align="center">
-  <a href="https://github.com/codevector-2003/filiation/releases/tag/v0.3.0"><img src="https://img.shields.io/badge/release-v0.3.0-6366f1" alt="Release v0.3.0"></a>
+  <a href="https://github.com/codevector-2003/filiation/releases/tag/v0.4.0"><img src="https://img.shields.io/badge/release-v0.4.0-6366f1" alt="Release v0.4.0"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/licence-Apache--2.0-6366f1" alt="Licence: Apache-2.0"></a>
-  <img src="https://img.shields.io/badge/go-1.26-00ADD8?logo=go&logoColor=white" alt="Go 1.26">
   <img src="https://img.shields.io/badge/platforms-Windows%20%C2%B7%20macOS%20%C2%B7%20Linux-64748b" alt="Windows, macOS, Linux">
-  <img src="https://img.shields.io/badge/cgo-none-22c55e" alt="No cgo">
+  <img src="https://img.shields.io/badge/runs-on%20your%20machine-22c55e" alt="Runs on your machine">
   <a href="https://openalex.org"><img src="https://img.shields.io/badge/data-OpenAlex-f97316" alt="Data: OpenAlex"></a>
 </p>
 
 <p align="center">
-  <a href="docs/GETTING_STARTED.md">Getting started</a> ·
-  <a href="docs/COMMANDS.md">Commands</a> ·
+  <a href="#two-ways-in">Get started</a> ·
   <a href="docs/MCP.md">AI assistants</a> ·
+  <a href="docs/COMMANDS.md">Commands</a> ·
   <a href="docs/HOW_IT_WORKS.md">How it works</a> ·
-  <a href="#roadmap">Roadmap</a> ·
-  <a href="#documentation">Docs</a>
+  <a href="#roadmap">Roadmap</a>
 </p>
 
 <p align="center">
-  <img src="docs/assets/demo.svg" width="860" alt="A terminal session: fil add, fil expand, fil path, fil stats and fil export, with real output">
+  <img src="docs/assets/screens/papers.png" width="900" alt="The Filiation desktop app: a library of papers, one per row, with their PDFs and tags, and one paper open with its abstract, collections and labels">
 </p>
 
 ---
 
-In textual criticism, **filiation** is the work of establishing which manuscript was copied from which, reconstructing the lines of descent between surviving texts. This tool does the same for research papers. Start from one paper, follow its citations back, and see the literature it grew out of.
+## What it does
 
-Most citation-map tools are session-shaped: you run a query, get a picture, and close the tab. Filiation builds **your** map instead. It keeps growing as you add papers, lives in a folder you own, and can be exported to any tool you like.
+**Builds your library from one paper.** Start from a DOI, an arXiv ID, a link or a title. Filiation follows the reference lists, most-cited first, and keeps what it finds: hundreds of related papers, each tied to the papers it cites.
 
-## Highlights
-
-- **Best-first expansion under a budget.** The papers your library cites most are fetched first, so 500 works cover the literature that matters rather than whatever happened to be nearby. Stop at any time; the next run carries on where this one left off.
-- **Lineage, not just links.** `fil path` finds how one paper descends from another through its references. Citation cycles are real, and the search is safe on them.
-- **The papers themselves, searchable.** `fil fetch` downloads the legal open-access PDFs into readable folders and reads them, so `fil search` finds a passage and names its page. PDFs you already have are identified and filed for you.
-- **Topics from the citations alone.** `fil groups` finds the clusters of papers that cite one another, the debates your library holds, and offers them as collections. No model guesses what a paper is about.
-- **The sentence behind each citation.** fil keeps the sentence each reference is cited in, so you can see why one paper cites another.
-- **Duplicates handled carefully.** The same paper under two IDs, or a merged record, becomes one node. Papers that only *share a title* are reported for you to judge and never merged automatically: a book review carries the title of the book it reviews.
-- **Honest about the data.** Every run reports how many works came with a reference list, and why that varies by field.
-- **One binary, nothing to install.** A single file for Windows, macOS or Linux. No runtime, no database server, no Docker, no account, no API key.
-- **Local and legal.** Your library never leaves your machine. Reference data comes from [OpenAlex](https://openalex.org), which is open, and full text only ever comes from open-access sources.
-
-## See it
+**Keeps the papers themselves, searchable to the page.** It downloads the legal open-access PDFs and reads them. Ask a question in plain words and it finds the passage that answers it, names its page, and lights it on the PDF.
 
 <p align="center">
-  <img src="docs/assets/graph.svg" width="860" alt="The citation graph fil built from one seed paper: 472 works, coloured by year, sized by how often the library cites them">
+  <img src="docs/assets/screens/search.png" width="900" alt="Search inside the PDFs: a question typed in plain words, the passages that answer it grouped by paper, and the PDF page with the matching words highlighted">
 </p>
 
-<p align="center"><sub>Real output: one run of <code>fil expand</code> from <em>The state of OA</em> (2018), laid out from <code>fil export graphml</code>.<br>The early open-access literature (blue) sits on the left; the recent work around the seed (pink) sits on the right.</sub></p>
+**Works with your AI assistant.** Claude, GitHub Copilot, Cursor and Gemini CLI can search your library, read the passages and answer with the page they came from, so you can check every claim. Your assistant writes the answer; Filiation gives it sources that are yours.
 
-## Quick start
+**Shows where ideas came from.** See what a paper cites and what cites it, find the chain of citations between two papers, and let the citations group your library into its topics.
 
-Download the archive for your system from **[Releases](https://github.com/codevector-2003/filiation/releases)**, unpack it, and run `fil`. Then:
+<p align="center">
+  <img src="docs/assets/screens/whole.png" width="900" alt="The citation map of a whole library: papers as points, linked by their citations, the most cited labelled">
+</p>
+
+## Two ways in
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+### Use the app
+
+A desktop window for Windows, macOS and Linux, for people who would rather not use a terminal: your papers, search, the citation map, the Reader with highlights and notes, and connecting your AI assistant with one click.
+
+The app arrives in the next release. Until then it builds from source: see [the desktop app](desktop/README.md).
+
+</td>
+<td width="50%" valign="top">
+
+### Use the command line
+
+Download `fil` for your system from **[Releases](https://github.com/codevector-2003/filiation/releases)**, unpack it, and run it. Nothing else to install.
 
 ```sh
-fil add 10.7717/peerj.4375          # a DOI, arXiv ID, PMID, OpenAlex ID, link, or title
-fil expand                          # follow the references, most-cited first
-fil fetch                           # download the open-access PDFs, and read them
-fil search "citation advantage"     # find passages, with their paper and page
+fil add 10.7717/peerj.4375        # one paper, by DOI, arXiv ID, link or title
+fil expand                        # follow its references, most-cited first
+fil fetch                         # download the open-access PDFs, and read them
+fil search "citation advantage"   # find passages, with their paper and page
 ```
 
-Or run `fil` on its own to keep it open and type one command after another, with `/` for the list.
+</td>
+</tr>
+</table>
 
-Building from source, where your library lives, and the next steps: **[Getting started](docs/GETTING_STARTED.md)**. Every command and option: **[Commands](docs/COMMANDS.md)**.
-
-## Use it from an AI assistant
-
-`fil mcp` lets Claude, GitHub Copilot, Cursor, Gemini CLI or any other MCP client use your library directly: add papers, grow the graph, search the PDFs and quote passages with their page, and answer *"how does this paper descend from that one?"* against a map you own. For Claude Code:
+To let your AI assistant use your library, connect it to `fil mcp`. For Claude Code:
 
 ```sh
 claude mcp add filiation -- fil mcp
 ```
 
-Set-up for other clients, all nine tools, limits and troubleshooting: **[MCP guide](docs/MCP.md)**.
+Other assistants, all nine tools, and troubleshooting: **[AI assistants](docs/MCP.md)**. Every command: **[Commands](docs/COMMANDS.md)**. Install, first steps, and where your library lives: **[Getting started](docs/GETTING_STARTED.md)**.
+
+## A closer look
+
+<table>
+<tr>
+<td width="50%" valign="top"><img src="docs/assets/screens/find.png" alt="Searching from the title bar: the list filters as you type, and matching papers drop down to go to"><br><sub><b>Find any paper as you type.</b> The search box in the title bar filters your library and offers papers to jump to.</sub></td>
+<td width="50%" valign="top"><img src="docs/assets/screens/reader.png" alt="The Reader: a PDF page with the words searched for highlighted, page thumbnails on the left, notes on the right"><br><sub><b>Read and mark up.</b> Highlights and notes live in your library, so the PDF file stays as it was.</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><img src="docs/assets/screens/map.png" alt="The citation map around one paper: the paper in the middle, linked to the papers it cites"><br><sub><b>The map around a paper.</b> What it cites, what cites it, and which of them you have the PDF for.</sub></td>
+<td width="50%" valign="top"><img src="docs/assets/screens/groups.png" alt="Suggested groups: the library's topics found from its citations, each with its most cited papers"><br><sub><b>Topics from the citations alone.</b> Groups of papers that cite one another, offered as collections. No model guesses what a paper is about.</sub></td>
+</tr>
+</table>
+
+## Why you can trust it
+
+- **Yours, and on your machine.** Your library is a folder you choose, with readable PDF folders inside. It never leaves your computer, and it exports to GraphML for Gephi or NetworkX.
+- **Open access only, always.** Filiation downloads only legal open-access copies, never from behind a paywall or through anyone's login. For the rest, add the PDF you have.
+- **No model guessing.** Citations come from [OpenAlex](https://openalex.org)'s resolved reference lists, not from a language model reading papers. Search ranks passages with plain keyword scoring, measured on a fixed test set, and runs nothing extra on your machine.
+- **Honest about the data.** Reference lists are rich in the sciences and thin in the humanities, and most papers have no open copy. Filiation says so, paper by paper, rather than looking broken.
+- **One file, nothing to install.** No runtime, no database server, no account, no API key.
 
 ## Roadmap
 
 | Milestone | | Status |
 | --- | --- | --- |
-| **M0: Skeleton** | `fil add`: any identifier to a stored paper and its references | Done |
-| **M1: The graph** | Budgeted expansion, dedup, `path`, `neighbours`, `stats`, GraphML export, cross-platform release | Done, v0.1 |
-| **M2: MCP server** | Let AI assistants query your library directly | Done, v0.2 |
-| **M3: Papers on disk** | Open-access PDFs, full text, and the sentence around each citation | Done, v0.3 |
-| **M4: Retrieval** | Search that finds the paper that answers your question, ranked by its passages, title and abstract; your AI assistant writes the answer | Complete |
-| **M5: Desktop app** | The same library in a desktop window, for people who don't use a terminal | In progress |
-| **M6: Claim genealogy** | Why each paper cites another, and tracing a claim to its earliest source | Planned |
+| **The graph** | Follow references under a budget, without duplicates; paths, neighbours, export | Done, v0.1 |
+| **AI assistants** | Your library as MCP tools | Done, v0.2 |
+| **Papers on disk** | Open-access PDFs, full text, and the sentence behind each citation | Done, v0.3 |
+| **Search** | Find the paper that answers your question, ranked by its passages, title and abstract | Done, v0.4 |
+| **The desktop app** | Everything above in a window, for people who don't use a terminal | In progress |
+| **Claim genealogy** | Why each paper cites another, and tracing a claim to its earliest source | Planned |
 
 ## Documentation
 
-**Using fil**
+**Using Filiation**: [Getting started](docs/GETTING_STARTED.md) · [Commands](docs/COMMANDS.md) · [AI assistants](docs/MCP.md) · [How it works](docs/HOW_IT_WORKS.md)
 
-- [Getting started](docs/GETTING_STARTED.md): install, first steps, where your library lives
-- [Commands](docs/COMMANDS.md): every command and its options
-- [AI assistants (MCP)](docs/MCP.md): set-up, tools, limits, troubleshooting
-- [How it works](docs/HOW_IT_WORKS.md): the design in brief, and how much data to expect in your field
-
-**Building fil**
-
-- [Status](docs/STATUS.md): where the project is, what's done, what's next
-- [Architecture](docs/ARCHITECTURE.md): whole-system design
-- [Decisions](docs/DECISIONS.md): decisions made, and options rejected, with reasons
-- [Spikes](docs/SPIKES.md) and [Validation](docs/VALIDATION.md): measured answers from live data
-- [CLAUDE.md](CLAUDE.md): working context, hard rules and build order
+**Building Filiation**: [Status](docs/STATUS.md) · [Architecture](docs/ARCHITECTURE.md) · [Decisions](docs/DECISIONS.md) · [Spikes](docs/SPIKES.md) · [Validation](docs/VALIDATION.md) · [CLAUDE.md](CLAUDE.md)
 
 ## Contributing
 
-Issues and pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) first: how to build and test, the rules every change keeps, commit style, and the rules for AI-assisted work. Before a larger change, read [Status](docs/STATUS.md) too. A few rules are non-negotiable:
+Issues and pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) first: how to build and test, the rules every change keeps, commit style, and the rules for AI-assisted work. A few rules are non-negotiable: no cgo in `fil` itself (the desktop shell is the one exception), no paywalled full text, no reference parsing, and no network in unit tests.
 
-- no cgo in `fil` itself (the desktop app shell is the one exception, D24);
-- no paywalled full text, ever;
-- no reference parsing;
-- no network access in unit tests.
+## Why "Filiation"?
 
-`go test ./...` runs the whole suite against recorded OpenAlex responses.
+In textual criticism, **filiation** is the work of establishing which manuscript was copied from which: reconstructing the lines of descent between surviving texts. Filiation does the same for research papers. Start from one paper, follow its citations back, and see the literature it grew out of.
 
 ## Acknowledgements
 
-Reference data comes from [OpenAlex](https://openalex.org), an open index of the world's research. SQLite runs in pure Go through [`ncruces/go-sqlite3`](https://github.com/ncruces/go-sqlite3). PDF text comes from [PDFium](https://pdfium.googlesource.com/pdfium/), compiled to WebAssembly by [`klippa-app/go-pdfium`](https://github.com/klippa-app/go-pdfium) and run by [`wazero`](https://github.com/tetratelabs/wazero). The command line is built with [`spf13/cobra`](https://github.com/spf13/cobra).
+Reference data comes from [OpenAlex](https://openalex.org), an open index of the world's research. SQLite runs in pure Go through [`ncruces/go-sqlite3`](https://github.com/ncruces/go-sqlite3). PDF text comes from [PDFium](https://pdfium.googlesource.com/pdfium/), compiled to WebAssembly by [`klippa-app/go-pdfium`](https://github.com/klippa-app/go-pdfium) and run by [`wazero`](https://github.com/tetratelabs/wazero). PDFs are shown with [PDF.js](https://mozilla.github.io/pdf.js/). The desktop window uses [Wails](https://wails.io). The command line is built with [`spf13/cobra`](https://github.com/spf13/cobra).
 
 ## Licence
 
