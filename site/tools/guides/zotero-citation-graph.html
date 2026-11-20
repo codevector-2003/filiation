@@ -1,0 +1,34 @@
+<!--
+title: Turn your Zotero library into a citation graph
+short: Zotero and Filiation
+intro: Zotero is very good at keeping references and formatting citations. Filiation adds what it does not do: a map of what your papers cite, the papers you are missing, and search inside every PDF.
+-->
+<h2 class="serif" id="keep">Keep Zotero for what it does well</h2>
+<p>Zotero stores your references, syncs them, and puts citations and a bibliography into your writing. Filiation does none of that, on purpose. It reads your Zotero library, read-only, and never changes it, so nothing about the way you work in Zotero has to change.</p>
+
+<h2 class="serif" id="adds">What Filiation adds</h2>
+<ul class="ticks">
+<li><b>The citations between your papers.</b> Each paper's reference list comes from OpenAlex, already matched to the works it names, so you see which of your papers cite which, drawn as a map.</li>
+<li><b>The papers you don't have yet.</b> Filiation follows your papers' references outward, most-cited first, and shows the works your library keeps citing that are not in it.</li>
+<li><b>Their PDFs, when they are free to read.</b> It downloads the legal open-access copies, never from behind a paywall, and copies the PDFs you already keep in Zotero.</li>
+<li><b>Search inside every PDF, to the page.</b> A few keywords find the passage and its page, lit on the PDF.</li>
+<li><b>Your AI assistant, on your own papers.</b> Over MCP, Claude, Cursor, GitHub Copilot or Gemini can search the library and quote it with pages.</li>
+</ul>
+
+<h2 class="serif" id="how">How to bring Zotero in</h2>
+<ol class="steps">
+<li><div><h3 id="how-allow">Let Zotero talk to other apps</h3><p>In Zotero 7, choose <b>Edit › Settings › Advanced</b> and tick <b>Allow other applications on this computer to communicate with Zotero</b>.</p></div></li>
+<li><div><h3 id="how-bring">Bring the library in</h3><p>In the Filiation app, open the Inbox and choose Zotero. From a terminal, see what would come in first, then bring it in:</p><div class="code"><code>fil zotero --dry-run
+fil zotero</code><button class="copy" type="button">Copy</button></div></div></li>
+<li><div><h3 id="how-grow">Grow the map</h3><p>Follow the references outward and keep the open-access PDFs:</p><div class="code"><code>fil expand
+fil fetch</code><button class="copy" type="button">Copy</button></div></div></li>
+</ol>
+<p>No Zotero on this computer? Export the library as Zotero RDF with its files and use <span class="ic">fil zotero --from "My Library.rdf"</span>. Every option is in the <a href="{{root}}docs/zotero/">Zotero documentation</a>.</p>
+
+<h2 class="serif" id="questions">Questions</h2>
+<div class="faq">
+<details open><summary>Does Filiation change my Zotero library?</summary><p>No. It reads through Zotero's local API and writes nothing back. Your Zotero library stays exactly as it was.</p></details>
+<details><summary>Does it replace Zotero?</summary><p>No. Filiation does not format citations or build bibliographies. Keep Zotero for writing; use Filiation to see and search what your papers rest on.</p></details>
+<details><summary>Are my Zotero tags kept?</summary><p>If you ask: <span class="ic">fil zotero --tags</span> turns the tags you added into labels.</p></details>
+<details><summary>Why do some papers have no reference list?</summary><p>OpenAlex has reference lists for most papers in the sciences and far fewer in the humanities. Filiation shows this for every paper, so a thin map reads as the data, not as a fault.</p></details>
+</div>

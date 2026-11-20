@@ -1,0 +1,26 @@
+<!--
+title: Let your AI assistant answer from your own papers
+short: Your AI assistant and your papers
+intro: An AI assistant can write about research fluently and still cite things wrongly. Connected to Filiation over MCP, it searches the papers you actually have and quotes them with the page each passage came from.
+-->
+<h2 class="serif" id="problem">Why answers need your library</h2>
+<p>A model answering from memory can misremember a result or the paper it came from. When it can search your own PDFs instead, it can quote the passage, name the paper and give the page, and you can open the PDF and check.</p>
+
+<h2 class="serif" id="what">What your assistant can do with Filiation</h2>
+<ul class="ticks">
+<li><b>Search your PDFs</b> by keyword and get passages with their paper and page.</li>
+<li><b>Look at the citations around a paper:</b> what it cites, what in your library cites it, and the sentence it cites each one in, when that was found.</li>
+<li><b>Trace a line of descent:</b> the chain of citations between two papers.</li>
+<li><b>Name your library's topics,</b> found from its citations alone.</li>
+<li><b>Grow the library when you ask:</b> add a paper, follow its references, fetch open-access PDFs. Start it with <span class="ic">--read-only</span> and it can only read.</li>
+</ul>
+
+<h2 class="serif" id="assistants">Which assistants</h2>
+<p>Any assistant that speaks MCP. Filiation's app connects Claude Desktop, Claude Code, Cursor, VS Code with GitHub Copilot and Gemini CLI in one click, from its <b>AI assistants</b> screen, and the <a href="{{root}}docs/mcp/">MCP documentation</a> has the settings for each by hand. In Claude Code, for example:</p>
+<div class="code"><code>claude mcp add filiation -- fil mcp</code><button class="copy" type="button">Copy</button></div>
+
+<h2 class="serif" id="private">Where your papers go</h2>
+<p>Filiation runs on your computer, and your library stays in a folder you choose. Your assistant starts <span class="ic">fil mcp</span> on your machine when it needs it. What the assistant then sends to its own service depends on that assistant, as with anything else you paste into it.</p>
+
+<h2 class="serif" id="try">Try a question</h2>
+<p>Once it is connected, ask something your papers can answer and ask for pages, for example: <i>"Why did attention help neural machine translation? Quote the passages and give the pages."</i> The assistant searches the library and answers from what it finds.</p>

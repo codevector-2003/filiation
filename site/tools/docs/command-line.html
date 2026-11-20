@@ -1,0 +1,44 @@
+<!--
+title: Command line
+group: Using Filiation
+intro: Every fil command, grouped by what you are doing. A paper can be named by its fil ID, DOI, arXiv ID, OpenAlex ID or title.
+-->
+<div class="tabs" role="tablist" aria-label="Command groups" data-tabgroup="cli">
+<button class="tab" role="tab" aria-selected="true" data-tab="build">Build</button>
+<button class="tab" role="tab" aria-selected="false" data-tab="read">Read</button>
+<button class="tab" role="tab" aria-selected="false" data-tab="library">Library</button>
+<button class="tab" role="tab" aria-selected="false" data-tab="other">Other</button>
+</div>
+<table class="cmdtable" data-panel="cli:build"><tbody>
+<tr><td><span class="ic">fil add &lt;paper&gt;</span></td><td>Add a paper and record everything it cites. By DOI, arXiv ID, PMID, OpenAlex ID, link or title.</td></tr>
+<tr><td><span class="ic">fil expand</span></td><td>Follow references outward and grow the graph, most-cited first.<span class="flags">--max-nodes 500  --max-depth 3</span></td></tr>
+<tr><td><span class="ic">fil fetch [paper]</span></td><td>Download the legal open-access PDFs of your papers.<span class="flags">--max N  --dry-run</span></td></tr>
+<tr><td><span class="ic">fil import [file…]</span></td><td>Identify PDFs you already have and file them in your library.</td></tr>
+<tr><td><span class="ic">fil zotero</span></td><td>Bring in your Zotero library.<span class="flags">--dry-run  --from FILE  --tags  --no-pdfs  --no-refs  --skip KEY</span></td></tr>
+<tr><td><span class="ic">fil match &lt;fil ID&gt; [id]</span></td><td>Find one of your own documents in OpenAlex.</td></tr>
+</tbody></table>
+<table class="cmdtable" data-panel="cli:read" hidden><tbody>
+<tr><td><span class="ic">fil search &lt;words&gt;</span></td><td>Find passages in your PDFs by keyword, with their page.<span class="flags">--paper X  --view NAME  --limit N  --references  --pick</span></td></tr>
+<tr><td><span class="ic">fil list</span></td><td>List the papers in your library, with their PDF and text.</td></tr>
+<tr><td><span class="ic">fil show &lt;paper&gt;</span></td><td>Tell everything the library knows about one paper.</td></tr>
+<tr><td><span class="ic">fil neighbours &lt;paper&gt;</span></td><td>What a paper cites, and what in your library cites it.</td></tr>
+<tr><td><span class="ic">fil path &lt;paper&gt; &lt;paper&gt;</span></td><td>The shortest chain of citations between two papers.</td></tr>
+<tr><td><span class="ic">fil groups [group]</span></td><td>Groups of papers that cite one another.</td></tr>
+<tr><td><span class="ic">fil stats</span></td><td>Summarise your library.</td></tr>
+</tbody></table>
+<table class="cmdtable" data-panel="cli:library" hidden><tbody>
+<tr><td><span class="ic">fil library</span></td><td>Show your library folder.</td></tr>
+<tr><td><span class="ic">fil library new &lt;folder&gt;</span></td><td>Make another library in a new folder.</td></tr>
+<tr><td><span class="ic">fil library move &lt;folder&gt;</span></td><td>Move your library to a new folder.</td></tr>
+<tr><td><span class="ic">fil library scan</span></td><td>Find papers you moved, renamed or deleted in papers/.</td></tr>
+<tr><td><span class="ic">fil extract [paper]</span></td><td>Read the text of your PDFs so they can be searched.<span class="flags">--again</span></td></tr>
+<tr><td><span class="ic">fil export graphml</span></td><td>Write the citation graph for Gephi, Cytoscape or NetworkX.</td></tr>
+</tbody></table>
+<table class="cmdtable" data-panel="cli:other" hidden><tbody>
+<tr><td><span class="ic">fil mcp</span></td><td>Serve your library to an AI assistant over MCP.<span class="flags">--read-only  --library NAME</span></td></tr>
+<tr><td><span class="ic">fil where</span></td><td>Print where your library, settings and cache live.</td></tr>
+<tr><td><span class="ic">fil theme</span></td><td>Choose fil's colours in the terminal.</td></tr>
+<tr><td><span class="ic">fil cache clear</span></td><td>Delete every cached OpenAlex response.</td></tr>
+<tr><td><span class="ic">fil version</span></td><td>Print the version.</td></tr>
+</tbody></table>
+<p>Every command explains itself: <span class="ic">fil help &lt;command&gt;</span>.</p>

@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A free, open-source citation map that runs on your computer · Filiation</title>
+<meta name="description" content="An open-source alternative to citation-map websites: build the map from one paper, keep the PDFs and their text on your own computer, and search them to the page.">
+<link rel="canonical" href="https://codevector-2003.github.io/filiation/guides/citation-map-alternative/">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Filiation">
+<meta property="og:title" content="A free, open-source citation map that runs on your computer · Filiation">
+<meta property="og:description" content="An open-source alternative to citation-map websites: build the map from one paper, keep the PDFs and their text on your own computer, and search them to the page.">
+<meta property="og:url" content="https://codevector-2003.github.io/filiation/guides/citation-map-alternative/">
+<meta property="og:image" content="https://codevector-2003.github.io/filiation/assets/img/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#1F5F8B">
+<link rel="icon" href="../../assets/icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&display=swap" rel="stylesheet">
+<script>try{var t=localStorage.getItem('fil-theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch(e){}</script>
+<link rel="stylesheet" href="../../assets/site.css">
+<link rel="stylesheet" href="../../assets/docs.css">
+<script type="application/ld+json">[{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Filiation","item":"https://codevector-2003.github.io/filiation/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://codevector-2003.github.io/filiation/guides/citation-map-alternative/"},{"@type":"ListItem","position":3,"name":"A free, open-source citation map that runs on your computer","item":"https://codevector-2003.github.io/filiation/guides/citation-map-alternative/"}]},{"@context":"https://schema.org","@type":"Article","headline":"A free, open-source citation map that runs on your computer","description":"An open-source alternative to citation-map websites: build the map from one paper, keep the PDFs and their text on your own computer, and search them to the page.","image":"https://codevector-2003.github.io/filiation/assets/img/og.jpg","dateModified":"2026-11-20","author":{"@type":"Organization","name":"Filiation","url":"https://codevector-2003.github.io/filiation/"},"mainEntityOfPage":"https://codevector-2003.github.io/filiation/guides/citation-map-alternative/"}]</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the content</a>
+<header class="top full">
+<div class="wrap">
+<a class="brand" href="../../"><img src="../../assets/icon.svg" alt="" width="28" height="28">Filiation</a>
+<nav class="topnav" id="topnav" aria-label="Site">
+<a href="../../">Product</a>
+<a href="../../docs/">Docs</a>
+<a href="../../guides/zotero-citation-graph/" aria-current="page">Guides</a>
+<a href="../../#start">Download</a>
+</nav>
+<span class="spacer"></span>
+<span class="fine ver" data-version="v{v}"></span>
+<a class="star" href="https://github.com/codevector-2003/filiation" aria-label="Star Filiation on GitHub">
+<span><svg class="gh" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.2l2.1 4.3 4.7.7-3.4 3.3.8 4.7L8 12l-4.2 2.2.8-4.7L1.2 6.2l4.7-.7z" fill="#E3B341"/></svg>Star</span><span class="count" data-stars></span>
+</a>
+<button class="theme-btn" type="button" aria-label="Colour theme: as your system"><svg class="ti ti-system" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="14" height="9.5" rx="1.5"/><path d="M6.5 15.5h5M9 12.5v3"/></svg><svg class="ti ti-light" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="9" r="3.2"/><path d="M9 1.5v1.8M9 14.7v1.8M1.5 9h1.8M14.7 9h1.8M3.7 3.7l1.3 1.3M13 13l1.3 1.3M3.7 14.3L5 13M13 5l1.3-1.3"/></svg><svg class="ti ti-dark" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M15.2 11.2A6.5 6.5 0 0 1 6.8 2.8a6.5 6.5 0 1 0 8.4 8.4z"/></svg></button>
+<a class="btn primary small dl" href="../../#start">Download</a>
+<button class="menu-btn" type="button" aria-label="Menu" aria-expanded="false" aria-controls="topnav"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 4.5h14M2 9h14M2 13.5h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+</div>
+</header>
+<main class="guide" id="main">
+<article class="page on">
+<div class="crumb">Guide</div>
+<h1 class="serif">A free, open-source citation map that runs on your computer</h1>
+<p class="intro">Citation-map websites are a quick way to explore a field in the browser. Filiation builds the same kind of map on your own computer, from real citations, and keeps the PDFs and their text alongside it.</p>
+<h2 class="serif" id="what">What a citation map is for</h2>
+<p>Start from one paper you trust. The papers it cites, and the papers they cite, are where its ideas came from; the papers that cite it are where they went. A map of those links shows the shape of a field faster than a list of search results, and shows the papers everyone builds on.</p>
+
+<h2 class="serif" id="websites">Websites, and when they are the better choice</h2>
+<p>Several websites, such as Connected Papers, ResearchRabbit and Litmaps, let you explore related papers in the browser. They are a good choice when you want a quick look without installing anything, or features such as recommendations and sharing with a group. Filiation is not trying to replace that.</p>
+
+<h2 class="serif" id="different">What is different about Filiation</h2>
+<ul class="ticks">
+<li><b>It runs on your computer.</b> The map, the PDFs and their text live in a folder you choose. No account, and nothing to lose if a service changes.</li>
+<li><b>Every line is a real citation.</b> Reference lists come from OpenAlex, already matched to the works they name. No model guesses at links.</li>
+<li><b>It keeps the papers, not just the map.</b> Filiation downloads the legal open-access PDFs, reads their text, and lets you search them to the page.</li>
+<li><b>It grows with you.</b> Add a paper and its references join the same map. Follow references outward, most-cited first, under a budget you set.</li>
+<li><b>Your AI assistant can use it.</b> Over MCP, an assistant can search the library and trace the chain of citations between two papers.</li>
+<li><b>It is open.</b> Apache-2.0, and the graph exports as GraphML for Gephi, Cytoscape or NetworkX.</li>
+</ul>
+
+<h2 class="serif" id="start">Build a map from one paper</h2>
+<div class="code"><code>fil add arXiv:1706.03762
+fil expand --max-nodes 500
+fil fetch</code><button class="copy" type="button">Copy</button></div>
+<p>Or paste the paper's DOI or title into the app's search box, then open the Citation map. <span class="ic">fil path</span> finds the chain of citations between any two papers, and <span class="ic">fil export graphml</span> writes the whole graph out.</p>
+
+<h2 class="serif" id="honest">Worth knowing first</h2>
+<p>How far the map reaches depends on the field. OpenAlex holds reference lists for most papers in medicine, physics and computer science, and for far fewer in the humanities, where the map may stop after one step. Filiation marks every paper whose references are unknown, so you can tell the data from a fault. Open-access PDFs are common in physics and rare in the humanities; for the rest, add the PDFs you have.</p>
+<div class="cta">
+<div><b>Try Filiation</b><span>Free and open source, on your own computer. The app for Windows; the command line for Windows, macOS and Linux.</span></div>
+<a class="btn primary" href="../../#start">Download</a>
+<a class="btn" href="../../docs/">Read the docs</a>
+</div>
+<h2 class="serif" id="more">More guides</h2>
+<div class="doc-cards">
+<a class="doc-card" href="../zotero-citation-graph/"><b>Turn your Zotero library into a citation graph</b><span>Zotero is very good at keeping references and formatting citations. Filiation adds what it does not do: a map of what your papers cite, the papers you are missing, and search inside every PDF.</span></a>
+<a class="doc-card" href="../ai-assistant-research-library/"><b>Let your AI assistant answer from your own papers</b><span>An AI assistant can write about research fluently and still cite things wrongly. Connected to Filiation over MCP, it searches the papers you actually have and quotes them with the page each passage came from.</span></a>
+</div>
+</article>
+</main>
+<footer class="foot">
+<div class="wrap">
+<span style="font-weight: 700; color: #FFFFFF">Filiation</span>
+<a href="../../">Product</a>
+<a href="../../docs/">Documentation</a>
+<a href="../../guides/zotero-citation-graph/">Zotero and Filiation</a>
+<a href="../../guides/citation-map-alternative/">Citation maps on your computer</a>
+<a href="../../guides/ai-assistant-research-library/">Your AI assistant and your papers</a>
+<a href="https://github.com/codevector-2003/filiation">GitHub</a>
+<span class="spacer"></span>
+<span style="font-size: 13px">Apache-2.0 · Reference data from OpenAlex</span>
+<small>Claude, GitHub Copilot, Cursor, Gemini, Zotero and other names are trademarks of their owners, used here only to say what Filiation works with. Zotero is a registered trademark of the Corporation for Digital Scholarship. No endorsement is implied.</small>
+</div>
+</footer>
+<script src="../../assets/site.js"></script>
+</body>
+</html>

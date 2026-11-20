@@ -1,0 +1,29 @@
+<!--
+title: A free, open-source citation map that runs on your computer
+short: Citation maps on your computer
+intro: Citation-map websites are a quick way to explore a field in the browser. Filiation builds the same kind of map on your own computer, from real citations, and keeps the PDFs and their text alongside it.
+-->
+<h2 class="serif" id="what">What a citation map is for</h2>
+<p>Start from one paper you trust. The papers it cites, and the papers they cite, are where its ideas came from; the papers that cite it are where they went. A map of those links shows the shape of a field faster than a list of search results, and shows the papers everyone builds on.</p>
+
+<h2 class="serif" id="websites">Websites, and when they are the better choice</h2>
+<p>Several websites, such as Connected Papers, ResearchRabbit and Litmaps, let you explore related papers in the browser. They are a good choice when you want a quick look without installing anything, or features such as recommendations and sharing with a group. Filiation is not trying to replace that.</p>
+
+<h2 class="serif" id="different">What is different about Filiation</h2>
+<ul class="ticks">
+<li><b>It runs on your computer.</b> The map, the PDFs and their text live in a folder you choose. No account, and nothing to lose if a service changes.</li>
+<li><b>Every line is a real citation.</b> Reference lists come from OpenAlex, already matched to the works they name. No model guesses at links.</li>
+<li><b>It keeps the papers, not just the map.</b> Filiation downloads the legal open-access PDFs, reads their text, and lets you search them to the page.</li>
+<li><b>It grows with you.</b> Add a paper and its references join the same map. Follow references outward, most-cited first, under a budget you set.</li>
+<li><b>Your AI assistant can use it.</b> Over MCP, an assistant can search the library and trace the chain of citations between two papers.</li>
+<li><b>It is open.</b> Apache-2.0, and the graph exports as GraphML for Gephi, Cytoscape or NetworkX.</li>
+</ul>
+
+<h2 class="serif" id="start">Build a map from one paper</h2>
+<div class="code"><code>fil add arXiv:1706.03762
+fil expand --max-nodes 500
+fil fetch</code><button class="copy" type="button">Copy</button></div>
+<p>Or paste the paper's DOI or title into the app's search box, then open the Citation map. <span class="ic">fil path</span> finds the chain of citations between any two papers, and <span class="ic">fil export graphml</span> writes the whole graph out.</p>
+
+<h2 class="serif" id="honest">Worth knowing first</h2>
+<p>How far the map reaches depends on the field. OpenAlex holds reference lists for most papers in medicine, physics and computer science, and for far fewer in the humanities, where the map may stop after one step. Filiation marks every paper whose references are unknown, so you can tell the data from a fault. Open-access PDFs are common in physics and rare in the humanities; for the rest, add the PDFs you have.</p>

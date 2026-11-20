@@ -3,11 +3,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Filiation: your research library, built from citations</title>
-<meta name="description" content="Give Filiation one paper. It follows the references, keeps the open-access PDFs, searches inside them to the page, and lets your AI assistant use all of it. Free, open source, on your own computer.">
+<title>Filiation: a free citation graph and research library app</title>
+<meta name="description" content="Build a research library from one paper. Filiation follows the citations, keeps the open-access PDFs, searches them to the page, and works with Zotero and your AI assistant over MCP. Free and open source.">
+<link rel="canonical" href="https://codevector-2003.github.io/filiation/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Filiation">
 <meta property="og:title" content="Filiation: your research library, built from citations">
-<meta property="og:description" content="Free and open source. Windows, macOS and Linux, a command line, and connectors for your AI assistant.">
-<meta property="og:image" content="https://codevector-2003.github.io/filiation/assets/img/hero-whole.png">
+<meta property="og:description" content="Give it one paper. It follows the references, keeps the open-access PDFs, searches them to the page, and connects to your AI assistant. Free and open source, for Windows, macOS and Linux.">
+<meta property="og:url" content="https://codevector-2003.github.io/filiation/">
+<meta property="og:image" content="https://codevector-2003.github.io/filiation/assets/img/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Filiation: your research library, built from citations">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#1F5F8B">
 <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -16,6 +24,7 @@
 <script>try{var t=localStorage.getItem('fil-theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch(e){}</script>
 <link rel="stylesheet" href="assets/site.css">
 <link rel="stylesheet" href="assets/home.css">
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"SoftwareApplication","name":"Filiation","url":"https://codevector-2003.github.io/filiation/","description":"A citation graph and research library you run on your own computer: give it one paper and it follows the references, keeps the open-access PDFs, searches them to the page, and serves the library to AI assistants over MCP.","applicationCategory":"ReferenceApplication","operatingSystem":"Windows, macOS, Linux","softwareVersion":"0.4.2","license":"https://www.apache.org/licenses/LICENSE-2.0","image":"https://codevector-2003.github.io/filiation/assets/img/og.jpg","screenshot":"https://codevector-2003.github.io/filiation/assets/img/papers.webp","downloadUrl":"https://github.com/codevector-2003/filiation/releases/latest","codeRepository":"https://github.com/codevector-2003/filiation","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}},{"@type":"WebSite","name":"Filiation","url":"https://codevector-2003.github.io/filiation/"}]}</script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to the content</a>
@@ -67,7 +76,7 @@
 </div>
 </div>
 <figure class="card shot-card">
-<img id="hero-shot" src="assets/img/hero-around.png" alt="One paper and the papers it cites, in the citation map" width="1250" height="1000">
+<img id="hero-shot" src="assets/img/hero-around.webp" alt="One paper and the papers it cites, in the citation map" width="1250" height="1000">
 <figcaption>
 <button class="btn primary small" id="hero-toggle" type="button">See the whole library</button>
 <span id="hero-note">One paper and what it cites. Solid boxes have their PDF in your library.</span>
@@ -87,7 +96,7 @@
 <button class="chip" role="tab" aria-selected="false" data-tab="3">4. Search</button>
 </div>
 <div class="grid-2-1" role="tabpanel">
-<img class="shot" id="simple-shot" src="assets/img/papers.png" alt="The Papers list" loading="lazy" width="2160" height="1350">
+<img class="shot" id="simple-shot" src="assets/img/papers.webp" alt="The Papers list" loading="lazy" width="1600" height="1000">
 <div class="stack-10"><h3 class="h3 serif" id="simple-title">Install</h3><p class="p" id="simple-text">One installer for Windows, no admin rights. Filiation asks where your library should live, and that is all the setup there is.</p></div>
 </div>
 </div>
@@ -116,11 +125,11 @@
 <div class="zwin f">
 <div class="zbar"><img src="assets/icon.svg" alt="" width="15" height="15">Filiation · My Library<span class="spacer"></span><span class="zcount" data-zcount>empty</span></div>
 <div class="zempty">
-<img src="assets/img/hero-around.png" alt="" loading="lazy">
+<img src="assets/img/hero-around.webp" alt="" loading="lazy">
 <div><span>Your Zotero papers, and everything they cite, will grow here.</span><button class="btn primary small" type="button" data-zotero-toggle>Bring them in</button></div>
 </div>
 <div class="zfull">
-<img src="assets/img/hero-whole.png" alt="The citation map grown from the Zotero papers" loading="lazy">
+<img src="assets/img/hero-whole.webp" alt="The citation map grown from the Zotero papers" loading="lazy">
 <div class="zstats">
 <div class="zstat"><b>5</b><span>your Zotero papers, with their PDFs</span></div>
 <div class="zstat"><b>412</b><span>papers around them, found from citations</span></div>
@@ -189,7 +198,7 @@
 <button class="chip" role="tab" aria-selected="false" data-tab="3">Reader</button>
 <button class="chip" role="tab" aria-selected="false" data-tab="4">Groups</button>
 </div>
-<img class="shot" id="app-shot" src="assets/img/papers.png" alt="Papers" loading="lazy" width="2160" height="1350">
+<img class="shot" id="app-shot" src="assets/img/papers.webp" alt="Papers" loading="lazy" width="1600" height="1000">
 <p class="caption" id="app-caption">Your library, one paper per row, with its PDF, labels and the paper open beside it.</p>
 </div>
 </section>
@@ -285,7 +294,7 @@
 <span class="mono" title="Gemini CLI"><img src="assets/logos/gemini.svg" alt="Gemini CLI"></span>
 </div>
 <div class="code"><code>claude mcp add filiation -- fil mcp</code><button class="copy" type="button">Copy</button></div>
-<a class="btn push" href="docs/#mcp">Set-up for every assistant</a>
+<a class="btn push" href="docs/mcp/">Set-up for every assistant</a>
 </div>
 </div>
 </div>
@@ -297,6 +306,9 @@
 <span style="font-weight: 700; color: #FFFFFF">Filiation</span>
 <a href="https://github.com/codevector-2003/filiation">GitHub</a>
 <a href="docs/">Documentation</a>
+<a href="guides/zotero-citation-graph/">Zotero and Filiation</a>
+<a href="guides/citation-map-alternative/">Citation maps on your computer</a>
+<a href="guides/ai-assistant-research-library/">Your AI assistant and your papers</a>
 <a href="https://github.com/codevector-2003/filiation/releases">Releases</a>
 <a href="https://github.com/codevector-2003/filiation/blob/main/CONTRIBUTING.md">Contributing</a>
 <span class="spacer"></span>
