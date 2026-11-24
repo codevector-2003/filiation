@@ -66,7 +66,7 @@
 
 A desktop window for Windows, macOS and Linux, for people who would rather not use a terminal: your papers, search, the citation map, the Reader with highlights, notes and several papers open in tabs, and connecting your AI assistant with one click. On Windows it keeps itself up to date.
 
-The app arrives in the next release. Until then it builds from source: see [the desktop app](desktop/README.md).
+On Windows, [download the installer](https://codevector-2003.github.io/filiation/docs/install/): no administrator rights needed. On macOS and Linux the app builds from source for now: see [the desktop app](desktop/README.md).
 
 </td>
 <td width="50%" valign="top">
@@ -135,6 +135,10 @@ Other assistants, all nine tools, and troubleshooting: **[AI assistants](docs/MC
 ## Contributing
 
 Issues and pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) first: how to build and test, the rules every change keeps, commit style, and the rules for AI-assisted work. A few rules are non-negotiable: no cgo in `fil` itself (the desktop shell is the one exception), no paywalled full text, no reference parsing, and no network in unit tests.
+
+## Citing Filiation
+
+If Filiation helps your research, please cite it. GitHub's **Cite this repository** button, on the right of the repository page, gives APA and BibTeX from [`CITATION.cff`](CITATION.cff).
 
 ## Why "Filiation"?
 
