@@ -64,7 +64,7 @@
 
 ### Use the app
 
-A desktop window for Windows, macOS and Linux, for people who would rather not use a terminal: your papers, search, the citation map, the Reader with highlights and notes, and connecting your AI assistant with one click.
+A desktop window for Windows, macOS and Linux, for people who would rather not use a terminal: your papers, search, the citation map, the Reader with highlights, notes and several papers open in tabs, and connecting your AI assistant with one click. On Windows it keeps itself up to date.
 
 The app arrives in the next release. Until then it builds from source: see [the desktop app](desktop/README.md).
 

@@ -56,3 +56,14 @@ jobs:
           $tag = "${{ github.ref_name }}"
           $setup = pwsh desktop/installer/build.ps1 -Version $tag.TrimStart('v') | Select-Object -Last 1
           gh release upload $tag $setup --clobber
+          # GoReleaser wrote checksums.txt before the installer existed. The
+          # app checks the installer against it before running it (D38), so
+          # its line is added, replacing any from an earlier run of this job.
+          $name = Split-Path $setup -Leaf
+          $hash = (Get-FileHash $setup -Algorithm SHA256).Hash.ToLower()
+          New-Item -ItemType Directory -Force sums | Out-Null
+          gh release download $tag -p checksums.txt -D sums --clobber
+          $lines = @(Get-Content sums/checksums.txt | Where-Object { $_ -and -not $_.EndsWith("  $name") })
+          $lines += "$hash  $name"
+          [IO.File]::WriteAllText("$PWD/sums/checksums.txt", ($lines -join "`n") + "`n")
+          gh release upload $tag sums/checksums.txt --clobber

@@ -27,11 +27,32 @@ import (
 	"github.com/codevector-2003/filiation/internal/assistants"
 	"github.com/codevector-2003/filiation/internal/config"
 	"github.com/codevector-2003/filiation/internal/opener"
+	"github.com/codevector-2003/filiation/internal/sources/github"
 	"github.com/codevector-2003/filiation/internal/ui"
+	"github.com/codevector-2003/filiation/internal/update"
 )
 
 // version is set at release with -ldflags "-X main.version=…".
 var version = "dev"
+
+// updateAPI is where releases are asked for: GitHub, or for a test build
+// only, a stand-in set with -ldflags "-X main.updateAPI=…".
+var updateAPI = github.DefaultBase
+
+// installedBySetup says whether this copy can update itself: on Windows,
+// installed by Setup, whose uninstaller sits beside it. A copy built or
+// unpacked by hand is offered the download page instead (D38).
+func installedBySetup() bool {
+	if runtime.GOOS != "windows" {
+		return false
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		return false
+	}
+	_, err = os.Stat(filepath.Join(filepath.Dir(exe), "unins000.exe"))
+	return err == nil
+}
 
 func main() {
 	opts := ui.Options{OpenPath: opener.Open, Trash: opener.Trash, Version: version}
@@ -40,6 +61,13 @@ func main() {
 	}
 	if dir, err := config.DefaultCacheDir(); err == nil {
 		opts.CallLog = filepath.Join(dir, assistants.CallLogName)
+		opts.Updater = &update.Updater{
+			Current:    version,
+			Source:     &github.Client{Base: updateAPI, UserAgent: "Filiation/" + version},
+			Dir:        filepath.Join(dir, "updates"),
+			CanInstall: installedBySetup(),
+			Arch:       runtime.GOARCH,
+		}
 	}
 	var appCtx context.Context
 	opts.PickFiles = func() ([]string, error) {

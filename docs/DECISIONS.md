@@ -963,3 +963,39 @@ request's desktop build.
   shortcuts and the uninstall entry. The exe itself has no icon resource yet.
 - Windows first: a macOS `.dmg` and Linux AppImage and `.deb` follow, as does a first-run welcome
   in the app and a check for new versions.
+
+## D38 — The app updates itself on Windows, from GitHub releases
+
+Decided 24 Nov 2026, by the maintainer. Until now a new version meant downloading the installer
+from the website and running it. The app now asks for the latest release once a day, and on
+Windows installs it when asked.
+
+- **One request, to GitHub, and nothing in it.** `internal/sources/github` asks the releases API
+  for the latest release, with a `Filiation/<version>` User-Agent and nothing else: no email, no
+  library, no papers. The answer is the version, its date, its notes and its files.
+- **Once a day, and on request.** The page checks at start, and while it stays open once a day has
+  passed, and says nothing unless there is a newer version that was not skipped. Help, Check for
+  Updates… always answers. Help, Check for Updates Automatically turns the daily check off. About
+  says when it last ran and what it sends.
+- **A note, never a pop-up.** A newer version shows "Update to 0.4.4" in the title bar, where jobs
+  show. Its panel gives what is new, from GoReleaser's changelog without the commit hashes, and
+  Update and restart, Later, or Skip this version.
+- **Installed only when Setup installed the app.** `internal/update` downloads the release's
+  installer to `%LOCALAPPDATA%\filiation\updates`, checks its SHA-256 against the release's
+  `checksums.txt`, and deletes it rather than run it on a mismatch. The page saves its tabs, the
+  installer is started with `/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS
+  /relaunch=yes`, and the app quits. Setup replaces it, per user and with no administrator prompt
+  (D37), and its new `[Run]` line opens the new version only when `/relaunch=yes` was passed, so
+  Setup run by hand is unchanged.
+- **Elsewhere, the download page.** A copy not installed by Setup (no `unins000.exe` beside it),
+  and the app on macOS and Linux, which have no installer yet, offer the release page instead. A
+  development build is never offered an update.
+- **The installer is in the checksums.** GoReleaser writes `checksums.txt` before the installer
+  is built, so the release workflow adds the installer's line afterwards and uploads the file again.
+  A release whose checksums do not list its installer, as before v0.4.4, is offered as a download,
+  never as an update that would fail its check.
+- **Trust rests on GitHub and the checksum.** The installer and its checksums come from the same
+  release, so the check catches a broken or partial download, not a compromised release; signing
+  the installer (D37) is what would add that.
+- **Every version before this one updates by hand once.** The feature exists only from the version
+  that ships it.

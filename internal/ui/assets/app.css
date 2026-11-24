@@ -903,3 +903,14 @@ body[data-platform="darwin"] .tb-menus { display: none; }
 .tab-all svg { width: 10px; height: 10px; fill: none; stroke: currentColor; stroke-width: 1.4; }
 .chip.open-tab { background: var(--selected); color: var(--accent); }
 .pop-item.on { font-weight: 600; }
+
+/* Updating the app (D38): the title bar's note, and its panel. */
+.tb-update-chip { height: 24px; margin-right: 8px; display: flex; align-items: center; gap: 7px; padding: 0 11px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--ground); font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.tb-update-chip:hover { border-color: var(--accent); background: var(--selected); }
+.tb-update-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--accent); }
+.pop.upd-pop { width: 372px; gap: 12px; padding: 18px; line-height: 1.5; }
+.upd-title { margin: 0; font: 600 18px var(--serif); }
+.upd-notes { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 8px; background: var(--quote); }
+.upd-notes .link { align-self: flex-start; font-size: 12px; }
+.upd-actions { display: flex; align-items: center; gap: 8px; }
+.upd-actions .quiet { margin-left: auto; font-size: 12px; }
