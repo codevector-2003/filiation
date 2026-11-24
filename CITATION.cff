@@ -1,0 +1,31 @@
+cff-version: 1.2.0
+message: "If you use Filiation in your research, please cite it as below."
+type: software
+title: "Filiation: a citation graph and research library that runs on your own computer"
+abstract: >-
+  Filiation builds a research library from one paper. It follows the reference
+  lists through OpenAlex, records every citation as an edge, keeps the legal
+  open-access PDFs, extracts their text, and finds passages by keyword with
+  their page. It records the sentence in which each paper cites another, and
+  serves the library to AI assistants over the Model Context Protocol so that
+  their answers quote passages the researcher can check. It runs locally as a
+  desktop app and a command-line tool, with no account and no server.
+authors:
+  - given-names: Haren
+    family-names: Daishika
+    email: harend.23@cse.mrt.ac.lk
+    affiliation: "Department of Computer Science and Engineering, University of Moratuwa"
+repository-code: "https://github.com/codevector-2003/filiation"
+url: "https://codevector-2003.github.io/filiation/"
+license: Apache-2.0
+version: 0.4.4
+date-released: 2026-11-24
+keywords:
+  - citation graph
+  - literature review
+  - bibliometrics
+  - OpenAlex
+  - open access
+  - full-text search
+  - Model Context Protocol
+  - research software
