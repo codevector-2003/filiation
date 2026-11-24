@@ -211,7 +211,7 @@
   const showOS = (os) => {
     osNow = os;
     select(osTabs, osTabs.find((b) => b.dataset.os === os));
-    $('#os-cmd').textContent = cmds[os](window.filVersion || '0.4.1');
+    $('#os-cmd').textContent = cmds[os](window.filVersion);
     const dl = $('#os-download');
     dl.dataset.os = os;
     dl.textContent = 'Download fil for ' + { windows: 'Windows', macos: 'macOS', linux: 'Linux' }[os];

@@ -67,3 +67,16 @@ jobs:
           $lines += "$hash  $name"
           [IO.File]::WriteAllText("$PWD/sums/checksums.txt", ($lines -join "`n") + "`n")
           gh release upload $tag sums/checksums.txt --clobber
+
+  # The website names the newest release and links to its installer; publish
+  # it again now the release is complete (pages.yml).
+  website:
+    needs: windows-installer
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Deploy the website
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" --ref main

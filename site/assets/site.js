@@ -1,6 +1,7 @@
 // Shared by both pages: copy buttons, the phone menu, the star count, and
 // download links that point at the newest release for the visitor's system.
-// Every piece works without the network: links fall back to the releases page.
+// Every piece works without the network: links name the newest release the
+// page knows of.
 (() => {
   const REPO = 'codevector-2003/filiation';
   const RELEASES = 'https://github.com/' + REPO + '/releases/latest';
@@ -70,8 +71,24 @@
 
   // Download links: [data-download="app|cli"], optionally with
   // data-os="windows|macos|linux" to pin a system instead of the visitor's.
-  const fallback = () => document.querySelectorAll('[data-download]').forEach((a) => { a.href = RELEASES; });
-  fallback();
+  // They point straight at the files of the newest release known when the
+  // page was published, which the deploy writes in below (pages.yml), so
+  // they are right before GitHub answers, and when it never does (it allows
+  // 60 requests an hour from one address). GitHub's answer then replaces
+  // them with a newer release's, if there is one.
+  const KNOWN = '0.4.4';
+  const fileURL = (v, name) => 'https://github.com/' + REPO + '/releases/download/v' + v + '/' + name;
+  const known = {
+    cli: { windows: 'fil_' + KNOWN + '_windows_amd64.zip', macos: 'fil_' + KNOWN + '_darwin_arm64.tar.gz', linux: 'fil_' + KNOWN + '_linux_amd64.tar.gz' },
+    app: { windows: 'Filiation-Setup-' + KNOWN + '-windows-amd64.exe' },
+  };
+  const urls = (set) => Object.fromEntries(Object.entries(set).map(([k, name]) => [k, fileURL(KNOWN, name)]));
+  window.filAssets = { cli: urls(known.cli), app: urls(known.app) };
+  document.querySelectorAll('[data-download]').forEach((a) => {
+    a.href = window.filAssets[a.dataset.download][a.dataset.os || os] || RELEASES;
+  });
+  window.filVersion = KNOWN;
+  document.querySelectorAll('[data-version]').forEach((el) => { el.textContent = el.dataset.version.replace('{v}', KNOWN); });
   get('https://api.github.com/repos/' + REPO + '/releases/latest').then((rel) => {
     const version = String(rel.tag_name || '').replace(/^v/, '');
     const assets = rel.assets || [];

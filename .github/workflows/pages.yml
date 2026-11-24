@@ -1,6 +1,7 @@
-# Publishes the website in site/ to GitHub Pages. It runs only when a push to
-# main changes something under site/ (or this file), and can be run by hand
-# from the Actions tab. The site is plain files: nothing is built.
+# Publishes the website in site/ to GitHub Pages. It runs when a push to main
+# changes something under site/ (or this file), when a release is complete
+# (release.yml starts it), and by hand from the Actions tab. The site is plain
+# files: nothing is built, but the newest release's version is written in.
 #
 # Pages must be set to deploy from GitHub Actions: Settings › Pages › Source.
 name: pages
@@ -32,6 +33,23 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      # The pages name the newest release, and link straight to its files,
+      # before the visitor's browser asks GitHub. The release workflow runs
+      # this deploy again once a release is complete, so they never lag.
+      - name: Name the newest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName -q .tagName | sed 's/^v//')
+          if ! echo "$v" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Latest release '$v' is not a version; the pages keep what they have."
+            exit 0
+          fi
+          sed -i -E "s/const KNOWN = '[^']*'/const KNOWN = '$v'/" site/assets/site.js
+          sed -i -E "s/\"softwareVersion\":\"[^\"]*\"/\"softwareVersion\":\"$v\"/" site/index.html
+          sed -i -E "s#releases/download/v[0-9.]+/Filiation-Setup-[0-9.]+-windows-amd64\.exe#releases/download/v$v/Filiation-Setup-$v-windows-amd64.exe#g" site/index.html site/docs/install/index.html
+          grep -q "const KNOWN = '$v'" site/assets/site.js
+          echo "The pages name v$v."
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
