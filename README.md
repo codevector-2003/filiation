@@ -16,6 +16,7 @@
   <img src="https://img.shields.io/badge/platforms-Windows%20%C2%B7%20macOS%20%C2%B7%20Linux-64748b" alt="Windows, macOS, Linux">
   <img src="https://img.shields.io/badge/runs-on%20your%20machine-22c55e" alt="Runs on your machine">
   <a href="https://openalex.org"><img src="https://img.shields.io/badge/data-OpenAlex-f97316" alt="Data: OpenAlex"></a>
+  <a href="https://doi.org/10.5281/zenodo.24505907"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.24505907.svg" alt="DOI: 10.5281/zenodo.24505907"></a>
 </p>
 
 <p align="center">
@@ -138,7 +139,7 @@ Issues and pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) fi
 
 ## Citing Filiation
 
-If Filiation helps your research, please cite it. GitHub's **Cite this repository** button, on the right of the repository page, gives APA and BibTeX from [`CITATION.cff`](CITATION.cff).
+If Filiation helps your research, please cite it. GitHub's **Cite this repository** button, on the right of the repository page, gives APA and BibTeX from [`CITATION.cff`](CITATION.cff). Every release is archived on Zenodo: [10.5281/zenodo.24505907](https://doi.org/10.5281/zenodo.24505907) always names the newest, and each version has a DOI of its own.
 
 ## Why "Filiation"?
 
