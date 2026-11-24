@@ -28,7 +28,7 @@
   const cmds = $$('code[data-cmd]');
   cmds.forEach((c) => { c.dataset.template = c.textContent; });
   const fill = (v) => cmds.forEach((c) => { c.textContent = c.dataset.template.replace(/\{v\}/g, v); });
-  fill(window.filVersion || '0.4.2');
+  fill(window.filVersion);
   document.addEventListener('fil:version', (e) => {
     fill(e.detail);
     const os = $('[data-tabgroup="os"] [aria-selected="true"]');
