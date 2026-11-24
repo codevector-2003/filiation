@@ -119,7 +119,8 @@ in medicine, physics, computer science, the social sciences and the arts and
 humanities, each built a library, fetched its open-access PDFs, extracted
 their text and exported the graph without error, 20 of 20. Searching each
 paper's own title found it among the first five results in 211 of 219 papers
-with text, and searches over 38,730 passages took under a third of a second.
+with text, and each search over 38,730 passages, starting the program
+included, took 174 to 458 ms.
 The software has had public releases since September 2026, each with
 binaries for Windows, macOS and Linux, and since November 2026 a Windows
 installer for the desktop app, which keeps itself up to date.
