@@ -17,7 +17,7 @@ if (window.runtime && window.runtime.OnFileDrop) {
 }
 
 startTitleBar()
-  .then(() => loadLibrary())
+  .then(() => { startUpdates(); return loadLibrary(); })
   .then((ready) => {
     if (!ready) return undefined;
     pollJob();

@@ -35,7 +35,7 @@
 
   // Simple from the first minute.
   const simple = [
-    ['Install', 'One installer for Windows, no admin rights. Filiation asks where your library should live, and that is all the setup there is.', 'papers.webp', 'The Papers list'],
+    ['Install', 'One installer for Windows, no admin rights. Filiation asks where your library should live, and that is all the setup there is. After that it keeps itself up to date.', 'papers.webp', 'The Papers list'],
     ['Add a paper', 'Paste a DOI, an arXiv ID, a link or a title into the search box. Filiation records what it cites, and follows those references for you.', 'find.webp', 'Adding a paper from the title bar'],
     ['See the map', 'Every paper and every citation between them, on one screen. Bigger means cited by more of your papers.', 'whole.webp', 'The citation map of a library'],
     ['Search', 'Type a few keywords. The passages that match come back with their pages, lit on the PDF.', 'search.webp', 'Search with the PDF page lit'],
@@ -131,7 +131,7 @@
     ['papers.webp', 'Papers', 'Your library, one paper per row, with its PDF, labels and the paper open beside it.'],
     ['search.webp', 'Search', 'A few keywords, the passages that match them, and the PDF page lit.'],
     ['map.webp', 'Citation map', 'What a paper cites and what cites it, and which of them you have the PDF for.'],
-    ['reader.webp', 'Reader', 'Read and mark up; notes live in your library, so the PDF file stays as it was.'],
+    ['reader.webp', 'Reader', 'Read and mark up, with several papers open in tabs; notes live in your library, so the PDF file stays as it was.'],
     ['groups.webp', 'Groups', 'Topics found from the citations alone, offered as collections.'],
   ];
   const appTabs = $$('[data-tabs="app"] [data-tab]');

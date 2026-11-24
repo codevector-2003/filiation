@@ -77,10 +77,20 @@ Name: "{autodesktop}\Filiation"; Filename: "{app}\Filiation.exe"; IconFilename: 
 
 [Run]
 Filename: "{app}\Filiation.exe"; Description: "Open Filiation"; Flags: nowait postinstall skipifsilent
+; The app updating itself runs Setup silently with /relaunch=yes, and the new
+; version opens when it is done (D38). Run by hand, Setup is unchanged.
+Filename: "{app}\Filiation.exe"; Flags: nowait; Check: Relaunch
 
 [Code]
 const
   EnvKey = 'Environment';
+
+// Relaunch says whether to open the new version when Setup is done: only
+// when the app ran Setup silently to update itself.
+function Relaunch: Boolean;
+begin
+  Result := WizardSilent and (CompareText(ExpandConstant('{param:relaunch|no}'), 'yes') = 0);
+end;
 
 // onPath says whether dir is one of the entries of the user's PATH.
 function OnPath(Dir: string): Boolean;

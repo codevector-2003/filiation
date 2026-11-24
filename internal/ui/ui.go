@@ -17,6 +17,7 @@ import (
 	"github.com/codevector-2003/filiation/internal/library"
 	"github.com/codevector-2003/filiation/internal/model"
 	"github.com/codevector-2003/filiation/internal/opener"
+	"github.com/codevector-2003/filiation/internal/update"
 )
 
 //go:embed assets
@@ -55,6 +56,10 @@ type Options struct {
 
 	// Version is the app's version, for About.
 	Version string
+
+	// Updater checks for new versions of the app and installs them (D38).
+	// Nil leaves updates out: in tests, and in fil serving the screens.
+	Updater *update.Updater
 }
 
 type server struct {
@@ -94,6 +99,11 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("POST /api/notes/{note}", s.needLibrary(s.changeNote))
 	mux.HandleFunc("POST /api/notes/{note}/delete", s.needLibrary(s.deleteNote))
 	mux.HandleFunc("GET /api/papers/{id}/cited/{n}", s.needLibrary(s.citedOnPage))
+	mux.HandleFunc("GET /api/update", s.updateCheck)
+	mux.HandleFunc("POST /api/update/download", s.updateDownload)
+	mux.HandleFunc("GET /api/update/status", s.updateStatus)
+	mux.HandleFunc("POST /api/update/cancel", s.updateCancel)
+	mux.HandleFunc("POST /api/update/install", s.updateInstall)
 	mux.HandleFunc("GET /api/tabs", s.needLibrary(s.readerTabs))
 	mux.HandleFunc("POST /api/tabs", s.needLibrary(s.saveReaderTabs))
 	mux.HandleFunc("POST /api/collections", s.needLibrary(s.createCollection))

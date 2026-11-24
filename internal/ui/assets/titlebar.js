@@ -153,6 +153,7 @@ function ticked(id) {
     case 'view.sidebar': return !document.querySelector('.side').classList.contains('closed');
     case 'view.details': return !$('detail').classList.contains('closed');
     case 'view.mapFilters': return screen === 'map' && !$('mf-panel').hidden;
+    case 'help.autoUpdate': return autoUpdates();
   }
   return false;
 }
@@ -725,8 +726,9 @@ function about() {
   logo.setAttribute('class', 'about-logo');
   modal('Filiation', [logo,
     para('A citation graph and retrieval engine you run on your own computer. It follows the reference lists of the papers you give it, keeps the open-access PDFs, and lets you search everything you have read.'),
-    facts([['Version', bar.version || 'dev'], ['Library', ready() ? state.lib.folder || state.lib.name : 'None open'], ['Licence', 'Apache-2.0'], ['Data', 'OpenAlex, CC0']]),
-  ], [{ label: 'Close', primary: true }]);
+    facts([['Version', bar.version || 'dev'], ['Library', ready() ? state.lib.folder || state.lib.name : 'None open'], ['Licence', 'Apache-2.0'], ['Data', 'OpenAlex, CC0'], ['Updates', aboutUpdates()]]),
+    el('p', 'muted', 'An update check asks GitHub for the latest version number and nothing else: no library, no papers, nothing about you.'),
+  ], [{ label: 'Check for Updates', run: () => { setTimeout(() => checkUpdates(true)); } }, { label: 'Close', primary: true }]);
 }
 
 // Edit menu: the text commands act on the text box or selection, as the
@@ -1107,6 +1109,8 @@ async function run(id) {
       case 'help.issue': return openOutside(ISSUES);
       case 'help.licence': return openOutside(LICENCE);
       case 'help.about': return about();
+      case 'help.update': return checkUpdates(true);
+      case 'help.autoUpdate': return toggleAutoUpdates();
     }
   } catch (e) {
     tell(e.message);
