@@ -78,8 +78,10 @@
   // them with a newer release's, if there is one.
   const KNOWN = '0.4.4';
   const fileURL = (v, name) => 'https://github.com/' + REPO + '/releases/download/v' + v + '/' + name;
+  // No Mac archive here: a browser cannot tell an Intel Mac from an Apple
+  // silicon one, so Mac visitors get the releases page and choose there.
   const known = {
-    cli: { windows: 'fil_' + KNOWN + '_windows_amd64.zip', macos: 'fil_' + KNOWN + '_darwin_arm64.tar.gz', linux: 'fil_' + KNOWN + '_linux_amd64.tar.gz' },
+    cli: { windows: 'fil_' + KNOWN + '_windows_amd64.zip', linux: 'fil_' + KNOWN + '_linux_amd64.tar.gz' },
     app: { windows: 'Filiation-Setup-' + KNOWN + '-windows-amd64.exe' },
   };
   const urls = (set) => Object.fromEntries(Object.entries(set).map(([k, name]) => [k, fileURL(KNOWN, name)]));
