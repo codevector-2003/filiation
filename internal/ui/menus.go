@@ -99,6 +99,13 @@ var Menus = []Menu{
 		{ID: "go.back", Label: "Back", Keys: "optionoralt+left"},
 		{ID: "go.forward", Label: "Forward", Keys: "optionoralt+right"},
 		sep,
+		// Ctrl+Tab on every system, as browsers have it: on a Mac Cmd+Tab
+		// is the system's own app switcher.
+		{ID: "tab.next", Label: "Next Tab", Keys: "ctrl+tab"},
+		{ID: "tab.previous", Label: "Previous Tab", Keys: "ctrl+shift+tab"},
+		{ID: "tab.close", Label: "Close Tab", Keys: "cmdorctrl+w"},
+		{ID: "tab.reopen", Label: "Reopen Closed Tab", Keys: "cmdorctrl+shift+t"},
+		sep,
 		{ID: "go.paper", Label: "Go to Paper…", Keys: "cmdorctrl+p"},
 		{ID: "go.path", Label: "Path Between Papers…"},
 	}},

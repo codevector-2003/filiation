@@ -57,6 +57,7 @@ function show(name, arg) {
   document.querySelector('.side').hidden = name === 'reader'; // the page needs the room
   if (screens[name]) screens[name](arg);
   markPlace();
+  tabsShown(name);
 }
 
 async function loadLibrary() {
@@ -336,6 +337,7 @@ function chips(p) {
   else if (p.seed) out.push(el('span', 'chip', 'Added by you'));
   if (p.zotero === 'unmatched') out.push(el('span', 'chip warn', 'Not matched'));
   if (p.pdf) out.push(el('span', 'chip pdf', 'PDF'));
+  if (tabOf(p.id)) out.push(el('span', 'chip open-tab', 'Open in a tab'));
   if (p.mismatch) out.push(el('span', 'chip warn', 'Another edition?'));
   if (p.text) out.push(el('span', p.searchable ? 'chip text' : 'chip', p.text));
   if (p.sentences > 0) out.push(el('span', 'chip', p.sentences === 1 ? '1 sentence' : p.sentences + ' sentences'));
@@ -478,7 +480,7 @@ function renderPaper(p) {
     }
   });
   const actions = el('div', 'actions');
-  if (p.pdf) actions.append(button('Read', 'btn primary', () => openReader(p.id, 1, [])));
+  if (p.pdf) actions.append(tabOf(p.id) ? button('Go to tab', 'btn', () => openReader(p.id)) : button('Read', 'btn primary', () => openReader(p.id)));
   if (p.pdf) actions.append(act('Open PDF', false, '/open'));
   if (!p.pdf && !p.local) {
     const get = button('Download PDF', p.downloadable ? 'btn primary' : 'btn', () => downloadPDFs([p.id]));

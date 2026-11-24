@@ -573,7 +573,7 @@ function menu(x, y, label, items) {
   const buttons = [];
   const parts = items.map((it) => {
     if (it === '-') return el('div', 'pop-line');
-    const b = button(it.label, it.danger ? 'pop-item danger' : 'pop-item', () => {
+    const b = button(it.label, 'pop-item' + (it.danger ? ' danger' : '') + (it.on ? ' on' : ''), () => {
       const at = b.getBoundingClientRect();
       closePop();
       it.run(at);

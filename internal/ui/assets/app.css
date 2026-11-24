@@ -558,8 +558,6 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
 /* The Reader */
 #screen-reader { flex-direction: column; }
 .reader-bar { flex: none; min-height: 52px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 16px; border-bottom: 1px solid var(--line); background: var(--panel); }
-.reader-back { height: 34px; padding: 0 12px; border: 0; border-radius: 6px; background: transparent; }
-.reader-back:hover { background: var(--quote); }
 .reader-title { max-width: 260px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--muted); }
 .sep { width: 1px; height: 24px; background: var(--line); }
 .tools { display: flex; gap: 2px; padding: 3px; border-radius: 8px; background: var(--side); }
@@ -879,3 +877,29 @@ body[data-platform="darwin"] .tb-menus { display: none; }
 .mf-group .key { flex: none; }
 .mf-group-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mf-note { font-size: 12px; line-height: 1.45; }
+
+/* Reader tabs: the Library tab, then one tab for each paper open. */
+.tabstrip { flex: none; height: 34px; display: flex; align-items: flex-end; gap: 2px; padding: 0 8px; background: #E1DFD9; border-bottom: 1px solid var(--line); overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+.tabstrip::-webkit-scrollbar { display: none; }
+.tab { position: relative; flex: none; height: 29px; display: flex; align-items: center; border: 1px solid transparent; border-bottom: 0; border-radius: 7px 7px 0 0; background: transparent; color: var(--ink-2); }
+.tab:hover:not(.on) { background: #D8D6CF; }
+.tab.on { height: 30px; margin-bottom: -1px; border-color: var(--line); background: var(--panel); color: var(--ink); font-weight: 600; }
+.tab.lib { gap: 8px; padding: 0 14px 0 11px; }
+.tab.lib.on { background: var(--side); }
+.tab.lib svg, .tab-go svg { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; }
+.tab.paper { flex: 0 1 200px; min-width: 96px; }
+.tab.paper.dragging { opacity: 0.6; }
+.tab-go { flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; gap: 7px; padding: 0 0 0 11px; border: 0; background: transparent; color: inherit; font-weight: inherit; text-align: left; }
+.tab-go svg { color: var(--muted); }
+.tab.on .tab-go svg { color: var(--accent); }
+.tab-t { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.tab-pg { flex: none; font-size: 11px; font-weight: 400; color: var(--muted); }
+.tab-x { flex: none; width: 20px; height: 20px; margin: 0 5px 0 3px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--muted); display: grid; place-items: center; }
+.tab-x svg { width: 8px; height: 8px; stroke: currentColor; stroke-width: 1.6; }
+.tab-x:hover { background: var(--line-2); color: var(--ink); }
+.tab.paper:not(.on):not(:hover):not(:focus-within) .tab-x { visibility: hidden; }
+.tab-all { position: sticky; right: 0; margin-left: auto; align-self: center; flex: none; height: 26px; display: flex; align-items: center; gap: 6px; padding: 0 9px; border: 0; border-radius: 6px; background: #E1DFD9; color: var(--muted); font-size: 12px; }
+.tab-all:hover { background: #D8D6CF; color: var(--ink); }
+.tab-all svg { width: 10px; height: 10px; fill: none; stroke: currentColor; stroke-width: 1.4; }
+.chip.open-tab { background: var(--selected); color: var(--accent); }
+.pop-item.on { font-weight: 600; }

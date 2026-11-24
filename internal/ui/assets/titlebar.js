@@ -47,7 +47,7 @@ function keyText(keys) {
   if (!keys) return '';
   const parts = keys.split('+');
   const key = parts.pop();
-  const name = { left: mac() ? '←' : 'Left', right: mac() ? '→' : 'Right', '=': mac() ? '=' : '=' }[key] || key.toUpperCase();
+  const name = { left: mac() ? '←' : 'Left', right: mac() ? '→' : 'Right', '=': mac() ? '=' : '=', tab: mac() ? '⇥' : 'Tab' }[key] || key.toUpperCase();
   if (mac()) {
     const sym = { cmdorctrl: '⌘', shift: '⇧', optionoralt: '⌥', ctrl: '⌃' };
     return parts.map((p) => sym[p]).join('') + name;
@@ -72,7 +72,8 @@ function keyOf(e) {
 }
 
 function sortedKeys(keys) {
-  const parts = keys.split('+');
+  // Off a Mac, Ctrl is the command key, and keyOf names it so.
+  const parts = keys.split('+').map((p) => (p === 'ctrl' && !mac() ? 'cmdorctrl' : p));
   const key = parts.pop();
   const order = ['cmdorctrl', 'ctrl', 'optionoralt', 'shift'];
   return [...order.filter((o) => parts.includes(o)), key].join('+');
@@ -120,6 +121,9 @@ function enabled(id) {
     case 'job.stop': return running();
     case 'go.back': return bar.history.length > 0;
     case 'go.forward': return bar.ahead.length > 0;
+    case 'tab.next': case 'tab.previous': return ready() && tabs.list.length > 0;
+    case 'tab.close': return ready() && !!tabs.active;
+    case 'tab.reopen': return ready() && tabs.closed.length > 0;
     case 'go.path': case 'paper.map': case 'paper.favourite': case 'paper.collect': case 'paper.label':
     case 'paper.cite': case 'paper.copyId':
       return !!p;
@@ -345,8 +349,13 @@ async function pickFolder(title) {
 // only once the person agrees. The page then starts again, so nothing of the
 // last library's screens is left on show.
 async function switchLibrary(path, body, name) {
+  // This library's tabs are kept first, and none are saved after: a save that
+  // arrived once the switch was made would land in the next library.
+  await flushTabs();
+  tabs.frozen = true;
   const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   const answer = await r.json().catch(() => ({}));
+  if (!r.ok) tabs.frozen = false;
   if (r.status === 409 && answer.job) {
     const what = $('job-title').textContent || 'Something';
     const done = answer.job.total > 0 ? ' (' + answer.job.done + ' of ' + answer.job.total + ')' : '';
@@ -792,8 +801,8 @@ show = function (name, arg) {
 };
 
 function walk(back) {
-  if (onScreen() === 'reader') {
-    $('reader-back').click();
+  if (onScreen() === 'reader') { // back from a paper is the Library tab
+    if (back) goLibrary();
     return;
   }
   const from = back ? bar.history : bar.ahead;
@@ -1032,7 +1041,9 @@ async function run(id) {
         show('inbox');
         return document.querySelector('.zotero-entry')?.click();
       case 'export.graphml': return $('map-export').click();
-      case 'app.quit': return window.runtime ? window.runtime.Quit() : window.close();
+      case 'app.quit':
+        await flushTabs();
+        return window.runtime ? window.runtime.Quit() : window.close();
       case 'edit.undo': case 'edit.redo': case 'edit.cut': case 'edit.copy': case 'edit.paste': case 'edit.selectAll':
         return await editCommand(id);
       case 'paper.cite': return await copy(p.citation || p.title, 'Citation copied');
@@ -1075,7 +1086,11 @@ async function run(id) {
       case 'go.path':
         show('map', p.id);
         return setTimeout(() => document.querySelector('.path-form input')?.focus(), 300);
-      case 'paper.read': return openReader(p.id, 1, []);
+      case 'paper.read': return openReader(p.id);
+      case 'tab.next': return nextTab(1);
+      case 'tab.previous': return nextTab(-1);
+      case 'tab.close': return closeTab(tabs.active);
+      case 'tab.reopen': return reopenTab();
       case 'paper.open': return await api('/api/papers/' + encodeURIComponent(p.id) + '/open', 'POST');
       case 'paper.download': return downloadPDFs(state.picked.size > 1 ? pickedIDs() : [p.id]);
       case 'paper.around': return aroundDialog(p);
@@ -1180,7 +1195,10 @@ async function windowButtons() {
   };
   $('tb-min').addEventListener('click', () => window.runtime.WindowMinimise());
   $('tb-max').addEventListener('click', () => window.runtime.WindowToggleMaximise());
-  $('tb-close').addEventListener('click', () => window.runtime.Quit());
+  $('tb-close').addEventListener('click', async () => {
+    await flushTabs();
+    window.runtime.Quit();
+  });
   // A double click on the bar itself maximises, as on any window's title bar.
   $('titlebar').addEventListener('dblclick', (e) => {
     if (e.target.closest('button')) return;

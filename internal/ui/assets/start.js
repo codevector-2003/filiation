@@ -21,6 +21,7 @@ startTitleBar()
   .then((ready) => {
     if (!ready) return undefined;
     pollJob();
+    restoreTabs();
     return loadPapers();
   })
   .catch((e) => { $('rows').replaceChildren(el('div', 'note error', e.message)); });
