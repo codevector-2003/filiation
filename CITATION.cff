@@ -18,7 +18,7 @@ authors:
 repository-code: "https://github.com/codevector-2003/filiation"
 url: "https://codevector-2003.github.io/filiation/"
 license: Apache-2.0
-version: 0.4.4
+version: 0.4.5
 date-released: 2026-11-24
 keywords:
   - citation graph
