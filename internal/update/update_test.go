@@ -168,6 +168,31 @@ func TestADownloadThatDoesNotMatchIsNeverRun(t *testing.T) {
 	}
 }
 
+// Before v0.4.4 the installer was attached after GoReleaser wrote
+// checksums.txt, so the checksums did not list it. Such a release is offered
+// as a download, never as an update that would fail its check.
+func TestAReleaseWhoseChecksumsOmitTheInstaller(t *testing.T) {
+	var srv *httptest.Server
+	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repos/codevector-2003/filiation/releases/latest":
+			fmt.Fprintf(w, `{"tag_name":"v0.4.4","assets":[{"name":"checksums.txt","browser_download_url":"%[1]s/sums","size":1},
+{"name":"Filiation-Setup-0.4.4-windows-amd64.exe","browser_download_url":"%[1]s/setup","size":5}]}`, srv.URL)
+		case "/sums":
+			fmt.Fprintf(w, "%s  fil_0.4.4_windows_amd64.zip\n", strings.Repeat("a", 64))
+		}
+	}))
+	t.Cleanup(srv.Close)
+	u := &Updater{Current: "0.4.3", Source: &github.Client{Base: srv.URL}, Dir: t.TempDir(), CanInstall: true}
+	info, err := u.Check(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !info.Newer || info.CanInstall {
+		t.Fatalf("checksums without the installer: %+v; want newer, offered as a download", info)
+	}
+}
+
 func TestOnlyASetupInstallUpdatesItself(t *testing.T) {
 	u := &Updater{Current: "0.4.3", Source: release(t, []byte("x"), strings.Repeat("0", 64)), Dir: t.TempDir()}
 	info, err := u.Check(t.Context())

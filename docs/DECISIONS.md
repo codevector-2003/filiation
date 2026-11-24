@@ -990,6 +990,10 @@ Windows installs it when asked.
 - **Elsewhere, the download page.** A copy not installed by Setup (no `unins000.exe` beside it),
   and the app on macOS and Linux, which have no installer yet, offer the release page instead. A
   development build is never offered an update.
+- **The installer is in the checksums.** GoReleaser writes `checksums.txt` before the installer
+  is built, so the release workflow adds the installer's line afterwards and uploads the file again.
+  A release whose checksums do not list its installer, as before v0.4.4, is offered as a download,
+  never as an update that would fail its check.
 - **Trust rests on GitHub and the checksum.** The installer and its checksums come from the same
   release, so the check catches a broken or partial download, not a compromised release; signing
   the installer (D37) is what would add that.

@@ -106,10 +106,17 @@ func (u *Updater) Check(ctx context.Context) (Info, error) {
 		Notes:     notes(r.Notes),
 		Page:      r.Page,
 	}
-	if a, ok := r.Asset(u.installerName(r.Version)); ok && u.CanInstall {
-		if _, ok := r.Asset("checksums.txt"); ok {
-			info.CanInstall = true
-			info.Size = a.Size
+	// Offered only when the installer can be checked: a release whose
+	// checksums do not list it, as before v0.4.4, gets the download page
+	// rather than an update that is bound to fail.
+	if a, ok := r.Asset(u.installerName(r.Version)); ok && u.CanInstall && info.Newer {
+		if sums, ok := r.Asset("checksums.txt"); ok {
+			if list, err := u.Source.Text(ctx, sums); err == nil {
+				if _, listed := checksum(list, a.Name); listed {
+					info.CanInstall = true
+					info.Size = a.Size
+				}
+			}
 		}
 	}
 	return info, nil
