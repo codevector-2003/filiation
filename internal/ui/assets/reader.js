@@ -132,6 +132,7 @@ async function showPage(n) {
   if (!reader.doc) return;
   const page = Math.min(reader.pages, Math.max(1, n));
   reader.page = page;
+  tabPaged(reader.paper.id, page);
   const draw = ++reader.draw;
   hideMenu();
   $('reader-pg').value = page;
@@ -184,42 +185,77 @@ async function thumbImage(b, id) {
   b.querySelector('.thumb-sheet').replaceChildren(canvas);
 }
 
-// openReader opens a paper in the Reader, at a page and with words to light.
-async function openReader(id, page, words) {
-  reader.from = document.querySelector('.nav.on') ? document.querySelector('.nav.on').dataset.screen : 'papers';
-  reader.words = words || [];
-  reader.comment = null;
+// The Reader shows one paper at a time: the one in the tab in front. Each
+// paper's tab (tabs.js) keeps its document and where the reader was in it;
+// these put a tab on the page, and take it off again.
+
+// loadTab fetches a tab's paper, PDF and notes, then shows it if it is still
+// the tab in front.
+async function loadTab(t, fresh) {
   const opening = ++reader.opening;
-  $('reader-find').value = '';
-  show('reader');
+  reader.doc = null; // nothing is drawn from the last paper meanwhile
+  hideMenu();
+  $('reader-title').textContent = t.paper ? t.paper.title : '';
+  $('reader-of').textContent = '';
+  $('reader-thumbs').replaceChildren();
+  $('reader-side').replaceChildren();
   $('reader-page').replaceChildren(el('div', 'note', 'Opening…'));
   try {
-    const [paper, doc, notes] = await Promise.all([api('/api/papers/' + encodeURIComponent(id)), openDocument(id), api('/api/papers/' + encodeURIComponent(id) + '/notes')]);
-    if (opening !== reader.opening) { // another paper was opened meanwhile
+    const id = encodeURIComponent(t.id);
+    const [paper, doc, notes] = await Promise.all([api('/api/papers/' + id), openDocument(t.id), api('/api/papers/' + id + '/notes')]);
+    if (!tabOf(t.id)) { // closed meanwhile
       doc.destroy();
       return;
     }
-    if (reader.doc) reader.doc.destroy();
-    reader.paper = paper;
-    reader.doc = doc;
-    reader.pages = doc.numPages;
-    reader.notes = notes.notes;
-    $('reader-title').textContent = paper.title;
-    $('reader-of').textContent = 'of ' + doc.numPages;
-    drawThumbs(id);
-    renderSide();
-    await showPage(page || 1);
+    t.paper = paper;
+    t.doc = doc;
+    t.notes = notes.notes;
+    tabsLoaded();
+    if (opening === reader.opening && tabs.active === t.id) await presentTab(t, fresh);
   } catch (e) {
-    if (opening === reader.opening) $('reader-page').replaceChildren(el('div', 'note error', e.message));
+    if (opening === reader.opening && tabs.active === t.id) $('reader-page').replaceChildren(el('div', 'note error', e.message));
   }
 }
 
-screens.reader = () => {};
-
-function closeReader() {
+// presentTab puts a loaded tab on the page, where it was left. fresh means it
+// was opened at a page, a search's say, rather than returned to.
+async function presentTab(t, fresh) {
+  reader.paper = t.paper;
+  reader.doc = t.doc;
+  reader.pages = t.doc.numPages;
+  reader.notes = t.notes || [];
+  reader.scale = t.scale || 1.1;
+  reader.tab = t.side || 'notes';
+  reader.words = t.words || [];
+  reader.findText = t.find || '';
+  reader.comment = null;
   hideMenu();
-  show(reader.from);
+  $('reader-title').textContent = t.paper.title;
+  $('reader-of').textContent = 'of ' + reader.pages;
+  $('reader-zoom').textContent = Math.round(reader.scale * 100) + '%';
+  $('reader-find').value = t.find || '';
+  $('reader-found').textContent = t.found || '';
+  drawThumbs(t.id);
+  renderSide();
+  await showPage(t.page || 1);
+  if (!fresh && t.scroll && tabs.active === t.id && reader.paper === t.paper) $('reader-view').scrollTop = t.scroll;
 }
+
+// stashTab keeps where the reader is in the tab in front, before another
+// tab, or the Library, takes its place.
+function stashTab(t) {
+  if (!t || !reader.paper || reader.paper.id !== t.id || reader.doc !== t.doc) return;
+  t.page = reader.page;
+  t.scale = reader.scale;
+  t.side = reader.tab;
+  t.words = reader.words;
+  t.notes = reader.notes;
+  t.find = $('reader-find').value.trim();
+  t.found = $('reader-found').textContent;
+  t.scroll = $('reader-view').scrollTop;
+}
+
+screens.reader = () => {};
 
 // The selection menu.
 function hideMenu() {
@@ -390,14 +426,15 @@ async function renderCited() {
       box.replaceChildren(el('div', 'note', 'No citation was found on this page.'));
       return;
     }
+    // One with a PDF opens in a tab beside this one, so the two can be read
+    // back and forth; one without is shown in the Papers list.
+    const go = (c) => (c.pdf ? openReader(c.id) : openInPapers(c.id));
     box.replaceChildren(...res.cited.map((c) => {
       const card = el('div', 'note-card');
-      card.append(button(c.title, 'link', () => {
-        closeReader();
-        openInPapers(c.id);
-      }));
+      card.append(button(c.title, 'link', () => go(c)));
       if (c.by) card.append(el('span', 'muted', c.by));
       card.append(el('p', 'note-quote', c.sentence));
+      card.append(button(!c.pdf ? 'No PDF · show it in Papers' : tabOf(c.id) ? 'Go to its tab' : 'Open in a new tab', 'link quiet', () => go(c)));
       return card;
     }));
   } catch (e) {
@@ -433,7 +470,6 @@ async function findInPaper(words) {
   else document.querySelectorAll('#reader-page .hit').forEach((h) => h.remove());
 }
 
-$('reader-back').addEventListener('click', closeReader);
 $('reader-prev').addEventListener('click', () => showPage(reader.page - 1));
 $('reader-next').addEventListener('click', () => showPage(reader.page + 1));
 $('reader-pg').addEventListener('change', (e) => showPage(Number(e.target.value) || reader.page));
@@ -472,6 +508,7 @@ document.querySelectorAll('[data-side]').forEach((b) => {
   b.addEventListener('click', () => {
     reader.tab = b.dataset.side;
     renderSide();
+    saveTabsSoon();
   });
 });
 
@@ -515,7 +552,7 @@ $('sel-comment').addEventListener('click', () => {
 $('sel-search').addEventListener('click', () => {
   if (!reader.selection) return;
   const text = reader.selection.text;
-  closeReader();
+  hideMenu();
   show('search');
   $('only-paper').checked = false; // the whole library, whatever it was opened from
   $('q').value = text;

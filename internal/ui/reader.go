@@ -184,12 +184,18 @@ func (s *server) citedOnPage(w http.ResponseWriter, r *http.Request) {
 		Title    string `json:"title"`
 		By       string `json:"by"`
 		Sentence string `json:"sentence"`
+		PDF      bool   `json:"pdf"` // it can be opened in a tab of its own
 	}
 	out := []citedJSON{}
 	for _, wk := range hood.Cites {
 		for _, m := range contexts[wk.FilID] {
 			if m.Page == n {
-				out = append(out, citedJSON{wk.FilID, wk.DisplayTitle(), workBy(wk), m.Sentence})
+				pdf, err := s.Library.HasPDF(r.Context(), wk.FilID)
+				if err != nil {
+					fail(w, http.StatusInternalServerError, err)
+					return
+				}
+				out = append(out, citedJSON{wk.FilID, wk.DisplayTitle(), workBy(wk), m.Sentence, pdf})
 				break
 			}
 		}

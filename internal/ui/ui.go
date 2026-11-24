@@ -94,6 +94,8 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("POST /api/notes/{note}", s.needLibrary(s.changeNote))
 	mux.HandleFunc("POST /api/notes/{note}/delete", s.needLibrary(s.deleteNote))
 	mux.HandleFunc("GET /api/papers/{id}/cited/{n}", s.needLibrary(s.citedOnPage))
+	mux.HandleFunc("GET /api/tabs", s.needLibrary(s.readerTabs))
+	mux.HandleFunc("POST /api/tabs", s.needLibrary(s.saveReaderTabs))
 	mux.HandleFunc("POST /api/collections", s.needLibrary(s.createCollection))
 	mux.HandleFunc("POST /api/collections/{id}/rename", s.needLibrary(s.renameCollection))
 	mux.HandleFunc("POST /api/collections/{id}/move", s.needLibrary(s.moveCollection))
