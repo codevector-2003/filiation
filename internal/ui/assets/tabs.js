@@ -406,6 +406,9 @@ async function restoreTabs() {
       renderTabs();
     }).catch(() => {});
   });
+  // The Library tab in front shows the screen it was left on, as its label
+  // says; the app opens on Papers.
   const front = tabOf(kept.active);
   if (front) activateTab(front, false);
+  else if (tabs.screen !== onScreen()) show(tabs.screen);
 }
